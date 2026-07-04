@@ -464,8 +464,8 @@ Creature.prototype.moveTo = function (position, speed) {
     this.__movementEvent.cancel();
   }
 
-  // Calculate the speed. This is doubled when moving diagonally (effectively 2 squares)
-  let modSlowness = (this.getPosition().isDiagonal(position) ? 2 : 1) * speed;
+  // Keep diagonal walking cadence consistent with cardinal walking.
+  let modSlowness = speed;
 
   // Add the movement event
   this.__movementEvent = gameClient.eventQueue.addEvent(this.unlockMovement.bind(this), modSlowness);

@@ -4,3 +4,4 @@ node_modules
 *.log
 *.db
 packets.wal
+game.sock

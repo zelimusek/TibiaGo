@@ -19,6 +19,7 @@ Slot.prototype.setElement = function (element) {
 
   this.element = element;
   this.canvas = new Canvas(element.firstElementChild, 32, 32);
+  this.countElement = element.querySelector(".count");
 
   // Add tooltip listeners
   element.addEventListener("mouseover", function () {
@@ -124,7 +125,7 @@ Slot.prototype.render = function () {
   this.canvas.drawSprite(this.item, new Position(0, 0), 32);
 
   // If the item is stackable we should update the count as well
-  if (this.item.isStackable()) {
+  if (this.item.isStackable() && this.item.getCount() > 1) {
     this.setCountString(this.item.getCount());
   }
 
@@ -137,7 +138,9 @@ Slot.prototype.setCountString = function (count) {
    * Sets the count DOM element to the passed value
    */
 
-  this.element.lastChild.innerHTML = count;
+  if (this.countElement !== null) {
+    this.countElement.innerHTML = count || "";
+  }
 
 }
 

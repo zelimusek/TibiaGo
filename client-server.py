@@ -1,4 +1,5 @@
 import http.server, ssl
+import os
 import sys
 import urllib.request
 import urllib.error
@@ -84,7 +85,7 @@ if __name__ == "__main__":
 
   # Address where the resources are hosted
   ADDRESS = ("0.0.0.0", 8000)
-  LOGIN_SERVER = "http://localhost:1337"
+  LOGIN_SERVER = os.environ.get("LOGIN_SERVER", "http://localhost:1337")
 
   # Parse input
   if len(sys.argv) == 1:

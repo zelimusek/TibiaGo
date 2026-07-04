@@ -722,8 +722,12 @@ PacketHandler.prototype.handlePlayerMove = function (position) {
 
   let tile = this.getTileUppie(position);
 
-  // Step duration
+  // Step duration. Diagonal movement covers two axes, so use sqrt(2)
+  // instead of 2x to keep travel speed consistent without making it sluggish.
   let duration = gameClient.player.getStepDuration(tile);
+  if (gameClient.player.getPosition().isDiagonal(position)) {
+    duration = Math.ceil(duration * Math.SQRT2);
+  }
 
   return gameClient.world.handleCreatureMove(gameClient.player.id, position, duration);
 

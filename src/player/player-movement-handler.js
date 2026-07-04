@@ -56,6 +56,10 @@ PlayerMovementHandler.prototype.handleMovement = function (direction) {
       ? 10
       : this.__player.getStepDuration(tile.getFriction());
 
+  if (this.__player.getPosition().isDiagonal(position)) {
+    stepDuration = Math.ceil(stepDuration * Math.SQRT2);
+  }
+
   // Lock movement action
   this.__moveLock.lock(stepDuration);
 

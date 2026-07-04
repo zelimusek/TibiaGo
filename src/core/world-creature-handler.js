@@ -464,7 +464,8 @@ CreatureHandler.prototype.updateCreaturePosition = function (creature, position)
   this.handleChunkChange(creature, oldChunk, newChunk);
 
   // Unset the old tile and chunk
-  let oldTile = gameServer.world.getTileFromWorldPosition(creature.position);
+  let oldPosition = creature.position;
+  let oldTile = gameServer.world.getTileFromWorldPosition(oldPosition);
   oldTile.removeCreature(creature);
   oldChunk.removeCreature(creature);
 
@@ -533,7 +534,8 @@ CreatureHandler.prototype.teleportCreature = function (creature, position) {
    */
 
   let tile = gameServer.world.getTileFromWorldPosition(position);
-  let oldTile = gameServer.world.getTileFromWorldPosition(creature.position);
+  let oldPosition = creature.position;
+  let oldTile = gameServer.world.getTileFromWorldPosition(oldPosition);
 
   // Not possible
   if (tile === null) {
@@ -635,7 +637,8 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
     }
   }
 
-  let oldTile = gameServer.world.getTileFromWorldPosition(creature.position);
+  let oldPosition = creature.position;
+  let oldTile = gameServer.world.getTileFromWorldPosition(oldPosition);
 
   // Set the creature position
   this.updateCreaturePosition(creature, position);
@@ -645,6 +648,9 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
 
   // Step duration
   let stepDuration = creature.getStepDuration(tile.getFriction());
+  if (oldPosition.isDiagonal(position)) {
+    stepDuration = Math.ceil(stepDuration * Math.SQRT2);
+  }
 
   // Write packet to all spectators
   creature.broadcast(new CreatureMovePacket(creature.getId(), position, stepDuration));
