@@ -1,6 +1,8 @@
 *.swp
 .DS_Store
 node_modules
+.env.production
+data/pgdata/
 *.log
 *.db
 packets.wal

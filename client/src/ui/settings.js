@@ -161,14 +161,22 @@ Settings.prototype.__toggle = function (event) {
     case "enable-weather":
     case "enable-sound":
     case "show-performance":
+    case "enable-resolution":
       this.__state[event.target.id] = event.target.checked;
       if (event.target.id === "enable-sound") {
         gameClient.interface.soundManager.enableSound(event.target.checked);
       }
+      if (event.target.id === "enable-resolution" && gameClient && gameClient.interface) {
+        gameClient.interface.handleResize();
+      }
       break;
     case "fps-mode":
     case "mouse-control-mode":
+    case "resolution":
       this.__state[event.target.id] = event.target.value;
+      if (event.target.id === "resolution" && gameClient && gameClient.interface) {
+        gameClient.interface.handleResize();
+      }
       break;
     case "toggle-scale-gamewindow":
       this.__state[event.target.id] = event.target.checked;
@@ -241,7 +249,9 @@ Settings.prototype.__getCleanState = function () {
     "enable-weather": document.getElementById("enable-weather").checked,
     "show-performance": document.getElementById("show-performance").checked,
     "fps-mode": document.getElementById("fps-mode").value,
-    "mouse-control-mode": document.getElementById("mouse-control-mode").value
+    "mouse-control-mode": document.getElementById("mouse-control-mode").value,
+    "enable-resolution": document.getElementById("enable-resolution").checked,
+    "resolution": document.getElementById("resolution").value
   });
 
 }
@@ -263,13 +273,15 @@ Settings.prototype.__applyState = function (id) {
     case "enable-weather":
     case "enable-sound":
     case "show-performance":
-      element.checked = this.__state[id];
-      // Note: debugger activation is deferred until gameClient exists
+    case "enable-resolution":
+      element.checked = Boolean(this.__state[id]);
       break;
     case "fps-mode":
     case "mouse-control-mode":
-      element.value = this.__state[id];
-      // Note: FPS mode is applied after gameClient is fully initialized
+    case "resolution":
+      if (this.__state[id] !== undefined) {
+        element.value = this.__state[id];
+      }
       break;
     default:
       return;

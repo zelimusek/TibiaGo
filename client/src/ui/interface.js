@@ -788,41 +788,61 @@ Interface.prototype.getSpriteScalingVector = function () {
 Interface.prototype.addAvailableResolutions = function () {
   /*
    * Function Interface.addAvailableResolutions
-   * Adds the available resolutions to the option list
+   * Adds all available resolutions to the option list without restrictive viewport breaks
    */
 
   let selectElement = document.getElementById("resolution");
 
-  // List of available resolutions (only added when available)
+  // Complete list of available game resolutions (from 1x up to 4x Full HD)
   let resolutions = new Array(
-    { width: 800, height: 600 },
-    { width: 960, height: 720 },
-    { width: 1024, height: 768 },
-    { width: 1152, height: 864 }
+    { width: 480, height: 352, label: "1x Oryginalna" },
+    { width: 640, height: 480, label: "1.33x Klasyczna" },
+    { width: 720, height: 528, label: "1.5x" },
+    { width: 800, height: 600, label: "1.66x SVGA" },
+    { width: 960, height: 704, label: "2x Domyślna" },
+    { width: 1024, height: 768, label: "2.13x XGA" },
+    { width: 1152, height: 864, label: "2.4x XGA+" },
+    { width: 1280, height: 960, label: "2.66x SXGA" },
+    { width: 1440, height: 1056, label: "3x" },
+    { width: 1600, height: 1200, label: "3.33x UXGA" },
+    { width: 1920, height: 1080, label: "4x Full HD" }
   );
 
-  // Always add the default resolution
-  let nodes = new Array(
-    this.__createResolutionNode({ width: 480, height: 352 })
-  );
+  let nodes = new Array();
+  let bestIndex = 0;
 
-  for (let resolution of resolutions) {
-    let { width, height } = resolution;
+  let viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  let viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
-    // The static resolution should fit within the available screen
-    if (
-      window.visualViewport.width - 360 < width ||
-      window.visualViewport.height - 188 < height
-    ) {
-      break;
-    }
-
+  for (let i = 0; i < resolutions.length; i++) {
+    let resolution = resolutions[i];
     nodes.push(this.__createResolutionNode(resolution));
+
+    // Determine default best fitting resolution without cropping UI elements
+    if (viewportWidth - 340 >= resolution.width && viewportHeight - 160 >= resolution.height) {
+      bestIndex = i;
+    }
   }
 
-  // Set to the maximum available resolution
   selectElement.replaceChildren(...nodes);
-  selectElement.selectedIndex = selectElement.options.length - 1;
+
+  // Restore saved resolution from settings if it exists
+  try {
+    let savedSettings = localStorage.getItem("settings");
+    if (savedSettings) {
+      let parsed = JSON.parse(savedSettings);
+      if (parsed && parsed["resolution"]) {
+        for (let i = 0; i < selectElement.options.length; i++) {
+          if (selectElement.options[i].value == parsed["resolution"]) {
+            selectElement.selectedIndex = i;
+            return;
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  selectElement.selectedIndex = bestIndex;
 };
 
 Interface.prototype.getResolutionScale = function () {
@@ -929,15 +949,19 @@ Interface.prototype.sendLogout = function () {
   });
 };
 
-Interface.prototype.__createResolutionNode = function ({ width, height }) {
+Interface.prototype.__createResolutionNode = function ({ width, height, label }) {
   /*
    * Function Interface.__createResolutionNode
    * Creates a select option for a particular game screen resolution (width, height)
    */
 
-  // Only save the width as a value: we can calcualte the scale from it anyway
+  // Only save the width as a value: we can calculate the scale from it anyway
   let optionElement = document.createElement("option");
-  optionElement.text = "%s × %s".format(width, height);
+  if (label) {
+    optionElement.text = "%s × %s (%s)".format(width, height, label);
+  } else {
+    optionElement.text = "%s × %s".format(width, height);
+  }
   optionElement.value = width;
 
   return optionElement;
