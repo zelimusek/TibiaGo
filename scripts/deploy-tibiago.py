@@ -306,8 +306,14 @@ def main():
                 "(nohup node server-production.js >> logs/server.log 2>&1 & "
                 "echo $! > .server-production.pid)",
             )
-            time.sleep(2)
-            run_remote(client, f"curl -fsS --max-time 10 http://127.0.0.1:2436/health")
+            for attempt in range(10):
+                time.sleep(2)
+                try:
+                    run_remote(client, f"curl -fsS --max-time 10 http://127.0.0.1:2436/health")
+                    break
+                except RuntimeError:
+                    if attempt == 9:
+                        raise
             print("TibiaGo server started and passed its health check!")
 
     finally:
