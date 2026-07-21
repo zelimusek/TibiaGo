@@ -522,7 +522,7 @@ Interface.prototype.getAccountDetails = function () {
   });
 };
 
-Interface.prototype.enterGame = function () {
+Interface.prototype.enterGame = function (requestFullscreen) {
   /*
    * Function Interface.enterGame
    * Callback fired when the enter game button is clicked
@@ -531,6 +531,10 @@ Interface.prototype.enterGame = function () {
   // Block if the assets are not yet loaded
   if (!this.areAssetsLoaded()) {
     return alert("The Tibia.spr and Tibia.dat must be loaded first.");
+  }
+
+  if (requestFullscreen) {
+    this.requestFullScreen();
   }
 
   // Show the connecting message
@@ -697,18 +701,28 @@ Interface.prototype.requestFullScreen = function () {
    * Requests the game to go fullscreen in the browser
    */
 
-  // The body must go fullscreen
-  let element = document.body;
+  // The document root fills the entire application window.
+  let element = document.documentElement;
 
-  // Supports most browsers and their versions.
+  // Supports current browsers and older browser prefixes.
   let requestMethod =
+    element.requestFullscreen ||
     element.requestFullScreen ||
+    element.webkitRequestFullscreen ||
     element.webkitRequestFullScreen ||
     element.mozRequestFullScreen ||
     element.msRequestFullScreen;
 
-  if (requestMethod) {
-    return requestMethod.call(element);
+  if (requestMethod && !document.fullscreenElement) {
+    let request = requestMethod.call(element);
+
+    // Fullscreen can be rejected by a browser policy; the login itself should
+    // still continue normally in that case.
+    if (request && request.catch) {
+      return request.catch(function () { });
+    }
+
+    return request;
   }
 };
 

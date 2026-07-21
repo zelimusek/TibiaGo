@@ -306,6 +306,14 @@ Keyboard.prototype.__handleReturnKey = function () {
 
   // Enter when modal is opened: handle confirmation
   if (gameClient.interface.modalManager.isOpened()) {
+    let loginModal = document.getElementById("floater-enter");
+
+    // Enter on the login form starts the game and, because it is a direct
+    // keyboard gesture, can also switch the installed app to fullscreen.
+    if (loginModal && loginModal.style.display === "block") {
+      return gameClient.interface.enterGame(true);
+    }
+
     return gameClient.interface.modalManager.handleConfirm();
   }
 
