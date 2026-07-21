@@ -84,6 +84,8 @@ ChatResizer.prototype.__onMouseMove = function (event) {
 
     // Also force flex-basis to ensure it takes space
     this.lower.style.flex = "0 0 " + newHeight + "px";
+
+    this.__resizeGameScreen();
 }
 
 ChatResizer.prototype.__onMouseUp = function (event) {
@@ -97,12 +99,40 @@ ChatResizer.prototype.__onMouseUp = function (event) {
         document.body.style.cursor = "default";
         this.lower.classList.remove("resizing");
 
-        // Trigger renderer resize if available
-        if (window.gameClient && window.gameClient.renderer) {
-            // Assuming the renderer handles window resize automatically or needs a trigger
-            // window.gameClient.renderer.resize(); 
-            // Often resize is handled by window 'resize' event. We can trigger it artificially.
-            window.dispatchEvent(new Event('resize'));
-        }
+        this.__resizeGameScreen();
     }
+}
+
+ChatResizer.prototype.__resizeGameScreen = function () {
+    /*
+     * Function ChatResizer.__resizeGameScreen
+     * Scales the game canvas to fit the area remaining above the chat.
+     */
+
+    if (!window.gameClient || !gameClient.interface || !gameClient.renderer) {
+        return;
+    }
+
+    let gameArea = document.querySelector(".main .upper");
+    let canvas = gameClient.renderer.screen.canvas;
+    let wrapper = document.getElementById("canvas-id");
+
+    if (!gameArea || !canvas || !wrapper) {
+        return;
+    }
+
+    let scale = Math.min(
+        gameArea.clientWidth / canvas.width,
+        gameArea.clientHeight / canvas.height
+    );
+
+    // The screen may shrink below 1x while the chat is expanded.
+    scale = Math.max(0.5, scale);
+
+    gameClient.renderer.screen.setScale(scale);
+    gameClient.interface.setElementDimensions(
+        wrapper,
+        canvas.width * scale,
+        canvas.height * scale
+    );
 }

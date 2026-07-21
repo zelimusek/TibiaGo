@@ -723,66 +723,30 @@ Interface.prototype.isRaining = function () {
 Interface.prototype.getSpriteScaling = function () {
   /*
    * Function Canvas.getSpriteScaling
-   * Returns the sprite scaling: if the gamewindow is larger than default (480x352)
-   * Mobile uses actual displayed canvas size, desktop uses resolution scale
+   * Returns the sprite scaling of the displayed game canvas.
    */
 
-  // Check if we're in mobile mode
-  let isMobile = gameClient.touch && gameClient.touch.isMobileMode;
-
-  if (isMobile) {
-    // Return cached value if available
-    if (this.__cachedMobileScale !== null) {
-      return this.__cachedMobileScale;
-    }
-
-    // Mobile: use actual displayed canvas size vs internal size
-    let canvas = gameClient.renderer.screen.canvas;
-    let displayedWidth = canvas.getBoundingClientRect().width;
-    let internalWidth = canvas.width;
-    let scale = displayedWidth / internalWidth;
-
-    // Cache the result (32 * scale)
-    this.__cachedMobileScale = 32 * scale;
-    return this.__cachedMobileScale;
-  }
-
-  // Desktop: use the original resolution scale calculation
-  return 32 * this.getResolutionScale();
+  // Use the effective CSS size. The chat resizer can change the desktop canvas
+  // scale independently of the browser viewport.
+  let canvas = gameClient.renderer.screen.canvas;
+  let rect = canvas.getBoundingClientRect();
+  return 32 * (rect.width / canvas.width);
 };
 
 Interface.prototype.getSpriteScalingVector = function () {
   /*
    * Function Interface.getSpriteScalingVector
    * Returns the sprite scaling in X and Y directions
-   * Needed for mobile where the canvas might be stretched non-uniformly
+   * Uses the effective CSS dimensions, which may be changed by the chat resizer.
    */
 
-  // Check if we're in mobile mode
-  let isMobile = gameClient.touch && gameClient.touch.isMobileMode;
+  let canvas = gameClient.renderer.screen.canvas;
+  let rect = canvas.getBoundingClientRect();
 
-  if (isMobile) {
-    let canvas = gameClient.renderer.screen.canvas;
-    let rect = canvas.getBoundingClientRect();
-
-    // Calculate separate scales for Width and Height
-    // Mobile CSS stretches to 100% width/height, potentially changing aspect ratio
-    let scaleX = rect.width / canvas.width;
-    let scaleY = rect.height / canvas.height;
-
-    // Cache the result for stability if needed, but for now return raw
-    // Note: If we need caching, we should cache both values
-    // For now reusing the existing cache variable for the scalar (width) scale
-
-    return {
-      x: 32 * scaleX,
-      y: 32 * scaleY
-    };
-  }
-
-  // Desktop: uniform scaling
-  let scale = 32 * this.getResolutionScale();
-  return { x: scale, y: scale };
+  return {
+    x: 32 * (rect.width / canvas.width),
+    y: 32 * (rect.height / canvas.height)
+  };
 };
 
 Interface.prototype.addAvailableResolutions = function () {
