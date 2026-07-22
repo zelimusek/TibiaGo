@@ -519,8 +519,13 @@ Renderer.prototype.__renderTileObjects = function (tile) {
   for (let i = 0; i < itemsLength; i++) {
     let item = items[i];
 
-    // Immediately skip objects with on-top property: these are rendered later
+    // Objects with the on-top property are rendered later, but their height
+    // still has to affect creatures and following objects on this tile.
     if (item.hasFlag(PropBitFlag.prototype.flags.DatFlagOnTop)) {
+      if (item.isElevation()) {
+        tile.addElevation(item.getDataObject().properties.elevation);
+        elevation = tile.__renderElevation;
+      }
       continue;
     }
 
