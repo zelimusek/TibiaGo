@@ -427,10 +427,10 @@ Canvas.prototype.__drawCharacter = function (spriteBuffer, spriteBufferMount, ou
    * a color mask for each
    */
 
-  // We have to offset characters of size 64 by 16 pixels
-  if (characterGroup.width > 1 || characterGroup.height > 1) {
-    position = new Position(position.x - offset, position.y - offset);
-  }
+  // Characters in Tibia are visually anchored around the center of the tile,
+  // even when their DAT frame is technically 32x32. Apply the creature offset
+  // consistently so outfits do not stand on the lower-right edge of the SQM.
+  position = new Position(position.x - offset, position.y - offset);
 
   // Go over the width and height of the sprite
   for (let x = 0; x < characterGroup.width; x++) {
