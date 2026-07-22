@@ -4,13 +4,16 @@ const Corpse = requireModule("entities/corpse");
 const Monster = requireModule("monster/monster");
 const Player = requireModule("player/player");
 const Position = requireModule("utils/position");
+const fs = require("fs");
+const path = require("path");
 
 const {
   CreatureForgetPacket,
   CreatureTeleportPacket,
   CreatureMovePacket,
   EffectMagicPacket,
-  PlayerLoginPacket
+  PlayerLoginPacket,
+  RadioStreamPacket
 } = requireModule("network/protocol");
 
 const CreatureHandler = function () {
@@ -37,8 +40,84 @@ const CreatureHandler = function () {
   // Statistics
   this.__numberActiveMonsters = 0;
 
+  // Browser radio zones
+  this.__radioZones = this.__loadRadioZones();
+
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
+
+}
+
+CreatureHandler.prototype.__loadRadioZones = function () {
+
+  /*
+   * Function CreatureHandler.__loadRadioZones
+   * Loads browser radio zones for area-based music streams.
+   */
+
+  let filename = path.resolve(process.cwd(), "data", CONFIG.SERVER.CLIENT_VERSION.toString(), "radio-zones.json");
+
+  if (!fs.existsSync(filename)) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(filename, "utf8")).filter(function (zone) {
+      return zone && zone.id && zone.from && zone.to;
+    });
+  } catch (error) {
+    console.error("Could not load radio zones:", error.message);
+    return [];
+  }
+
+}
+
+CreatureHandler.prototype.__getRadioZone = function (position) {
+
+  /*
+   * Function CreatureHandler.__getRadioZone
+   * Returns the first radio zone containing a given position.
+   */
+
+  return this.__radioZones.find(function (zone) {
+    let minX = Math.min(zone.from.x, zone.to.x);
+    let maxX = Math.max(zone.from.x, zone.to.x);
+    let minY = Math.min(zone.from.y, zone.to.y);
+    let maxY = Math.max(zone.from.y, zone.to.y);
+
+    return position.z === zone.from.z &&
+      position.z === zone.to.z &&
+      position.x >= minX &&
+      position.x <= maxX &&
+      position.y >= minY &&
+      position.y <= maxY;
+  }) || null;
+
+}
+
+CreatureHandler.prototype.__syncRadioZone = function (player, oldPosition) {
+
+  /*
+   * Function CreatureHandler.__syncRadioZone
+   * Starts/stops radio playback when a player enters or leaves a radio zone.
+   */
+
+  if (!player.is("Player")) {
+    return;
+  }
+
+  let oldZone = oldPosition ? this.__getRadioZone(oldPosition) : null;
+  let newZone = this.__getRadioZone(player.position);
+
+  if (oldZone && newZone && oldZone.id === newZone.id) {
+    return;
+  }
+
+  if (newZone && newZone.enabled && newZone.url) {
+    return player.write(new RadioStreamPacket(true, newZone.url, newZone.volume));
+  }
+
+  return player.write(new RadioStreamPacket(false, "", 0));
 
 }
 
@@ -169,6 +248,7 @@ CreatureHandler.prototype.addPlayer = function (player, position) {
   this.__referencePlayer(player);
 
   player.broadcast(new EffectMagicPacket(player.position, CONST.EFFECT.MAGIC.TELEPORT));
+  this.__syncRadioZone(player, null);
 
   // Cooldowns
   player.spellbook.applyCooldowns();
@@ -487,6 +567,7 @@ CreatureHandler.prototype.updateCreaturePosition = function (creature, position)
 
   // Always check containers after moving
   creature.containerManager.checkContainers();
+  this.__syncRadioZone(creature, oldPosition);
 
 }
 

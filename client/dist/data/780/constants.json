@@ -84,7 +84,8 @@
       "CHANNEL_JOIN": 50,
       "FOOD_TIMER": 51,
       "QUEST_LOG": 52,
-      "QUEST_LINE": 53
+      "QUEST_LINE": 53,
+      "RADIO_STREAM": 54
     }
   },
   "DIRECTION": {

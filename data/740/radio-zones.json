@@ -1,0 +1,11 @@
+[
+  {
+    "id": "god-disco-house",
+    "name": "God Disco House",
+    "enabled": false,
+    "url": "",
+    "volume": 0.75,
+    "from": { "x": 32384, "y": 32205, "z": 7 },
+    "to": { "x": 32410, "y": 32235, "z": 7 }
+  }
+]

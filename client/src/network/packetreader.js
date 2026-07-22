@@ -187,6 +187,21 @@ PacketReader.prototype.readZoneInformation = function () {
 
 }
 
+PacketReader.prototype.readRadioStream = function () {
+
+  /*
+   * Function PacketReader.readRadioStream
+   * Reads a browser audio stream command from the server.
+   */
+
+  return new Object({
+    "enabled": this.readBoolean(),
+    "url": this.readString(),
+    "volume": this.readUInt8() / 100
+  });
+
+}
+
 PacketReader.prototype.readDefaultMessage = function () {
 
   /*

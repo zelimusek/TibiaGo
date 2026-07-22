@@ -938,6 +938,22 @@ const FoodTimerPacket = function (remainingSeconds) {
 FoodTimerPacket.prototype = Object.create(PacketWriter.prototype);
 FoodTimerPacket.prototype.constructor = FoodTimerPacket;
 
+const RadioStreamPacket = function (enabled, url, volume) {
+  /*
+   * Class RadioStreamPacket
+   * Starts or stops a browser radio stream on the client.
+   */
+
+  PacketWriter.call(this, CONST.PROTOCOL.SERVER.RADIO_STREAM, this.MAX_PACKET_SIZE);
+
+  this.writeBoolean(Boolean(enabled && url));
+  this.writeBuffer(this.encodeString(enabled ? url : ""));
+  this.writeUInt8(Math.max(0, Math.min(100, Math.round((volume || 1) * 100))));
+};
+
+RadioStreamPacket.prototype = Object.create(PacketWriter.prototype);
+RadioStreamPacket.prototype.constructor = RadioStreamPacket;
+
 const QuestLogPacket = function (quests) {
   /*
    * Class QuestLogPacket
@@ -1025,6 +1041,7 @@ module.exports = {
   ToggleConditionPacket,
   WorldTimePacket,
   FoodTimerPacket,
+  RadioStreamPacket,
   QuestLogPacket,
   QuestLinePacket
 };

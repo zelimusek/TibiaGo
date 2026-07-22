@@ -239,6 +239,10 @@ NetworkManager.prototype.readPacket = function (packet) {
       return this.packetHandler.handleQuestLine(packet.readQuestLine());
     }
 
+    case CONST.PROTOCOL.SERVER.RADIO_STREAM: {
+      return this.packetHandler.handleRadioStream(packet.readRadioStream());
+    }
+
     case 40: {
       return this.packetHandler.handleDeath();
     }

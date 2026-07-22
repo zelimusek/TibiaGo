@@ -540,6 +540,17 @@ PacketHandler.prototype.handleEnterZone = function (packet) {
 
 }
 
+PacketHandler.prototype.handleRadioStream = function (packet) {
+
+  /*
+   * Function PacketHandler.handleRadioStream
+   * Starts or stops a browser radio stream requested by the game server.
+   */
+
+  gameClient.interface.soundManager.setRadioStream(packet.enabled ? packet.url : "", packet.volume);
+
+}
+
 PacketHandler.prototype.handleLatency = function () {
 
   /*
