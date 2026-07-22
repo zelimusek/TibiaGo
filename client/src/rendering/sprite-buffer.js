@@ -40,6 +40,7 @@ const SpriteBuffer = function(size) {
 SpriteBuffer.prototype.SIGNATURES = new Object({
   "41B9EA86": 740,
   "439852BE": 760,
+  "44CE4206": 780,
   "57BBD603": 1098
 });
 
@@ -251,8 +252,9 @@ SpriteBuffer.prototype.__load = function(name, buffer) {
   // Set the version from the signature
   this.__version = this.SIGNATURES[signature];
 
-  // The total number of sprites is either 16-bit or 32-bit depending on the version
-  let spriteCount = (this.__version > 760) ? this.packet.readUInt32() : this.packet.readUInt16();
+  // The total number of sprites is either 16-bit or 32-bit depending on the
+  // client format. Tibia 7.8 still uses the old 16-bit count.
+  let spriteCount = (this.__version >= 960) ? this.packet.readUInt32() : this.packet.readUInt16();
 
   // Go over each sprite
   for(let i = 1; i < spriteCount; i++) {

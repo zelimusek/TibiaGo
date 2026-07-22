@@ -184,19 +184,21 @@ Database.prototype.storeFile = function (filename, data) {
    * Cached a file to indexDB and writes a notification to localStorage for quick loading
    */
 
+  let storageFilename = gameClient.ASSET_VERSION + "/" + filename;
+
   // Update local storage with the information
-  localStorage.setItem(filename, true);
+  localStorage.setItem(storageFilename, true);
 
   let fileStore = this.transaction("files", "readwrite");
 
   // Put the updated file
   let request = fileStore.put({
-    "filename": filename,
+    "filename": storageFilename,
     "data": data
   });
 
   request.onsuccess = function (event) {
-    console.debug("Cached file " + filename + " to indexDB.");
+    console.debug("Cached file " + storageFilename + " to indexDB.");
   }
 
 }
@@ -205,7 +207,7 @@ Database.prototype.loadConstants = async function () {
 
   // Add cache-busting timestamp to prevent browser caching
   let cacheBuster = Date.now();
-  let response = await fetch("/data/%s/constants.json?v=%s".format(gameClient.SERVER_VERSION, cacheBuster));
+  let response = await fetch("/data/%s/constants.json?v=%s".format(gameClient.ASSET_VERSION, cacheBuster));
 
   return await response.json();
 
@@ -223,7 +225,7 @@ Database.prototype.loadGameAssets = function () {
     window.CONST = constant;
 
     // Quickly check localstorage for state of assets
-    if (!localStorage.getItem("Tibia.spr") || !localStorage.getItem("Tibia.dat")) {
+    if (!localStorage.getItem(gameClient.ASSET_VERSION + "/Tibia.spr") || !localStorage.getItem(gameClient.ASSET_VERSION + "/Tibia.dat")) {
       return gameClient.networkManager.loadGameFilesServer();
     }
 
@@ -335,9 +337,9 @@ Database.prototype.__loadGameAssets = function () {
 
       // Delegate the data file to the appropriate handler
       switch (file.filename) {
-        case "Tibia.dat":
+        case gameClient.ASSET_VERSION + "/Tibia.dat":
           return gameClient.dataObjects.__load(file.filename, file.data);
-        case "Tibia.spr":
+        case gameClient.ASSET_VERSION + "/Tibia.spr":
           return gameClient.spriteBuffer.__load(file.filename, file.data);
         default:
           return;

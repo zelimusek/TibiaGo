@@ -366,7 +366,7 @@ NetworkManager.prototype.loadGameFilesServer = function () {
   let cacheBuster = Date.now();
 
   let promises = resources.map(function (filename) {
-    let url = "/data/%s/%s?v=%s".format(gameClient.SERVER_VERSION, filename, cacheBuster);
+    let url = "/data/%s/%s?v=%s".format(gameClient.ASSET_VERSION, filename, cacheBuster);
     return fetch(url, { cache: "no-store" }).then(this.fetchCallback);
   }, this);
 

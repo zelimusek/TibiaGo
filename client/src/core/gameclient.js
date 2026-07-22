@@ -17,6 +17,7 @@ const GameClient = function () {
    */
 
   this.SERVER_VERSION = "740";
+  this.ASSET_VERSION = this.__getAssetVersion();
   this.CLIENT_VERSION = "0.0.1"
 
   // These are the required gameclient resources: sprites and data files that need to be selected by the user
@@ -62,6 +63,21 @@ const GameClient = function () {
 
 }
 
+GameClient.prototype.__getAssetVersion = function () {
+
+  /*
+   * Function GameClient.__getAssetVersion
+   * Allows loading an experimental client asset pack without changing the
+   * server protocol/data version. Example: ?assets=780
+   */
+
+  let query = new URLSearchParams(window.location.search);
+  let requested = query.get("assets") || query.get("assetVersion");
+
+  return requested || this.SERVER_VERSION;
+
+}
+
 GameClient.prototype.setServerData = function (packet) {
 
   /*
@@ -72,7 +88,7 @@ GameClient.prototype.setServerData = function (packet) {
   let serverData = packet.readServerData();
 
   // The server suggested client version must match the local version
-  if (serverData.clientVersion !== this.spriteBuffer.getVersion() || serverData.clientVersion !== this.dataObjects.getVersion()) {
+  if (this.ASSET_VERSION === this.SERVER_VERSION && (serverData.clientVersion !== this.spriteBuffer.getVersion() || serverData.clientVersion !== this.dataObjects.getVersion())) {
     gameClient.disconnect();
     packet.discard();
     return gameClient.interface.modalManager.open("floater-connecting", "Server version (%s) mismatch with client sprite (%s) or object (%s) data.".format(serverData.clientVersion, this.spriteBuffer.getVersion(), this.dataObjects.getVersion()));

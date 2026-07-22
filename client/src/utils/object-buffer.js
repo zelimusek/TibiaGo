@@ -27,6 +27,7 @@ const ObjectBuffer = function () {
 ObjectBuffer.prototype.SIGNATURES = new Object({
   "41BF619C": 740,
   "439D5A33": 760,
+  "44CE4743": 780,
   "42A3": 1098
 });
 
