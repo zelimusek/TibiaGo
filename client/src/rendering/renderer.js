@@ -682,7 +682,7 @@ Renderer.prototype.__renderCreature = function (tile, creature, deferred) {
   } else {
 
     // Otherwise render the character to the screen
-    this.screen.drawCharacter(creature, renderPosition, 32, 0.5);
+    this.screen.drawCharacter(creature, renderPosition, 32, 0.25);
 
   }
 

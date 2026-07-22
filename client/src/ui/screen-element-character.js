@@ -137,6 +137,11 @@ CharacterElement.prototype.setTextPosition = function () {
   screenPosition.x = Math.round(screenPosition.x * 32) / 32;
   screenPosition.y = Math.round(screenPosition.y * 32) / 32;
 
+  // Keep the floating name/health/mana element aligned with the character
+  // sprite anchor used by the canvas renderer.
+  screenPosition.x -= 0.25;
+  screenPosition.y -= 0.25;
+
   let offset = this.__getAbsoluteOffset(screenPosition);
   let scale = gameClient.interface.getSpriteScalingVector();
 
