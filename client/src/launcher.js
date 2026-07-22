@@ -330,13 +330,13 @@
     let infoPanel = createElement("div", "info-panel", content);
 
     let title = createElement("div", "info-title", infoPanel);
-    title.innerText = "Welcome to Gravak";
+    title.innerText = "Welcome to NarkoWar";
 
     let text = createElement("div", "info-text", infoPanel);
-    text.innerHTML = "Preparing the world for your arrival.<br>Sharpen your swords and ready your spells!";
+    text.innerHTML = "Doing drugs is not just a game!";
 
     let update = createElement("div", "update-item", infoPanel);
-    update.innerText = "Latest Update: New spells & UI enhancements";
+    update.innerText = "Latest Update: Added new blunts to the shop";
     // ---------------------------------------------------------
 
     // UI Layer (Progress bar)
@@ -352,10 +352,10 @@
 
     // Random simple tips
     const tips = [
-      "Tip: Use 'exura' to heal quickly.",
-      "Tip: Right-click adds items to trade.",
-      "Tip: Explore the depths for rare loot.",
-      "Tip: Press Enter to chat."
+      "Tip: Eat blunt to heal quickly.",
+      "Tip: Right click on yourself to open a drug menu.",
+      "Tip: Sniff a coke to get stronger.",
+      "Tip: Play and have fun."
     ];
     // Rotate tip every few seconds? Or just show one randomized
     let randomTip = tips[Math.floor(Math.random() * tips.length)];
