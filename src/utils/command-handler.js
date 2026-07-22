@@ -191,6 +191,78 @@ CommandHandler.prototype.handleCommandAddSkill = function (
   );
 };
 
+CommandHandler.prototype.handleCommandAddSkill = function (
+  player,
+  skill,
+  amount
+) {
+  if (skill !== "level") {
+    return player.sendCancelMessage("Invalid skill type. Available: level");
+  }
+
+  try {
+    const levelAmount = Number(amount);
+
+    if (!Number.isInteger(levelAmount) || levelAmount <= 0) {
+      return player.sendCancelMessage("Usage: /addskill level [positive_amount]");
+    }
+
+    const Skill = requireModule("utils/skill");
+    const experienceSkill = new Skill(CONST.PROPERTIES.EXPERIENCE, 0);
+    const currentExp = player.skills.getSkillValue(CONST.PROPERTIES.EXPERIENCE) || 0;
+    const currentLevel = player.skills.getSkillLevel(CONST.PROPERTIES.EXPERIENCE) || 1;
+    const targetLevel = currentLevel + levelAmount;
+
+    if (targetLevel > 1000) {
+      return player.sendCancelMessage("Maximum level for /addskill is 1000.");
+    }
+
+    const targetExp = experienceSkill.getExperience(targetLevel);
+    const expRequired = targetExp - currentExp;
+
+    if (expRequired <= 0) {
+      return player.sendCancelMessage("You already have enough experience for that level.");
+    }
+
+    player.skills.incrementSkill(CONST.PROPERTIES.EXPERIENCE, expRequired);
+
+    const newHealth = player.getProperty(CONST.PROPERTIES.HEALTH_MAX);
+    const newMana = player.getProperty(CONST.PROPERTIES.MANA_MAX);
+    const newCap = player.getProperty(CONST.PROPERTIES.CAPACITY_MAX);
+
+    player.setProperty(CONST.PROPERTIES.HEALTH, newHealth);
+    player.setProperty(CONST.PROPERTIES.MANA, newMana);
+    player.setProperty(CONST.PROPERTIES.CAPACITY, newCap);
+
+    player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.HEALTH, newHealth));
+    player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.MANA, newMana));
+    player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.CAPACITY, newCap));
+
+    if (player.socketHandler && player.socketHandler.account) {
+      const AccountDatabase = requireModule("auth/account-database");
+      const db = new AccountDatabase();
+
+      db.saveCharacter({
+        player: player,
+        account: player.socketHandler.account
+      }, function (error) {
+        if (error) {
+          console.error("[AddSkill] Error saving to database:", error);
+        } else {
+          console.log("[AddSkill] Character saved successfully to database");
+        }
+      });
+    }
+
+    return player.sendCancelMessage(
+      `Added ${expRequired} exp (${levelAmount} levels). New level: ${targetLevel}`
+    );
+  } catch (error) {
+    console.error("[AddSkill] Error:", error);
+    return player.sendCancelMessage("An error occurred while adding experience.");
+  }
+};
+
 CommandHandler.prototype.handle = function (player, message) {
   //if(player.getProperty(CONST.PROPERTIES.ROLE) !== CONST.ROLES.ADMIN) {
   //  return;
