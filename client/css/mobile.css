@@ -39,6 +39,10 @@ screen and (max-width: 768px) {
     }
 
     .mobile-only {
+        display: none !important;
+    }
+
+    body.game-active .mobile-only {
         display: flex !important;
     }
 
@@ -55,7 +59,11 @@ screen and (max-width: 768px) {
     }
 
     /* Game wrapper fills entire screen */
-    #game-wrapper {
+    body:not(.game-active) #game-wrapper {
+        display: none !important;
+    }
+
+    body.game-active #game-wrapper {
         display: flex !important;
         flex-direction: row !important;
         min-width: unset !important;
@@ -67,7 +75,7 @@ screen and (max-width: 768px) {
     }
 
     /* Allow oogwrap to be visible for equipment but hide layout impact */
-    #game-wrapper .oogwrap {
+    body.game-active #game-wrapper .oogwrap {
         display: block !important;
         position: absolute;
         top: 0;
@@ -86,7 +94,7 @@ screen and (max-width: 768px) {
     }
 
     /* Ensure equipment wrapper is visible */
-    .equipment-options-wrapper {
+    body.game-active .equipment-options-wrapper {
         display: block !important;
         pointer-events: auto;
     }
@@ -225,7 +233,7 @@ screen and (max-width: 768px) {
         transform-origin: top right;
     }
 
-    .equipment-options-wrapper {
+    body.game-active .equipment-options-wrapper {
         display: block !important;
     }
 
@@ -276,7 +284,7 @@ screen and (max-width: 768px) {
 
 @media screen and (max-height: 500px),
 screen and (max-width: 768px) {
-    #mobile-status-bar {
+    body.game-active #mobile-status-bar {
         display: flex;
     }
 }
@@ -366,7 +374,7 @@ screen and (max-width: 768px) {
 
 @media screen and (max-height: 500px),
 screen and (max-width: 768px) {
-    #mobile-action-bar {
+    body.game-active #mobile-action-bar {
         display: flex;
     }
 }

@@ -623,6 +623,7 @@ Interface.prototype.hideGameInterface = function () {
    */
 
   // Sets the login screen to hidden and opens the game interface
+  document.body.classList.remove("game-active");
   document.getElementById("login-wrapper").style.display = "flex";
   document.getElementById("game-wrapper").style.display = "none";
 
@@ -636,6 +637,7 @@ Interface.prototype.showGameInterface = function () {
    */
 
   // Sets the login screen to hidden and opens the game interface
+  document.body.classList.add("game-active");
   document.getElementById("login-wrapper").style.display = "none";
   document.getElementById("game-wrapper").style.display = "flex";
 
