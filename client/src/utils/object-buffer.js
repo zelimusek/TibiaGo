@@ -392,10 +392,46 @@ ObjectBuffer.prototype.__mapVersionFlag = function (flag) {
       return flag - 1;
     }
 
-  } else if (this.__version >= 755) {
+  } else if (this.__version >= 780 && this.__version < 860) {
 
-    if (flag == 23) {
+    // In 7.80-8.54 the usable attribute was inserted at 8 and the following
+    // attributes are shifted by one compared to the default enum.
+    if (flag === 8) {
+      return this.attributes.ThingAttrUsable;
+    }
+
+    if (flag > 8) {
+      flag -= 1;
+    }
+
+    if (flag === 23) {
       return this.attributes.ThingAttrFloorChange;
+    }
+
+  } else if (this.__version >= 755 && this.__version < 780) {
+
+    // Increment flags 1 to 15
+    if (flag > 0 && flag <= 15) {
+      if (flag === 5) return this.attributes.ThingAttrMultiUse;
+      if (flag === 6) return this.attributes.ThingAttrForceUse;
+      return flag + 1;
+    } else {
+
+      // Switch around some flags
+      switch (flag) {
+        case 16: return this.attributes.ThingAttrLight;
+        case 17: return this.attributes.ThingAttrFloorChange;
+        case 18: return this.attributes.ThingAttrFullGround;
+        case 19: return this.attributes.ThingAttrElevation;
+        case 20: return this.attributes.ThingAttrDisplacement;
+        case 22: return this.attributes.ThingAttrMinimapColor;
+        case 23: return this.attributes.ThingAttrFloorChange;
+        case 24: return this.attributes.ThingAttrLyingCorpse;
+        case 25: return this.attributes.ThingAttrHangable;
+        case 26: return this.attributes.ThingAttrHookSouth;
+        case 27: return this.attributes.ThingAttrHookEast;
+        case 28: return this.attributes.ThingAttrAnimateAlways;
+      }
     }
 
   } else if (this.__version >= 740) {
@@ -634,7 +670,9 @@ ObjectBuffer.prototype.__readFlags = function (packet) {
       }
 
       case this.attributes.ThingAttrUsable: {
-        packet.readUInt16();
+        if (this.__version < 780 || this.__version >= 860) {
+          packet.readUInt16();
+        }
         break;
       }
 
