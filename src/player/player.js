@@ -195,12 +195,16 @@ Player.prototype.onLevelUp = function (oldLevel, newLevel) {
   let newMaxHealth = this.getProperty(CONST.PROPERTIES.HEALTH_MAX);
   let newMaxMana = this.getProperty(CONST.PROPERTIES.MANA_MAX);
   let newMaxCapacity = this.getProperty(CONST.PROPERTIES.CAPACITY_MAX);
+  let newSpeed = this.getSpeed();
 
-  console.log(`[LEVEL UP] New max stats - HP: ${newMaxHealth}, Mana: ${newMaxMana}, Cap: ${newMaxCapacity}`);
+  this.setProperty(CONST.PROPERTIES.SPEED, newSpeed);
+
+  console.log(`[LEVEL UP] New max stats - HP: ${newMaxHealth}, Mana: ${newMaxMana}, Cap: ${newMaxCapacity}, Speed: ${newSpeed}`);
 
   this.write(new CreaturePropertyPacket(this.getId(), CONST.PROPERTIES.HEALTH_MAX, newMaxHealth));
   this.write(new CreaturePropertyPacket(this.getId(), CONST.PROPERTIES.MANA_MAX, newMaxMana));
   this.write(new CreaturePropertyPacket(this.getId(), CONST.PROPERTIES.CAPACITY_MAX, newMaxCapacity));
+  this.write(new CreaturePropertyPacket(this.getId(), CONST.PROPERTIES.SPEED, newSpeed));
 
   // Send congratulations message
   let message = `You advanced from Level ${oldLevel} to Level ${newLevel}. Congratulations!`;

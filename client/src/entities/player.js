@@ -99,30 +99,28 @@ Player.prototype.getStepDuration = function (tile) {
    * See: https://tibia.fandom.com/wiki/Speed_Breakpoints
    */
 
-  // Get base speed and ensure it's a valid number
+  const A = 857.36;
+  const B = 261.29;
+  const C = -4795.009;
   const speed = this.getSpeed();
-
-  // Tibia-like speed calculation
   const calculatedStepSpeed = Math.max(
     1,
-    Math.floor(1000 / Math.max(speed / 100, 1))
+    Math.round(A * Math.log(speed + B) + C)
   );
 
   // Get tile friction (default to 1 if not available)
-  let groundSpeed = tile?.getFriction() || 1;
+  let groundSpeed = tile?.getFriction() || 100;
 
-  // Calculate final step duration in frames (ensure it's reasonable)
-  const stepDuration = Math.min(
+  return Math.min(
     12,
     Math.max(
       1,
       Math.ceil(
-        (calculatedStepSpeed * groundSpeed) / gameClient.getTickInterval()
+        Math.floor((1000 * groundSpeed) / calculatedStepSpeed) /
+        gameClient.getTickInterval()
       )
     )
   );
-
-  return stepDuration;
 };
 
 Player.prototype.getTile = function () {
