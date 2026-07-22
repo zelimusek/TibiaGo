@@ -563,11 +563,11 @@ Renderer.prototype.__renderTileObjects = function (tile) {
   this.__renderDeferred(tile);
 
   // Render the items that always belong on top (e.g., doors)
-  this.__renderAlwaysOnTopItems(items, position);
+  this.__renderAlwaysOnTopItems(tile, items, position);
 
 }
 
-Renderer.prototype.__renderAlwaysOnTopItems = function (items, position) {
+Renderer.prototype.__renderAlwaysOnTopItems = function (tile, items, position) {
 
   /*
    * Function Renderer.__renderAlwaysOnTopItems
@@ -584,8 +584,15 @@ Renderer.prototype.__renderAlwaysOnTopItems = function (items, position) {
       continue;
     }
 
-    // Draw the sprite
-    this.screen.drawSprite(item, position, 32);
+    // Draw on-top sprites at the current tile elevation too. Counters and
+    // similar furniture are marked as on-top in 7.4, but still need their
+    // visual height applied or they look sunken into the floor.
+    let renderPosition = new Position(
+      position.x - tile.__renderElevation,
+      position.y - tile.__renderElevation
+    );
+
+    this.screen.drawSprite(item, renderPosition, 32);
   }
 
 }
