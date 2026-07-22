@@ -229,14 +229,17 @@ CommandHandler.prototype.handleCommandAddSkill = function (
     const newHealth = player.getProperty(CONST.PROPERTIES.HEALTH_MAX);
     const newMana = player.getProperty(CONST.PROPERTIES.MANA_MAX);
     const newCap = player.getProperty(CONST.PROPERTIES.CAPACITY_MAX);
+    const newSpeed = player.getSpeed();
 
     player.setProperty(CONST.PROPERTIES.HEALTH, newHealth);
     player.setProperty(CONST.PROPERTIES.MANA, newMana);
     player.setProperty(CONST.PROPERTIES.CAPACITY, newCap);
+    player.setProperty(CONST.PROPERTIES.SPEED, newSpeed);
 
     player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.HEALTH, newHealth));
     player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.MANA, newMana));
     player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.CAPACITY, newCap));
+    player.write(new CreaturePropertyPacket(player.getId(), CONST.PROPERTIES.SPEED, newSpeed));
 
     if (player.socketHandler && player.socketHandler.account) {
       const AccountDatabase = requireModule("auth/account-database");
