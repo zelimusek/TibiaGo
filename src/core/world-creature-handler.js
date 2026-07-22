@@ -72,26 +72,46 @@ CreatureHandler.prototype.__loadRadioZones = function () {
 
 }
 
-CreatureHandler.prototype.__getRadioZone = function (position) {
+CreatureHandler.prototype.__getRadioZoneState = function (position) {
 
   /*
-   * Function CreatureHandler.__getRadioZone
-   * Returns the first radio zone containing a given position.
+   * Function CreatureHandler.__getRadioZoneState
+   * Returns the nearest active radio zone and volume for a position.
    */
 
-  return this.__radioZones.find(function (zone) {
+  let best = null;
+
+  this.__radioZones.forEach(function (zone) {
     let minX = Math.min(zone.from.x, zone.to.x);
     let maxX = Math.max(zone.from.x, zone.to.x);
     let minY = Math.min(zone.from.y, zone.to.y);
     let maxY = Math.max(zone.from.y, zone.to.y);
+    let fadeRadius = Math.max(0, zone.fadeRadius || 0);
 
-    return position.z === zone.from.z &&
-      position.z === zone.to.z &&
-      position.x >= minX &&
-      position.x <= maxX &&
-      position.y >= minY &&
-      position.y <= maxY;
-  }) || null;
+    if (position.z !== zone.from.z || position.z !== zone.to.z) {
+      return;
+    }
+
+    let dx = Math.max(minX - position.x, 0, position.x - maxX);
+    let dy = Math.max(minY - position.y, 0, position.y - maxY);
+    let distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > fadeRadius) {
+      return;
+    }
+
+    let baseVolume = Math.max(0, Math.min(1, zone.volume || 1));
+    let volume = fadeRadius === 0 ? baseVolume : baseVolume * (1 - (distance / fadeRadius));
+
+    if (best === null || volume > best.volume) {
+      best = {
+        zone: zone,
+        volume: volume
+      };
+    }
+  });
+
+  return best;
 
 }
 
@@ -106,15 +126,17 @@ CreatureHandler.prototype.__syncRadioZone = function (player, oldPosition) {
     return;
   }
 
-  let oldZone = oldPosition ? this.__getRadioZone(oldPosition) : null;
-  let newZone = this.__getRadioZone(player.position);
+  let oldState = oldPosition ? this.__getRadioZoneState(oldPosition) : null;
+  let newState = this.__getRadioZoneState(player.position);
+  let oldZone = oldState ? oldState.zone : null;
+  let newZone = newState ? newState.zone : null;
 
-  if (oldZone && newZone && oldZone.id === newZone.id) {
+  if (oldZone && newZone && oldZone.id === newZone.id && Math.abs(oldState.volume - newState.volume) < 0.01) {
     return;
   }
 
   if (newZone && newZone.enabled && newZone.url) {
-    return player.write(new RadioStreamPacket(true, newZone.url, newZone.volume));
+    return player.write(new RadioStreamPacket(true, newZone.url, newState.volume));
   }
 
   return player.write(new RadioStreamPacket(false, "", 0));
