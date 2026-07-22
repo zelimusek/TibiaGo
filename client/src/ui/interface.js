@@ -530,7 +530,7 @@ Interface.prototype.enterGame = function (requestFullscreen) {
 
   // Block if the assets are not yet loaded
   if (!this.areAssetsLoaded()) {
-    return alert("The Tibia.spr and Tibia.dat must be loaded first.");
+    return this.modalManager.open("floater-connecting", "Loading Tibia assets from server. Please wait...");
   }
 
   if (requestFullscreen) {

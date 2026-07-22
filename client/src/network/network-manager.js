@@ -360,11 +360,14 @@ NetworkManager.prototype.loadGameFilesServer = function () {
    * Connects to the server websocket at the remote host and port
    */
 
-  // The resource to load from the server
-  let resources = new Array("Tibia.spr", "Tibia.dat");
+  gameClient.interface.modalManager.open("floater-connecting", "Loading Tibia assets from server...");
 
-  let promises = resources.map(function (url) {
-    return fetch("/data/%s/%s".format(gameClient.SERVER_VERSION, url)).then(this.fetchCallback);
+  let resources = new Array("Tibia.spr", "Tibia.dat");
+  let cacheBuster = Date.now();
+
+  let promises = resources.map(function (filename) {
+    let url = "/data/%s/%s?v=%s".format(gameClient.SERVER_VERSION, filename, cacheBuster);
+    return fetch(url, { cache: "no-store" }).then(this.fetchCallback);
   }, this);
 
   // Wait for completing of resources
@@ -374,8 +377,10 @@ NetworkManager.prototype.loadGameFilesServer = function () {
     gameClient.spriteBuffer.load("Tibia.spr", { "target": { "result": dataSprites } });
     gameClient.dataObjects.load("Tibia.dat", { "target": { "result": dataObjects } });
 
+    gameClient.interface.modalManager.close();
   }).catch(function (error) {
-    return gameClient.interface.modalManager.open("floater-connecting", "Failed loading client data from server. Please select them manually using the Load Assets button.");
+    console.error("Failed loading client data from server.", error);
+    gameClient.interface.modalManager.open("floater-connecting", "Failed loading client data from server. Please refresh the page or use Load Assets.");
   });
 
 }
