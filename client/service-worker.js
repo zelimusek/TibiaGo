@@ -1,4 +1,4 @@
-const CACHE_NAME = "tibiago-static-v1";
+const CACHE_NAME = "tibiago-static-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -33,6 +33,19 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() => caches.match("/index.html"))
+    );
+    return;
+  }
+
+  if (/\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(request))
     );
     return;
   }
