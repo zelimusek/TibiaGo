@@ -65,7 +65,12 @@ Keyboard.prototype.setInactive = function () {
    * Sets the keyboard to inactive by clearing all the active keys: e.g., when tabbing out holding down a movement key
    */
 
-  return this.__activeKeys.clear();
+  this.__activeKeys.clear();
+
+  // Do not execute a walk-ahead step after the browser window loses focus.
+  if (gameClient.player) {
+    gameClient.player.setMovementBuffer(null);
+  }
 };
 
 Keyboard.prototype.isShiftDown = function () {
@@ -517,4 +522,47 @@ Keyboard.prototype.__keyUp = function (event) {
   }
 
   this.__activeKeys.delete(event.keyCode);
+
+  if (this.__isMovementKey(event.keyCode) && gameClient.player) {
+    // The next step may already be buffered while the current tile animation
+    // is playing. Rebuild it from keys still held, so releasing a direction
+    // cannot result in one unwanted extra tile of movement.
+    gameClient.player.setMovementBuffer(this.__getActiveMovementKey());
+  }
+};
+
+Keyboard.prototype.__isMovementKey = function (key) {
+  return [
+    this.KEYS.KEYPAD_7,
+    this.KEYS.KEYPAD_9,
+    this.KEYS.KEYPAD_1,
+    this.KEYS.KEYPAD_3,
+    this.KEYS.LEFT_ARROW,
+    this.KEYS.UP_ARROW,
+    this.KEYS.RIGHT_ARROW,
+    this.KEYS.DOWN_ARROW,
+    this.KEYS.KEY_A,
+    this.KEYS.KEY_W,
+    this.KEYS.KEY_D,
+    this.KEYS.KEY_S
+  ].includes(key);
+};
+
+Keyboard.prototype.__getActiveMovementKey = function () {
+  let movementKeys = [
+    this.KEYS.KEYPAD_7,
+    this.KEYS.KEYPAD_9,
+    this.KEYS.KEYPAD_1,
+    this.KEYS.KEYPAD_3,
+    this.KEYS.LEFT_ARROW,
+    this.KEYS.UP_ARROW,
+    this.KEYS.RIGHT_ARROW,
+    this.KEYS.DOWN_ARROW,
+    this.KEYS.KEY_A,
+    this.KEYS.KEY_W,
+    this.KEYS.KEY_D,
+    this.KEYS.KEY_S
+  ];
+
+  return movementKeys.find((key) => this.__activeKeys.has(key)) || null;
 };
