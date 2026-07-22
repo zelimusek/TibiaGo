@@ -166,7 +166,7 @@ SoundManager.prototype.setRadioStream = function(url, volume) {
   }
 
   if(this.__radioUrl === url && this.__radioStream !== null) {
-    this.__radioStream.volume = Math.min(this.__masterVolume, volume || 1);
+    this.__radioStream.volume = Math.min(this.__masterVolume, volume === undefined ? 1 : volume);
     return;
   }
 
@@ -176,7 +176,7 @@ SoundManager.prototype.setRadioStream = function(url, volume) {
   this.__radioStream = new Audio(url);
   this.__radioStream.loop = false;
   this.__radioStream.preload = "none";
-  this.__radioStream.volume = Math.min(this.__masterVolume, volume || 1);
+  this.__radioStream.volume = Math.min(this.__masterVolume, volume === undefined ? 1 : volume);
 
   let playPromise = this.__radioStream.play();
   if(playPromise && typeof playPromise.catch === "function") {

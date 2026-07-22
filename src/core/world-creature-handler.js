@@ -100,7 +100,7 @@ CreatureHandler.prototype.__getRadioZoneState = function (position) {
       return;
     }
 
-    let baseVolume = Math.max(0, Math.min(1, zone.volume || 1));
+    let baseVolume = Math.max(0, Math.min(1, zone.volume === undefined ? 1 : zone.volume));
     let volume = fadeRadius === 0 ? baseVolume : baseVolume * (1 - (distance / fadeRadius));
 
     if (best === null || volume > best.volume) {

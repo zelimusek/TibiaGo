@@ -948,7 +948,7 @@ const RadioStreamPacket = function (enabled, url, volume) {
 
   this.writeBoolean(Boolean(enabled && url));
   this.writeBuffer(this.encodeString(enabled ? url : ""));
-  this.writeUInt8(Math.max(0, Math.min(100, Math.round((volume || 1) * 100))));
+  this.writeUInt8(Math.max(0, Math.min(100, Math.round((volume === undefined ? 1 : volume) * 100))));
 };
 
 RadioStreamPacket.prototype = Object.create(PacketWriter.prototype);
