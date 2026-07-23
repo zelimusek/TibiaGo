@@ -539,6 +539,10 @@ Creature.prototype.unlockMovement = function () {
   this.__movementEvent = null;
   this.__teleported = false;
 
+  if (gameClient.player === this && gameClient.mouse.handlePendingItemMove()) {
+    return;
+  }
+
   if (gameClient.player === this && (gameClient.world.pathfinder.__pathfindCache.length > 0 || gameClient.world.pathfinder.__finalDestination !== null)) {
     return gameClient.world.pathfinder.handlePathfind();
   }

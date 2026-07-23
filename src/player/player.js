@@ -465,7 +465,7 @@ Player.prototype.decreaseHealth = function (source, amount) {
         if (this.isDead) {
           return;
         }
-        return this.handleDeath();
+        return this.handleDeath(source);
       }
 
       return;
@@ -507,7 +507,7 @@ Player.prototype.decreaseHealth = function (source, amount) {
     if (this.isDead) {
       return;
     }
-    return this.handleDeath();
+    return this.handleDeath(source);
   }
 };
 
@@ -525,7 +525,7 @@ Player.prototype.getCorpse = function () {
     : CORPSE_MALE;
 };
 
-Player.prototype.handleDeath = function () {
+Player.prototype.handleDeath = function (source = null) {
   /*
    * Function Player.handleDeath
    * Called when the player dies because of zero health
@@ -570,6 +570,13 @@ Player.prototype.handleDeath = function () {
   let corpse = gameServer.database.createThing(this.getCorpse());
 
   if (corpse !== null) {
+    if (corpse.setDeathInfo) {
+      corpse.setDeathInfo(
+        this.getProperty(CONST.PROPERTIES.NAME),
+        source && source.getProperty ? source.getProperty(CONST.PROPERTIES.NAME) : null
+      );
+    }
+
     gameServer.world.addTopThing(this.getPosition(), corpse);
     gameServer.world.addSplash(2016, this.getPosition(), corpse.getFluidType());
   }

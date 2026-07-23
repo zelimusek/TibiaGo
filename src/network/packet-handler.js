@@ -113,9 +113,34 @@ PacketHandler.prototype.moveItem = function (player, packet) {
   // Get the item that is being moved
   let fromItem = fromWhere.peekIndex(fromIndex);
 
-  // Guard against no item being moved
+  // No item means this may be a creature push from one tile to another.
   if (fromItem === null) {
-    return;
+    let creature = fromWhere.getCreature ? fromWhere.getCreature() : null;
+
+    if (creature === null || creature.isPlayer()) {
+      return;
+    }
+
+    let prototype = creature.getPrototype ? creature.getPrototype() : null;
+    let isPushable = prototype && prototype.flags && prototype.flags.pushable === true;
+
+    if (!isPushable) {
+      return player.sendCancelMessage("You cannot move this creature.");
+    }
+
+    if (toWhere.constructor.name !== "Tile") {
+      return;
+    }
+
+    if (!fromWhere.position.besides(toWhere.position)) {
+      return;
+    }
+
+    if (toWhere.isOccupiedAny && toWhere.isOccupiedAny()) {
+      return player.sendCancelMessage("You cannot move this creature there.");
+    }
+
+    return this.__handlePushCreature(creature, toWhere.position);
   }
 
   // Can the item be moved at all?

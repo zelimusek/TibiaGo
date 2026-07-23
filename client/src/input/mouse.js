@@ -28,6 +28,7 @@ const Mouse = function () {
   this.__mouseDownObject = null;
   this.__currentMouseTile = null;
   this.__multiUseObject = null;
+  this.__pendingItemMove = null;
 
   // Track button states for both-buttons look shortcut
   this.__leftButtonDown = false;
@@ -60,6 +61,84 @@ Mouse.prototype.sendItemMove = function (fromObject, toObject, count) {
   }
 
   gameClient.send(new ItemMovePacket(fromObject, toObject, count));
+
+}
+
+Mouse.prototype.__getClosestReachableTileBesides = function (targetTile) {
+
+  let targetPosition = targetTile.getPosition();
+  let playerPosition = gameClient.player.getPosition();
+  let bestTile = null;
+  let bestDistance = Infinity;
+
+  [
+    targetPosition.north(),
+    targetPosition.east(),
+    targetPosition.south(),
+    targetPosition.west(),
+    targetPosition.northeast(),
+    targetPosition.southeast(),
+    targetPosition.southwest(),
+    targetPosition.northwest()
+  ].forEach(function (position) {
+    let tile = gameClient.world.getTileFromWorldPosition(position);
+
+    if (tile === null || tile.isOccupied()) {
+      return;
+    }
+
+    let distance = Math.max(Math.abs(playerPosition.x - position.x), Math.abs(playerPosition.y - position.y));
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestTile = tile;
+    }
+  });
+
+  return bestTile;
+
+}
+
+Mouse.prototype.__moveItemWhenClose = function (fromObject, toObject, count) {
+
+  let sourcePosition = fromObject.which.getPosition();
+
+  if (sourcePosition.besides(gameClient.player.getPosition())) {
+    this.__pendingItemMove = null;
+    return this.sendItemMove(fromObject, toObject, count);
+  }
+
+  let destinationTile = this.__getClosestReachableTileBesides(fromObject.which);
+
+  if (destinationTile === null) {
+    return gameClient.interface.setCancelMessage("There is no way.");
+  }
+
+  this.__pendingItemMove = {
+    fromObject: fromObject,
+    toObject: toObject,
+    count: count
+  };
+
+  gameClient.world.pathfinder.findPath(gameClient.player.getPosition(), destinationTile.getPosition());
+
+}
+
+Mouse.prototype.handlePendingItemMove = function () {
+
+  if (this.__pendingItemMove === null || gameClient.player === null) {
+    return false;
+  }
+
+  let pending = this.__pendingItemMove;
+
+  if (pending.fromObject.which.getPosition().besides(gameClient.player.getPosition())) {
+    this.__pendingItemMove = null;
+    this.sendItemMove(pending.fromObject, pending.toObject, pending.count);
+    return true;
+  }
+
+  return false;
 
 }
 
@@ -240,8 +319,15 @@ Mouse.prototype.__handleCanvasMouseUp = function (event) {
       return this.__handleMouseClick();
     }
 
-    // The position where the item is used must be besides the player
+    // The position where the item is used must be besides the player. If it is
+    // farther away, walk there first and perform the move once close enough.
     if (!this.__mouseDownObject.which.getPosition().besides(gameClient.player.getPosition())) {
+      let item = this.__mouseDownObject.which.peekItem(this.__mouseDownObject.index);
+
+      if (item !== null && item.isMoveable()) {
+        return this.__moveItemWhenClose(this.__mouseDownObject, toObject, item.count || 1);
+      }
+
       return gameClient.interface.setCancelMessage("You have to move closer.");
     }
 

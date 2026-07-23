@@ -18,6 +18,9 @@ const Corpse = function(id, size) {
   // Inherits from container
   Container.call(this, id, size);
 
+  this.deadPlayerName = null;
+  this.killerName = null;
+
 }
 
 Corpse.prototype = Object.create(Container.prototype);
@@ -38,6 +41,30 @@ Corpse.prototype.getFluidType = function() {
     case "fire": return CONST.FLUID.NONE;
     default: return CONST.FLUID.BLOOD;
   }
+
+}
+
+Corpse.prototype.setDeathInfo = function(deadPlayerName, killerName) {
+
+  this.deadPlayerName = deadPlayerName;
+  this.killerName = killerName;
+  return this;
+
+}
+
+Corpse.prototype.getDescription = function() {
+
+  if (!this.deadPlayerName) {
+    return Container.prototype.getDescription.call(this);
+  }
+
+  let text = "It is the dead body of " + this.deadPlayerName + ".";
+
+  if (this.killerName) {
+    text += " " + this.deadPlayerName + " was killed by " + this.killerName.toLowerCase() + ".";
+  }
+
+  return text;
 
 }
 
