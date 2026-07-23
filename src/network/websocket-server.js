@@ -305,8 +305,9 @@ WebsocketServer.prototype.__handleSocketClose = function (gameSocket) {
     return;
   }
 
-  // If the player is not in combat we can immediately remove the player
-  if (!gameSocket.player.isInCombat() || gameServer.isClosed()) {
+  // If the player is dead, not in combat, or the server is closed, remove
+  // immediately. Dead players need the respawn state saved without combat delay.
+  if (gameSocket.player.isZeroHealth() || !gameSocket.player.isInCombat() || gameServer.isClosed()) {
     return this.__removePlayer(gameSocket);
   }
 

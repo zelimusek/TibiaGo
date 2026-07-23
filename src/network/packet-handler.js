@@ -40,12 +40,13 @@ PacketHandler.prototype.handleLogout = function (gameSocket) {
    * Handles a logout request from the player
    */
 
-  // Block request because the player is still in combat
-  if (gameSocket.player.isInCombat()) {
+  // Block request because the player is still in combat. Dead players must be
+  // allowed to logout so their respawn state can be saved immediately.
+  if (!gameSocket.player.isZeroHealth() && gameSocket.player.isInCombat()) {
     return gameSocket.player.sendCancelMessage("You cannot logout while in combat.");
   }
 
-  if (gameSocket.player.isInNoLogoutZone()) {
+  if (!gameSocket.player.isZeroHealth() && gameSocket.player.isInNoLogoutZone()) {
     return gameSocket.player.sendCancelMessage("You may not logout here.");
   }
 

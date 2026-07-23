@@ -25,6 +25,12 @@ ScreenElementManager.prototype.clear = function () {
     creature.characterElement.remove();
   });
 
+  this.activeTextElements.forEach(function (screenElement) {
+    screenElement.remove();
+  });
+
+  this.activeTextElements.clear();
+
 }
 
 ScreenElementManager.prototype.render = function () {

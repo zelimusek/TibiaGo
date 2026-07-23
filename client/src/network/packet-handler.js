@@ -1033,12 +1033,10 @@ PacketHandler.prototype.handleEntityRemove = function (id) {
   // Get the tile of the creature
   let tile = gameClient.world.getTileFromWorldPosition(creature.getPosition());
 
-  if (tile === null) {
-    return;
+  if (tile !== null) {
+    // Delete it from the tile
+    tile.monsters.delete(creature);
   }
-
-  // Delete it from the tile
-  tile.monsters.delete(creature);
 
   // Delete the target of the creature
   if (gameClient.player.__target === creature) {

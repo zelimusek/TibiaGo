@@ -538,6 +538,8 @@ Player.prototype.handleDeath = function () {
   }
 
   this.isDead = true;
+  this.__spawnAtTemple = true;
+  this.combatLock.unlock();
 
   // Send death message screen to client (like Tibia's "You are dead" modal)
   // 0x28 (Death Window) should trigger the modal natively without disconnect
@@ -572,8 +574,6 @@ Player.prototype.handleDeath = function () {
     gameServer.world.addSplash(2016, this.getPosition(), corpse.getFluidType());
   }
 
-  // Mark that player should respawn at temple on next login
-  this.__spawnAtTemple = true;
 };
 
 Player.prototype.consumeAmmunition = function () {
@@ -724,12 +724,16 @@ Player.prototype.toJSON = function () {
   this.syncProperties();
 
   // Get current properties
+  let respawnAtTemple = Boolean(this.__spawnAtTemple);
+  let healthMax = this.getProperty(CONST.PROPERTIES.HEALTH_MAX);
+  let manaMax = this.getProperty(CONST.PROPERTIES.MANA_MAX);
+
   let currentProperties = {
     name: this.getProperty(CONST.PROPERTIES.NAME),
-    health: this.getProperty(CONST.PROPERTIES.HEALTH),
-    healthMax: this.getProperty(CONST.PROPERTIES.HEALTH_MAX),
-    mana: this.getProperty(CONST.PROPERTIES.MANA),
-    manaMax: this.getProperty(CONST.PROPERTIES.MANA_MAX),
+    health: respawnAtTemple ? healthMax : this.getProperty(CONST.PROPERTIES.HEALTH),
+    healthMax: healthMax,
+    mana: respawnAtTemple ? manaMax : this.getProperty(CONST.PROPERTIES.MANA),
+    manaMax: manaMax,
     capacity: this.getProperty(CONST.PROPERTIES.CAPACITY),
     capacityMax: this.getProperty(CONST.PROPERTIES.CAPACITY_MAX),
     speed: this.getProperty(CONST.PROPERTIES.SPEED),
@@ -747,7 +751,7 @@ Player.prototype.toJSON = function () {
 
 
   return new Object({
-    position: this.__spawnAtTemple ? this.templePosition : this.position,
+    position: respawnAtTemple ? this.templePosition : this.position,
     templePosition: this.templePosition,
     properties: currentProperties,
     skills: this.skills.toJSON(),
