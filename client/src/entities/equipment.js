@@ -81,10 +81,14 @@ Equipment.prototype.setItems = function (items) {
 
   items.forEach(function (item, index) {
 
-    // Skip nulls
-    if (item !== null) {
-      this.addItem(item, index);
+    // Always overwrite the slot state so a newly logged-in character does not
+    // keep stale equipment or tooltips from the previous character.
+    if (item === null) {
+      this.slots[index].element.style.backgroundImage = "url('" + this.BACKGROUNDS[index] + "')";
+      return this.clearSlot(index);
     }
+
+    this.addItem(item, index);
 
   }, this);
 
