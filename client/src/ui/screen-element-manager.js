@@ -130,7 +130,7 @@ ScreenElementManager.prototype.createTextElement = function (entity, message, co
    */
 
   if (entity.type !== 1) {
-    gameClient.interface.channelManager.getChannel("Default").addMessage(message, entity.type, entity.name, color);
+    gameClient.interface.channelManager.getChannel("Default").addMessage(message, entity.type, entity.name, color, true);
   }
 
   // Do not add the element when the document is hidden from view

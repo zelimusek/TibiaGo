@@ -46,7 +46,7 @@ Channel.prototype.addPrivateMessage = function(message, name) {
 
 }
 
-Channel.prototype.addMessage = function(message, type, name, color) {
+Channel.prototype.addMessage = function(message, type, name, color, forceScrollDown = false) {
   
   /*
    * Function Channel.addMessage
@@ -54,7 +54,7 @@ Channel.prototype.addMessage = function(message, type, name, color) {
    */
 
   // Add to the contents
-  this.__addMessage(new CharacterMessage(message, type, name, color));
+  this.__addMessage(new CharacterMessage(message, type, name, color), forceScrollDown);
 
 }
 
@@ -117,11 +117,11 @@ Channel.prototype.__isScrolledDown = function(chatbox) {
    * Returns true when the chatbox is fully scrolled down
    */
 
-  return chatbox.scrollTop === (chatbox.scrollHeight - chatbox.offsetHeight);
+  return chatbox.scrollTop >= (chatbox.scrollHeight - chatbox.offsetHeight - 2);
 
 }
 
-Channel.prototype.render = function() {
+Channel.prototype.render = function(forceScrollDown = false) {
 
   /*
    * Function Channel.render
@@ -132,7 +132,7 @@ Channel.prototype.render = function() {
   let chatbox = document.getElementById("chat-text-area");
 
   // The channel is scrolled down at the bottom
-  let scrollDown = this.__isScrolledDown(chatbox);
+  let scrollDown = forceScrollDown || this.__isScrolledDown(chatbox);
 
   chatbox.innerHTML = "";
 
@@ -203,7 +203,7 @@ Channel.prototype.addConsoleMessage = function(message, color) {
 
 }
 
-Channel.prototype.__addMessage = function(message) {
+Channel.prototype.__addMessage = function(message, forceScrollDown = false) {
 
   /*
    * Function Channel.__addMessage
@@ -216,7 +216,7 @@ Channel.prototype.__addMessage = function(message) {
 
   // If this channel is currently active: render it
   if(gameClient.interface.channelManager.isActive(this)) {
-    return this.render();
+    return this.render(forceScrollDown);
   }
 
   // Set text color to indicate a new message has appeared in an inactive channel
