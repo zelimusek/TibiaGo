@@ -14,10 +14,10 @@ const Tooltip = function () {
 };
 
 Tooltip.prototype.show = function (item, targetElement) {
-    if (!item) return;
+    if (!item) return this.hide();
 
     const dataObject = item.getDataObject();
-    if (!dataObject) return;
+    if (!dataObject) return this.hide();
 
     // Generate content first to fail fast if needed
     const content = this.__generateContent(item, dataObject);
@@ -33,6 +33,7 @@ Tooltip.prototype.show = function (item, targetElement) {
 
 Tooltip.prototype.hide = function () {
     this.element.style.display = "none";
+    this.element.innerHTML = "";
 };
 
 Tooltip.prototype.__position = function (targetElement) {

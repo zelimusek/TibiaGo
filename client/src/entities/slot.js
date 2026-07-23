@@ -60,6 +60,10 @@ Slot.prototype.setItem = function (item) {
 
   this.item = item;
 
+  if (item === null && gameClient.interface && gameClient.interface.tooltip) {
+    gameClient.interface.tooltip.hide();
+  }
+
   // Update the class with the rarity color of the item
   this.element.className = "slot " + this.getRarityColor(item);
 

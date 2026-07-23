@@ -459,6 +459,8 @@ Player.prototype.removeContainer = function (container) {
   // Remove the reference from the player
   this.__openedContainers.delete(container);
 
+  gameClient.interface.tooltip.hide();
+
   // Clean up the element from the DOM
   container.window.remove();
 };

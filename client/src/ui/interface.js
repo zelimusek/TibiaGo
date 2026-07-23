@@ -551,6 +551,8 @@ Interface.prototype.reset = function () {
    */
 
   // Clean up the interface
+  this.tooltip.hide();
+
   this.screenElementManager.clear();
 
   this.windowManager.closeAll();
