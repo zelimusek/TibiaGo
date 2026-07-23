@@ -6,6 +6,7 @@ const SoundBit = function(ids) {
    */
 
   this.ids = ids;
+  this.__activeElements = new Set();
 
 }
 
@@ -22,6 +23,22 @@ SoundBit.prototype.play = function() {
 
   // Set the volume to something low and play
   element.volume = 0.5;
+  this.__activeElements.add(element);
+  element.addEventListener("ended", function() {
+    this.__activeElements.delete(element);
+  }.bind(this), { once: true });
   element.play();
+
+}
+
+SoundBit.prototype.stop = function() {
+
+  this.__activeElements.forEach(function(element) {
+    element.pause();
+    element.removeAttribute("src");
+    element.load();
+  });
+
+  this.__activeElements.clear();
 
 }

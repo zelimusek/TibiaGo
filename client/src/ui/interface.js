@@ -925,6 +925,7 @@ Interface.prototype.sendLogout = function () {
       return gameClient.interface.setCancelMessage("You may not logout here.");
     }
 
+    gameClient.interface.soundManager.stopAll();
     gameClient.send(new LogoutPacket());
   });
 };

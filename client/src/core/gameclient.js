@@ -176,6 +176,7 @@ GameClient.prototype.reset = function () {
   // Save settings
   this.renderer.minimap.save();
   this.interface.settings.saveState();
+  this.interface.soundManager.stopAll();
 
   // Abort the gameloop
   this.gameLoop.abort();

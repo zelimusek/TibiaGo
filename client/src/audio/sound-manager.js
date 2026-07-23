@@ -201,3 +201,27 @@ SoundManager.prototype.stopRadioStream = function() {
   this.__radioUrl = "";
 
 }
+
+SoundManager.prototype.stopAll = function() {
+
+  /*
+   * Function SoundManager.stopAll
+   * Stops all active game sounds, used when leaving the game world.
+   */
+
+  Object.values(this.traces).forEach(function(trace) {
+    trace.stop();
+  });
+
+  Object.values(this.ambientTraces).forEach(function(trace) {
+    trace.stop();
+  });
+
+  Object.values(this.soundbits).forEach(function(soundbit) {
+    soundbit.stop();
+  });
+
+  this.stopRadioStream();
+  this.__currentAmbientTrace = null;
+
+}
