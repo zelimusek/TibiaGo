@@ -53,6 +53,10 @@ BattleWindow.prototype.updateCreature = function (creature) {
    * Updates the DOM element of the creature with new stats
    */
 
+  if (gameClient.isSelf(creature)) {
+    return this.removeCreature(creature.id);
+  }
+
   // Find the element for this creature
   let element = this.getBody().querySelector('[id="%s"]'.format(creature.id));
 
@@ -105,6 +109,10 @@ BattleWindow.prototype.addCreature = function (creature) {
    * Function BattleWindow.addCreature
    * Updates the DOM with the targeted creature
    */
+
+  if (gameClient.isSelf(creature)) {
+    return this.removeCreature(creature.id);
+  }
 
   // Check if creature already exists in the list to avoid duplicates
   let existing = this.getBody().querySelector('[id="%s"]'.format(creature.id));
