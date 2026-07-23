@@ -18,19 +18,20 @@ Slot.prototype.setElement = function (element) {
    */
 
   this.element = element;
+  this.element.__slot = this;
   this.canvas = new Canvas(element.firstElementChild, 32, 32);
   this.countElement = element.querySelector(".count");
 
   // Add tooltip listeners
   element.addEventListener("mouseover", function () {
-    if (this.item) {
-      gameClient.interface.tooltip.show(this.item, this.element);
+    if (element.__slot && element.__slot.item) {
+      gameClient.interface.tooltip.show(element.__slot.item, element);
     }
-  }.bind(this));
+  });
 
   element.addEventListener("mouseout", function () {
     gameClient.interface.tooltip.hide();
-  }.bind(this));
+  });
 
 }
 

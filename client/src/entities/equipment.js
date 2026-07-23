@@ -101,9 +101,15 @@ Equipment.prototype.referenceSlotDOM = function (index, id) {
    * Creates the slot DOM for the equipment
    */
 
+  // Equipment slots are reused DOM nodes across relogs. Replace the node before
+  // binding a new Slot so old mouseover listeners cannot show stale tooltips.
+  let element = document.getElementById(id);
+  let cleanElement = element.cloneNode(true);
+  element.replaceWith(cleanElement);
+
   // Create new slots for the items
   let slot = new Slot();
-  slot.setElement(document.getElementById(id));
+  slot.setElement(cleanElement);
 
   return slot;
 
