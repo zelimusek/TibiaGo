@@ -319,9 +319,12 @@ CommandHandler.prototype.handleCommandAddSkill = function (
 };
 
 CommandHandler.prototype.handle = function (player, message) {
-  //if(player.getProperty(CONST.PROPERTIES.ROLE) !== CONST.ROLES.ADMIN) {
-  //  return;
-  //}
+  // Slash commands in this handler are administrative tools (spawning,
+  // teleporting, editing radio zones, and similar). They must not be exposed
+  // to regular player accounts.
+  if (!player.isGM()) {
+    return player.sendCancelMessage("Only GMs can use game master commands.");
+  }
 
   message = message.split(" ");
 

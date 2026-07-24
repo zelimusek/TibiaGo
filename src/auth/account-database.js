@@ -67,6 +67,9 @@ AccountDatabase.prototype.__createDefaultCharacter = async function (
     password: DEFAULT_CHARACTER.PASSWORD,
     name: DEFAULT_CHARACTER.NAME,
     sex: DEFAULT_CHARACTER.SEX,
+    role: Number.isInteger(DEFAULT_CHARACTER.ROLE)
+      ? DEFAULT_CHARACTER.ROLE
+      : CONST.ROLES.GOD,
   };
 
   // Check if default character already exists
@@ -77,7 +80,32 @@ AccountDatabase.prototype.__createDefaultCharacter = async function (
     .limit(1);
 
   if (existing.length > 0) {
-    console.log("Default character already exists, skipping creation");
+    let character = existing[0].character;
+
+    // The first server versions created this account as a regular player.
+    // Upgrade it in place so the configured owner always has the intended role.
+    while (typeof character === "string") {
+      character = JSON.parse(character);
+    }
+
+    if (!character.properties) {
+      character.properties = {};
+    }
+
+    if (character.properties.role !== queryObject.role) {
+      character.properties.role = queryObject.role;
+      await this.db
+        .update(accounts)
+        .set({
+          character: JSON.stringify(character),
+          updatedAt: new Date(),
+        })
+        .where(eq(accounts.account, queryObject.account.toLowerCase()));
+
+      console.log("Default character role has been updated to GOD");
+    } else {
+      console.log("Default character already exists with the correct role");
+    }
     return;
   }
 
@@ -153,7 +181,13 @@ AccountDatabase.prototype.createAccount = function (queryObject, callback) {
             // Creates a new character from a blueprint
             const account = queryObject.account.toLowerCase();
             const name = queryObject.name.capitalize();
-            const character = this.characterCreator.create(name, queryObject.sex);
+            const character = JSON.parse(this.characterCreator.create(name, queryObject.sex));
+
+            // Only the configured bootstrap account receives a privileged role.
+            // All ordinary registrations keep the CharacterCreator default (NONE).
+            if (Number.isInteger(queryObject.role)) {
+              character.properties.role = queryObject.role;
+            }
 
             // Insert into the database
             await this.db.insert(accounts).values({

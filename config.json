@@ -25,7 +25,8 @@
       "ACCOUNT": "111111",
       "PASSWORD": "tibia",
       "SEX": "male",
-      "NAME": "God"
+      "NAME": "God",
+      "ROLE": 4
     }
   },
   "SERVER": {
