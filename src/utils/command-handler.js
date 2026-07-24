@@ -211,6 +211,7 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let url = message[2] || "";
   let radius = Number(message[3]);
   let fadeRadius = Number(message[4]);
+  let effectsEnabled = message[5] !== "0";
 
   try {
     let parsed = new URL(url);
@@ -234,6 +235,7 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     url,
     radius,
     fadeRadius,
+    effectsEnabled,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
     return player.sendCancelMessage("Could not save the radio zone.");

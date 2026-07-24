@@ -9,6 +9,7 @@ const RadioEditorModal = function (element) {
   this.__url = document.getElementById("radio-editor-url");
   this.__radius = document.getElementById("radio-editor-radius");
   this.__fadeRadius = document.getElementById("radio-editor-fade-radius");
+  this.__effects = document.getElementById("radio-editor-effects");
 
 }
 
@@ -21,6 +22,7 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   this.__url.value = config.url || "";
   this.__radius.value = Number.isInteger(config.radius) ? config.radius : 4;
   this.__fadeRadius.value = Number.isInteger(config.fadeRadius) ? config.fadeRadius : 5;
+  this.__effects.checked = config.effectsEnabled !== false;
 
   setTimeout(function () {
     this.__url.focus();
@@ -33,6 +35,7 @@ RadioEditorModal.prototype.handleConfirm = function () {
   let url = this.__url.value.trim();
   let radius = Number(this.__radius.value);
   let fadeRadius = Number(this.__fadeRadius.value);
+  let effectsEnabled = this.__effects.checked ? 1 : 0;
 
   try {
     let parsed = new URL(url);
@@ -59,7 +62,7 @@ RadioEditorModal.prototype.handleConfirm = function () {
   gameClient.send(new ChannelMessagePacket(
     CONST.CHANNEL.DEFAULT,
     1,
-    "/radio set %s %s %s".format(url, radius, fadeRadius)
+    "/radio set %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled)
   ));
 
   return true;

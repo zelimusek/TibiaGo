@@ -42,6 +42,7 @@ const CreatureHandler = function () {
 
   // Browser radio zones
   this.__radioZones = this.__loadRadioZones();
+  this.__radioEffectTicks = 0;
 
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
@@ -91,12 +92,13 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
   return {
     url: zone ? zone.url : "",
     radius: zone && Number.isInteger(zone.radius) ? zone.radius : 4,
-    fadeRadius: zone && Number.isInteger(zone.fadeRadius) ? zone.fadeRadius : 5
+    fadeRadius: zone && Number.isInteger(zone.fadeRadius) ? zone.fadeRadius : 5,
+    effectsEnabled: !zone || zone.effectsEnabled !== false
   };
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -112,6 +114,7 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     volume: 0.75,
     radius: radius,
     fadeRadius: fadeRadius,
+    effectsEnabled: effectsEnabled !== false,
     fadeMetric: "chebyshev",
     owner: owner,
     center: { x: position.x, y: position.y, z: position.z },
@@ -139,6 +142,44 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
   }, this);
 
   return true;
+
+}
+
+CreatureHandler.prototype.__playRadioZoneEffects = function () {
+
+  /*
+   * Sends a small number of ambient, colourful pulses into each enabled
+   * radio zone. Effects are decorative only and are deliberately infrequent
+   * so a large venue never floods clients with packets.
+   */
+
+  const effects = [
+    CONST.EFFECT.MAGIC.SOUND_GREEN,
+    CONST.EFFECT.MAGIC.SOUND_RED,
+    CONST.EFFECT.MAGIC.SOUND_YELLOW,
+    CONST.EFFECT.MAGIC.SOUND_PURPLE,
+    CONST.EFFECT.MAGIC.SOUND_BLUE,
+    CONST.EFFECT.MAGIC.SOUND_WHITE
+  ];
+
+  this.__radioZones.forEach(function (zone) {
+    if (!zone.enabled || zone.effectsEnabled === false || !zone.center || !Number.isInteger(zone.radius)) {
+      return;
+    }
+
+    // Four effects look lively in a small dance floor while remaining very
+    // light even when several radio zones are configured.
+    let effectCount = Math.max(1, Math.min(4, Math.ceil((zone.radius * 2 + 1) / 3)));
+
+    for (let index = 0; index < effectCount; index++) {
+      let x = zone.center.x + Math.floor(Math.random() * (zone.radius * 2 + 1)) - zone.radius;
+      let y = zone.center.y + Math.floor(Math.random() * (zone.radius * 2 + 1)) - zone.radius;
+      let position = new Position(x, y, zone.center.z);
+      let effect = effects[Math.floor(Math.random() * effects.length)];
+
+      gameServer.world.sendMagicEffect(position, effect);
+    }
+  });
 
 }
 
@@ -375,6 +416,13 @@ CreatureHandler.prototype.tick = function () {
 
   // Reset the counter
   this.__numberActiveMonsters = 0;
+
+  // One ambient disco pulse every two seconds (40 server ticks at 50ms).
+  this.__radioEffectTicks++;
+  if (this.__radioEffectTicks >= 40) {
+    this.__radioEffectTicks = 0;
+    this.__playRadioZoneEffects();
+  }
 
   // Handle always active NPCs
   this.sceneNPCs.forEach(npc => npc.cutsceneHandler.think());
