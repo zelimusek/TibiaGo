@@ -16,6 +16,8 @@ const RadioEditorModal = function (element) {
   this.__beatBpm = document.getElementById("radio-editor-beat-bpm");
   this.__weather = document.getElementById("radio-editor-weather");
   this.__light = document.getElementById("radio-editor-light");
+  this.__discoCanvas = document.getElementById("radio-editor-disco-canvas");
+  this.__discoIntensity = document.getElementById("radio-editor-disco-intensity");
 
 }
 
@@ -40,6 +42,8 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   this.__beatBpm.value = Number.isInteger(config.beatBpm) ? config.beatBpm : 0;
   this.__weather.value = config.weather || "none";
   this.__light.value = config.light || "none";
+  this.__discoCanvas.checked = config.discoCanvasEnabled === true;
+  this.__discoIntensity.value = Number.isInteger(config.discoCanvasIntensity) ? config.discoCanvasIntensity : 60;
 
   setTimeout(function () {
     this.__url.focus();
@@ -61,6 +65,8 @@ RadioEditorModal.prototype.handleConfirm = function () {
   let beatBpm = Number(this.__beatBpm.value);
   let weather = this.__weather.value;
   let light = this.__light.value;
+  let discoCanvasEnabled = this.__discoCanvas.checked ? 1 : 0;
+  let discoCanvasIntensity = Number(this.__discoIntensity.value);
 
   try {
     let parsed = new URL(url);
@@ -102,12 +108,17 @@ RadioEditorModal.prototype.handleConfirm = function () {
     return false;
   }
 
+  if (!Number.isInteger(discoCanvasIntensity) || discoCanvasIntensity < 10 || discoCanvasIntensity > 100) {
+    gameClient.interface.setCancelMessage("Club effect intensity must be a whole number from 10 to 100.");
+    return false;
+  }
+
   // Commands are handled by the server in the Default channel and are not
   // echoed to chat, so saving stays an in-game GM action.
   gameClient.send(new ChannelMessagePacket(
     CONST.CHANNEL.DEFAULT,
     1,
-    "/radio set %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light)
+    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, discoCanvasEnabled, discoCanvasIntensity)
   ));
 
   return true;

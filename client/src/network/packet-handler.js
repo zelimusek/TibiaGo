@@ -574,6 +574,11 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
       let color = lightColors[ambience.light] || lightColors.none;
 
       gameClient.renderer.weatherCanvas.setWeatherType(weather);
+      gameClient.renderer.weatherCanvas.setDiscoLights(
+        ambience.discoCanvasEnabled === true,
+        ambience.discoCanvasIntensity,
+        ambience.beatBpm
+      );
       gameClient.renderer.weatherCanvas.setRaining(weather === "rain" || weather === "storm");
       gameClient.renderer.weatherCanvas.setWeather(
         weather === "fog" || weather === "storm" ? 0.45

@@ -218,6 +218,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let beatBpm = Number(message[9]);
   let weather = message[10] || "none";
   let light = message[11] || "none";
+  let discoCanvasEnabled = message[12] === "1";
+  let discoCanvasIntensity = message[13] === undefined ? 60 : Number(message[13]);
   let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
   let validWeather = ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"];
   let validLight = ["none", "night", "blue", "purple", "red"];
@@ -261,6 +263,10 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Choose valid radio weather and lighting options.");
   }
 
+  if (!Number.isInteger(discoCanvasIntensity) || discoCanvasIntensity < 10 || discoCanvasIntensity > 100) {
+    return player.sendCancelMessage("Canvas disco intensity must be a whole number from 10 to 100.");
+  }
+
   if (!gameServer.world.creatureHandler.setRadioZoneAt(
     player.position,
     url,
@@ -273,6 +279,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     beatBpm,
     weather,
     light,
+    discoCanvasEnabled,
+    discoCanvasIntensity,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
     return player.sendCancelMessage("Could not save the radio zone.");

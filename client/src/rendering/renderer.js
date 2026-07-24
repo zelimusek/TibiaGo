@@ -356,6 +356,10 @@ Renderer.prototype.__renderWorld = function () {
     this.screen.context.drawImage(this.lightscreen.canvas, 0, 0);
     this.lightscreen.setup();
 
+    // Club effects are a local, optional light overlay, drawn after the
+    // world darkness so they remain vivid on a night-time dance floor.
+    this.weatherCanvas.drawDiscoLights();
+
   }
 
   this.totalDrawTime = this.totalDrawTime + (performance.now() - start);

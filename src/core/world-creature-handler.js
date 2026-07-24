@@ -114,12 +114,14 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     effectIntensity: zone && Number.isInteger(zone.effectIntensity) ? zone.effectIntensity : 3,
     beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
     weather: zone && ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"].indexOf(zone.weather) !== -1 ? zone.weather : "none",
-    light: zone && ["none", "night", "blue", "purple", "red"].indexOf(zone.light) !== -1 ? zone.light : "none"
+    light: zone && ["none", "night", "blue", "purple", "red"].indexOf(zone.light) !== -1 ? zone.light : "none",
+    discoCanvasEnabled: zone && zone.discoCanvasEnabled === true,
+    discoCanvasIntensity: zone && Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60
   };
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, discoCanvasEnabled, discoCanvasIntensity, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -142,6 +144,8 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     beatBpm: beatBpm,
     weather: weather,
     light: light,
+    discoCanvasEnabled: discoCanvasEnabled === true,
+    discoCanvasIntensity: discoCanvasIntensity,
     fadeMetric: "chebyshev",
     owner: owner,
     center: { x: position.x, y: position.y, z: position.z },
@@ -201,9 +205,15 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
    */
 
   let ambience = zone && this.__isInsideRadioCore(zone, player.position)
-    ? { weather: zone.weather || "none", light: zone.light || "none" }
-    : { weather: "none", light: "none" };
-  let ambienceKey = ambience.weather + ":" + ambience.light;
+    ? {
+      weather: zone.weather || "none",
+      light: zone.light || "none",
+      discoCanvasEnabled: zone.discoCanvasEnabled === true,
+      discoCanvasIntensity: Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
+      beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
+    }
+    : { weather: "none", light: "none", discoCanvasEnabled: false, discoCanvasIntensity: 60, beatBpm: 0 };
+  let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser
   // when the local ambience actually changes.

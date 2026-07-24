@@ -19,6 +19,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
+  this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0 };
   this.__rainIntensity = 0.025;
   this.__thunderIntensity = 0.0025;
 
@@ -108,6 +109,66 @@ WeatherCanvas.prototype.handleThunder = function() {
 WeatherCanvas.prototype.setWeatherType = function(type) {
 
   this.__weatherType = type || "none";
+
+}
+
+WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm) {
+
+  this.__discoLights = {
+    enabled: enabled === true,
+    intensity: Math.max(10, Math.min(100, Number(intensity) || 60)),
+    beatBpm: Number.isInteger(beatBpm) ? beatBpm : 0
+  };
+
+}
+
+WeatherCanvas.prototype.drawDiscoLights = function() {
+
+  let disco = this.__discoLights;
+  if(!disco.enabled) {
+    return;
+  }
+
+  let context = this.screen.context;
+  let width = this.screen.canvas.width;
+  let height = this.screen.canvas.height;
+  let now = performance.now();
+  let pulse = disco.beatBpm > 0
+    ? 0.55 + 0.45 * Math.max(0, Math.sin(now * Math.PI * 2 * disco.beatBpm / 60000))
+    : 0.72 + 0.28 * Math.sin(now / 260);
+  let intensity = disco.intensity / 100;
+  let colors = [[42, 120, 255], [232, 48, 255], [35, 255, 194]];
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+
+  // Three moving soft spotlights sweeping across the dance floor.
+  for(let index = 0; index < colors.length; index++) {
+    let angle = now / 1100 + index * Math.PI * 2 / colors.length;
+    let x = width * 0.5 + Math.cos(angle) * width * 0.38;
+    let y = height * 0.48 + Math.sin(angle * 1.3) * height * 0.28;
+    let color = colors[index];
+    let gradient = context.createRadialGradient(x, y, 0, x, y, Math.max(width, height) * 0.34);
+    gradient.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.16 * intensity * pulse));
+    gradient.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+  }
+
+  // Thin lasers rotate independently from the spotlights.
+  context.globalAlpha = 0.32 * intensity * pulse;
+  context.lineWidth = 2;
+  for(let index = 0; index < colors.length; index++) {
+    let angle = now / 680 + index * Math.PI / 3;
+    let color = colors[index];
+    context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
+    context.beginPath();
+    context.moveTo(width * 0.5, height * 0.5);
+    context.lineTo(width * 0.5 + Math.cos(angle) * width, height * 0.5 + Math.sin(angle) * height);
+    context.stroke();
+  }
+
+  context.restore();
 
 }
 
