@@ -580,6 +580,31 @@
               </div>
             </div>
 
+            <!-- GM radio-zone editor, opened with /radio -->
+            <div id="radio-editor-modal" class="modal">
+              <button class="close-button-transparent symbol-button" action="cancel" value="Cancel">✕</button>
+              <div class="modal-header">Radio Zone</div>
+              <div class="modal-body radio-editor-body">
+                <label for="radio-editor-url">Radio URL</label>
+                <input id="radio-editor-url" type="url" autocomplete="off" placeholder="https://example.com/stream">
+
+                <div class="radio-editor-row">
+                  <label for="radio-editor-radius">Radius
+                    <input id="radio-editor-radius" type="number" min="0" max="50" step="1">
+                  </label>
+                  <label for="radio-editor-fade-radius">Radius Effect
+                    <input id="radio-editor-fade-radius" type="number" min="0" max="50" step="1">
+                  </label>
+                </div>
+
+                <p class="radio-editor-help">Radius plays at 75% volume. Radius Effect fades the stream over the next SQMs.</p>
+                <div class="modal-footer">
+                  <button action="cancel" value="Cancel">Cancel</button>
+                  <button action="confirm" value="Save">Save Radio</button>
+                </div>
+              </div>
+            </div>
+
             <!-- Open Chat Modal -->
             <div id="chat-modal" class="modal">
               <button class="close-button-transparent symbol-button" action="cancel" value="Cancel">✕</button>

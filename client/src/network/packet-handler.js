@@ -547,6 +547,18 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
    * Starts or stops a browser radio stream requested by the game server.
    */
 
+  let editorPrefix = "radio-editor:";
+
+  if (packet.enabled && packet.url.startsWith(editorPrefix)) {
+    try {
+      let config = JSON.parse(decodeURIComponent(packet.url.slice(editorPrefix.length)));
+      gameClient.interface.modalManager.open("radio-editor-modal", config);
+    } catch (error) {
+      gameClient.interface.setCancelMessage("Could not open the radio editor.");
+    }
+    return;
+  }
+
   gameClient.interface.soundManager.setRadioStream(packet.enabled ? packet.url : "", packet.volume);
 
 }

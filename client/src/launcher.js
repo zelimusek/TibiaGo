@@ -108,6 +108,7 @@
     "src/ui/modals/modal-hotbar-config.js",
     "src/ui/modals/modal-confirm.js",
     "src/ui/modals/modal-death.js",
+    "src/ui/modals/modal-radio-editor.js",
     "src/ui/modals/modal-enter-name.js",
     "src/ui/modals/modal-map.js",
     "src/ui/modals/modal-text.js",

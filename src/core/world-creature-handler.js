@@ -72,6 +72,76 @@ CreatureHandler.prototype.__loadRadioZones = function () {
 
 }
 
+CreatureHandler.prototype.__getRadioZoneId = function (position) {
+
+  return "radio-%s-%s-%s".format(position.x, position.y, position.z);
+
+}
+
+CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
+
+  /*
+   * Returns the editable radio-zone configuration centered on a tile.
+   */
+
+  let zone = this.__radioZones.find(function (entry) {
+    return entry.id === this.__getRadioZoneId(position);
+  }, this);
+
+  return {
+    url: zone ? zone.url : "",
+    radius: zone && Number.isInteger(zone.radius) ? zone.radius : 4,
+    fadeRadius: zone && Number.isInteger(zone.fadeRadius) ? zone.fadeRadius : 5
+  };
+
+}
+
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, owner) {
+
+  /*
+   * Creates or updates the radio zone centered on a particular tile and
+   * persists it so the configuration survives server restarts.
+   */
+
+  let id = this.__getRadioZoneId(position);
+  let zone = {
+    id: id,
+    name: "Radio zone at %s, %s, %s".format(position.x, position.y, position.z),
+    enabled: true,
+    url: url,
+    volume: 0.75,
+    radius: radius,
+    fadeRadius: fadeRadius,
+    fadeMetric: "chebyshev",
+    owner: owner,
+    center: { x: position.x, y: position.y, z: position.z },
+    from: { x: position.x - radius, y: position.y - radius, z: position.z },
+    to: { x: position.x + radius, y: position.y + radius, z: position.z }
+  };
+
+  let zones = this.__radioZones.filter(function (entry) {
+    return entry.id !== id;
+  });
+  zones.push(zone);
+
+  let filename = path.resolve(process.cwd(), "data", CONFIG.SERVER.CLIENT_VERSION.toString(), "radio-zones.json");
+
+  try {
+    fs.writeFileSync(filename, JSON.stringify(zones, null, 2) + "\n", "utf8");
+  } catch (error) {
+    console.error("Could not save radio zones:", error.message);
+    return false;
+  }
+
+  this.__radioZones = zones;
+  this.__playerMap.forEach(function (player) {
+    this.__syncRadioZone(player, null);
+  }, this);
+
+  return true;
+
+}
+
 CreatureHandler.prototype.__getRadioZoneState = function (position) {
 
   /*
@@ -92,9 +162,21 @@ CreatureHandler.prototype.__getRadioZoneState = function (position) {
       return;
     }
 
-    let dx = Math.max(minX - position.x, 0, position.x - maxX);
-    let dy = Math.max(minY - position.y, 0, position.y - maxY);
-    let distance = Math.sqrt(dx * dx + dy * dy);
+    let distance;
+
+    // Radio zones created through /radio use tile-square distance so a radius
+    // of 4 really means four SQMs in every direction, including diagonals.
+    if (zone.fadeMetric === "chebyshev" && zone.center) {
+      let radius = Math.max(0, Number(zone.radius) || 0);
+      distance = Math.max(0, Math.max(
+        Math.abs(position.x - zone.center.x),
+        Math.abs(position.y - zone.center.y)
+      ) - radius);
+    } else {
+      let dx = Math.max(minX - position.x, 0, position.x - maxX);
+      let dy = Math.max(minY - position.y, 0, position.y - maxY);
+      distance = Math.sqrt(dx * dx + dy * dy);
+    }
 
     if (distance > fadeRadius) {
       return;

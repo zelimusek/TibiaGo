@@ -3,7 +3,7 @@
 const path = require("path");
 const Position = requireModule("utils/position");
 const NPC = requireModule("npc/npc");
-const { ServerMessagePacket, CreaturePropertyPacket } = requireModule("network/protocol");
+const { ServerMessagePacket, CreaturePropertyPacket, RadioStreamPacket } = requireModule("network/protocol");
 
 const CommandHandler = function () { };
 
@@ -191,6 +191,58 @@ CommandHandler.prototype.handleCommandAddSkill = function (
   );
 };
 
+CommandHandler.prototype.handleCommandRadio = function (player, message) {
+
+  /*
+   * Opens or saves the GM radio-zone editor. A zone is centered on the tile
+   * where the command is used, making it easy to configure a house or venue.
+   */
+
+  if (!player.isGM()) {
+    return player.sendCancelMessage("Only GMs can configure radio zones.");
+  }
+
+  if (message[1] !== "set") {
+    let config = gameServer.world.creatureHandler.getRadioZoneEditorConfig(player.position);
+    let editorPayload = encodeURIComponent(JSON.stringify(config));
+    return player.write(new RadioStreamPacket(true, "radio-editor:" + editorPayload, 0));
+  }
+
+  let url = message[2] || "";
+  let radius = Number(message[3]);
+  let fadeRadius = Number(message[4]);
+
+  try {
+    let parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("unsupported protocol");
+    }
+  } catch (error) {
+    return player.sendCancelMessage("Enter a valid http:// or https:// radio URL.");
+  }
+
+  if (!Number.isInteger(radius) || radius < 0 || radius > 50) {
+    return player.sendCancelMessage("Radius must be a whole number from 0 to 50.");
+  }
+
+  if (!Number.isInteger(fadeRadius) || fadeRadius < 0 || fadeRadius > 50) {
+    return player.sendCancelMessage("Radius Effect must be a whole number from 0 to 50.");
+  }
+
+  if (!gameServer.world.creatureHandler.setRadioZoneAt(
+    player.position,
+    url,
+    radius,
+    fadeRadius,
+    player.getProperty(CONST.PROPERTIES.NAME)
+  )) {
+    return player.sendCancelMessage("Could not save the radio zone.");
+  }
+
+  return player.write(new ServerMessagePacket("Radio zone saved. Base volume: 75%."));
+
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -279,6 +331,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/waypoint") {
     return this.handleCommandWaypoint(player, message[1]);
+  }
+
+  if (message[0] === "/radio") {
+    return this.handleCommandRadio(player, message);
   }
 
   if (message[0] === "/teleport") {

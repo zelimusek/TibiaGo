@@ -214,6 +214,45 @@
   font-weight: bold;
 }
 
+#radio-editor-modal {
+  width: 420px;
+  max-width: 92vw;
+}
+
+.radio-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-editor-body > label,
+.radio-editor-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radio-editor-body input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.radio-editor-row {
+  display: flex;
+  gap: 10px;
+}
+
+.radio-editor-row label {
+  flex: 1 1 50%;
+}
+
+.radio-editor-help {
+  color: #ccc;
+  font-size: 10px;
+  line-height: 1.4;
+  margin: 2px 0;
+}
+
 .hotbar-config-tabs {
   display: flex;
   gap: 10px;
