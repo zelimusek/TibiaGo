@@ -219,7 +219,7 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let weather = message[10] || "none";
   let light = message[11] || "none";
   let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
-  let validWeather = ["none", "rain", "fog", "storm"];
+  let validWeather = ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"];
   let validLight = ["none", "night", "blue", "purple", "red"];
 
   try {

@@ -18,6 +18,7 @@ const WeatherCanvas = function(screen) {
 
   this.__flash = 0;
   this.__isRaining = false;
+  this.__weatherType = "none";
   this.__rainIntensity = 0.025;
   this.__thunderIntensity = 0.0025;
 
@@ -104,6 +105,12 @@ WeatherCanvas.prototype.handleThunder = function() {
 
 }
 
+WeatherCanvas.prototype.setWeatherType = function(type) {
+
+  this.__weatherType = type || "none";
+
+}
+
 WeatherCanvas.prototype.drawRain = function() {
 
   /*
@@ -154,6 +161,102 @@ WeatherCanvas.prototype.drawRain = function() {
 
 }
 
+WeatherCanvas.prototype.drawSnow = function() {
+
+  let context = this.screen.context;
+  let width = this.screen.canvas.width;
+  let height = this.screen.canvas.height + 32;
+  let frame = gameClient.renderer.debugger.__nFrames;
+  let count = Math.max(35, Math.floor((width * height) / 10500));
+
+  context.save();
+  context.globalAlpha = 0.82;
+  context.fillStyle = "#f4fbff";
+
+  for(let index = 0; index < count; index++) {
+    let x = ((index * 101 - frame * 0.35) % (width + 8) + (width + 8)) % (width + 8) - 4;
+    let y = (index * 59 + frame * 1.15) % (height + 8) - 4;
+    let size = index % 5 === 0 ? 3 : 2;
+    context.fillRect(x, y, size, size);
+  }
+
+  context.restore();
+
+}
+
+WeatherCanvas.prototype.drawSandstorm = function() {
+
+  let context = this.screen.context;
+  let width = this.screen.canvas.width;
+  let height = this.screen.canvas.height + 32;
+  let frame = gameClient.renderer.debugger.__nFrames;
+  let count = Math.max(45, Math.floor((width * height) / 7200));
+
+  context.save();
+  context.globalAlpha = 0.42;
+  context.strokeStyle = "#d8a34b";
+  context.lineWidth = 1.5;
+  context.beginPath();
+
+  for(let index = 0; index < count; index++) {
+    let x = ((index * 73 - frame * 5.5) % (width + 22) + (width + 22)) % (width + 22) - 11;
+    let y = (index * 41 + frame * 0.55) % (height + 10) - 5;
+    context.moveTo(x, y);
+    context.lineTo(x - 16, y + 2);
+  }
+
+  context.stroke();
+  context.restore();
+
+}
+
+WeatherCanvas.prototype.drawAsh = function() {
+
+  let context = this.screen.context;
+  let width = this.screen.canvas.width;
+  let height = this.screen.canvas.height + 32;
+  let frame = gameClient.renderer.debugger.__nFrames;
+  let count = Math.max(35, Math.floor((width * height) / 9500));
+
+  context.save();
+  context.globalAlpha = 0.58;
+  context.fillStyle = "#787878";
+
+  for(let index = 0; index < count; index++) {
+    let x = ((index * 89 + frame * 0.7) % (width + 10) + (width + 10)) % (width + 10) - 5;
+    let y = (index * 53 + frame * 1.45) % (height + 8) - 4;
+    context.fillRect(x, y, index % 4 === 0 ? 3 : 2, 2);
+  }
+
+  context.restore();
+
+}
+
+WeatherCanvas.prototype.drawEmbers = function() {
+
+  let context = this.screen.context;
+  let width = this.screen.canvas.width;
+  let height = this.screen.canvas.height + 32;
+  let frame = gameClient.renderer.debugger.__nFrames;
+  let count = Math.max(28, Math.floor((width * height) / 13000));
+
+  context.save();
+  context.globalAlpha = 0.9;
+  context.fillStyle = "#ffae32";
+
+  for(let index = 0; index < count; index++) {
+    let x = ((index * 97 + frame * 0.9) % (width + 10) + (width + 10)) % (width + 10) - 5;
+    let y = height - ((index * 67 + frame * 2.6) % (height + 12));
+    context.fillRect(x, y, 2, 3);
+    context.fillStyle = "#ffe07a";
+    context.fillRect(x, y + 1, 1, 1);
+    context.fillStyle = "#ffae32";
+  }
+
+  context.restore();
+
+}
+
 WeatherCanvas.prototype.drawWeather = function() {
 
   /*
@@ -169,6 +272,16 @@ WeatherCanvas.prototype.drawWeather = function() {
     this.handleThunder();
     if(this.isRaining()) {
       this.drawRain();
+    }
+
+    if(this.__weatherType === "snow") {
+      this.drawSnow();
+    } else if(this.__weatherType === "sandstorm") {
+      this.drawSandstorm();
+    } else if(this.__weatherType === "ash") {
+      this.drawAsh();
+    } else if(this.__weatherType === "embers") {
+      this.drawEmbers();
     }
   }
 

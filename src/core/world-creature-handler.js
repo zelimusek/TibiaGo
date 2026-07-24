@@ -113,7 +113,7 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     effectInterval: zone && Number.isFinite(zone.effectIntervalMs) ? zone.effectIntervalMs / 1000 : 2,
     effectIntensity: zone && Number.isInteger(zone.effectIntensity) ? zone.effectIntensity : 3,
     beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
-    weather: zone && ["none", "rain", "fog", "storm"].indexOf(zone.weather) !== -1 ? zone.weather : "none",
+    weather: zone && ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"].indexOf(zone.weather) !== -1 ? zone.weather : "none",
     light: zone && ["none", "night", "blue", "purple", "red"].indexOf(zone.light) !== -1 ? zone.light : "none"
   };
 

@@ -573,8 +573,13 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
       };
       let color = lightColors[ambience.light] || lightColors.none;
 
+      gameClient.renderer.weatherCanvas.setWeatherType(weather);
       gameClient.renderer.weatherCanvas.setRaining(weather === "rain" || weather === "storm");
-      gameClient.renderer.weatherCanvas.setWeather(weather === "fog" || weather === "storm" ? 0.45 : 0);
+      gameClient.renderer.weatherCanvas.setWeather(
+        weather === "fog" || weather === "storm" ? 0.45
+          : weather === "sandstorm" || weather === "ash" ? 0.22
+            : 0
+      );
       if (weather === "storm") {
         gameClient.renderer.weatherCanvas.setThunder();
       }
