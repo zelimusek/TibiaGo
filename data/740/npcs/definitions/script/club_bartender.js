@@ -40,7 +40,7 @@ function baseTalkState(state, player, message) {
     if(!pay(player, drink.price)) return this.respond("You need %s gold coins for that drink.".format(drink.price));
     if(message === "turbo") player.addCondition(Condition.prototype.HASTE, 60, 500, null);
     else player.addCondition(Condition.prototype.MORPH, 120, 500, { id: 128, details: { head: message === "neon" ? 94 : 18, body: message === "neon" ? 114 : 18, legs: 94, feet: 114 } });
-    process.gameServer.world.sendMagicEffect(player.position, drink.effect);
+    process.gameServer.world.creatureHandler.applyClubDrinkAura(player, drink.effect);
     return this.respond("Cheers! %s".format(drink.text));
   }
   if(WARDROBE[message]) {

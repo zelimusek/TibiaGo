@@ -90,6 +90,29 @@ CreatureHandler.prototype.__broadcastClubDance = function (message) {
 
 }
 
+CreatureHandler.prototype.applyClubDrinkAura = function (player, effect) {
+
+  player.__clubDrinkAura = { effect: effect, expiresAt: Date.now() + 60000 };
+  gameServer.world.sendMagicEffect(player.position, effect);
+
+}
+
+CreatureHandler.prototype.__tickClubDrinkAuras = function () {
+
+  let now = Date.now();
+  this.__playerMap.forEach(function (player) {
+    if(!player.__clubDrinkAura) {
+      return;
+    }
+    if(player.__clubDrinkAura.expiresAt <= now) {
+      delete player.__clubDrinkAura;
+      return;
+    }
+    gameServer.world.sendMagicEffect(player.position, player.__clubDrinkAura.effect);
+  });
+
+}
+
 CreatureHandler.prototype.__isOnClubDanceFloor = function (position) {
 
   return position.z === 7 && position.x >= 32408 && position.x <= 32413 && position.y >= 32172 && position.y <= 32175;
@@ -597,6 +620,7 @@ CreatureHandler.prototype.tick = function () {
   if (this.__radioEffectTicks >= 5) {
     this.__radioEffectTicks = 0;
     this.__playRadioZoneEffects();
+    this.__tickClubDrinkAuras();
   }
 
   this.__tickClubDance();

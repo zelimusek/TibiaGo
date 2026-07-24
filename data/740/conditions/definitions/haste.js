@@ -11,17 +11,11 @@ function onStart(creature) {
 
   creature.sendCancelMessage("You feel fast.");
 
-  // Broadcast the new speed to all spectators
+  // Update the authoritative server-side speed as well as the client. Without
+  // this, the animation looked faster but movement stayed at the old rate.
   if (creature.isPlayer && creature.isPlayer()) {
     let newSpeed = creature.getSpeed();
-
-    creature.broadcast(
-      new CreaturePropertyPacket(creature.getId(), CONST.PROPERTIES.SPEED, newSpeed)
-    );
-    // Also send to the player itself
-    creature.write(
-      new CreaturePropertyPacket(creature.getId(), CONST.PROPERTIES.SPEED, newSpeed)
-    );
+    creature.setProperty(CONST.PROPERTIES.SPEED, newSpeed);
   }
 
 }
@@ -38,14 +32,7 @@ function onExpire(creature) {
   // Broadcast the restored speed to all spectators
   if (creature.isPlayer && creature.isPlayer()) {
     let newSpeed = creature.getSpeed();
-
-    creature.broadcast(
-      new CreaturePropertyPacket(creature.getId(), CONST.PROPERTIES.SPEED, newSpeed)
-    );
-    // Also send to the player itself
-    creature.write(
-      new CreaturePropertyPacket(creature.getId(), CONST.PROPERTIES.SPEED, newSpeed)
-    );
+    creature.setProperty(CONST.PROPERTIES.SPEED, newSpeed);
   }
 
 }
