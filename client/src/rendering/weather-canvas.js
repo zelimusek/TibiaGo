@@ -115,8 +115,11 @@ WeatherCanvas.prototype.drawRain = function() {
   let context = this.screen.context;
   let width = this.screen.canvas.width;
   let height = this.screen.canvas.height;
+  // Extend precipitation one extra tile below the viewport. This keeps the
+  // last visible southern SQM covered while the camera scrolls.
+  let rainHeight = height + 32;
   let frame = gameClient.renderer.debugger.__nFrames;
-  let count = Math.max(45, Math.floor((width * height) / 7000));
+  let count = Math.max(45, Math.floor((width * rainHeight) / 7000));
 
   context.save();
   context.globalAlpha = 0.68;
@@ -125,9 +128,9 @@ WeatherCanvas.prototype.drawRain = function() {
   context.beginPath();
 
   for(let index = 0; index < count; index++) {
-    let x = (index * 83 + frame * 5) % (width + 12) - 6;
-    let impactY = height - 18 - (index * 29) % Math.max(32, Math.floor(height * 0.42));
-    let y = (index * 47 + frame * 13) % (impactY + 22) - 12;
+    let x = (index * 83 + frame * 1.5) % (width + 12) - 6;
+    let impactY = rainHeight - 18 - (index * 29) % Math.max(32, Math.floor(rainHeight * 0.42));
+    let y = (index * 47 + frame * 4) % (impactY + 22) - 12;
 
     if(y < impactY - 4) {
       // A slightly longer, thicker streak makes the rain readable on both
