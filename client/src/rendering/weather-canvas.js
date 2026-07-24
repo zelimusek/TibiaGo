@@ -170,14 +170,31 @@ WeatherCanvas.prototype.drawSnow = function() {
   let count = Math.max(35, Math.floor((width * height) / 10500));
 
   context.save();
-  context.globalAlpha = 0.82;
+  context.globalAlpha = 0.9;
   context.fillStyle = "#f4fbff";
 
   for(let index = 0; index < count; index++) {
-    let x = ((index * 101 - frame * 0.35) % (width + 8) + (width + 8)) % (width + 8) - 4;
-    let y = (index * 59 + frame * 1.15) % (height + 8) - 4;
-    let size = index % 5 === 0 ? 3 : 2;
-    context.fillRect(x, y, size, size);
+    // Each flake drifts gently and falls slowly towards its own visible
+    // ground plane, which makes the snow feel softer than square particles.
+    let baseX = ((index * 101 - frame * 0.28) % (width + 12) + (width + 12)) % (width + 12) - 6;
+    let x = baseX + Math.sin((frame + index * 23) * 0.035) * 3;
+    let impactY = height - 16 - (index * 31) % Math.max(32, Math.floor(height * 0.4));
+    let y = (index * 59 + frame * 0.7) % (impactY + 18) - 8;
+    let size = index % 5 === 0 ? 2 : 1;
+
+    if(y < impactY - 3) {
+      // Pixel snowflake: centre, horizontal arms and vertical arms.
+      context.fillRect(x - size, y, size * 3, 1);
+      context.fillRect(x, y - size, 1, size * 3);
+      context.fillRect(x, y, size + 1, size + 1);
+    } else {
+      // A tiny soft pile and scattered grains when a flake reaches ground.
+      context.globalAlpha = 0.55;
+      context.fillRect(x - 4, impactY, 9, 1);
+      context.fillRect(x - 2, impactY - 1, 2, 1);
+      context.fillRect(x + 3, impactY - 2, 1, 1);
+      context.globalAlpha = 0.9;
+    }
   }
 
   context.restore();
