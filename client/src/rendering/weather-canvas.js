@@ -119,17 +119,31 @@ WeatherCanvas.prototype.drawRain = function() {
   let count = Math.max(45, Math.floor((width * height) / 7000));
 
   context.save();
-  context.globalAlpha = 0.58;
+  context.globalAlpha = 0.68;
   context.strokeStyle = "#b9dcff";
-  context.lineWidth = 1;
+  context.lineWidth = 1.5;
   context.beginPath();
 
   for(let index = 0; index < count; index++) {
     let x = (index * 83 + frame * 5) % (width + 12) - 6;
-    let y = (index * 47 + frame * 13) % (height + 12) - 6;
+    let impactY = height - 18 - (index * 29) % Math.max(32, Math.floor(height * 0.42));
+    let y = (index * 47 + frame * 13) % (impactY + 22) - 12;
 
-    context.moveTo(x, y);
-    context.lineTo(x - 2, y + 9);
+    if(y < impactY - 4) {
+      // A slightly longer, thicker streak makes the rain readable on both
+      // bright ground and dark interiors.
+      context.moveTo(x, y);
+      context.lineTo(x - 3, y + 15);
+    } else {
+      // Short ripple plus two upward droplets: a cheap splash illusion when
+      // a raindrop reaches the ground/roof plane.
+      context.moveTo(x - 5, impactY);
+      context.quadraticCurveTo(x, impactY + 3, x + 5, impactY);
+      context.moveTo(x - 1, impactY);
+      context.lineTo(x - 4, impactY - 4);
+      context.moveTo(x + 1, impactY);
+      context.lineTo(x + 4, impactY - 3);
+    }
   }
 
   context.stroke();
