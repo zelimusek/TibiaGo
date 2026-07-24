@@ -128,7 +128,7 @@ WeatherCanvas.prototype.drawRain = function() {
   context.beginPath();
 
   for(let index = 0; index < count; index++) {
-    let x = (index * 83 + frame * 1.5) % (width + 12) - 6;
+    let x = ((index * 83 - frame * 1.5) % (width + 12) + (width + 12)) % (width + 12) - 6;
     let impactY = rainHeight - 18 - (index * 29) % Math.max(32, Math.floor(rainHeight * 0.42));
     let y = (index * 47 + frame * 4) % (impactY + 22) - 12;
 
