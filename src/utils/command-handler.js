@@ -212,6 +212,11 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let radius = Number(message[3]);
   let fadeRadius = Number(message[4]);
   let effectsEnabled = message[5] !== "0";
+  let effectStyle = message[6] || "disco";
+  let effectInterval = Number(message[7]);
+  let effectIntensity = Number(message[8]);
+  let beatBpm = Number(message[9]);
+  let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood"];
 
   try {
     let parsed = new URL(url);
@@ -230,12 +235,32 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Radius Effect must be a whole number from 0 to 50.");
   }
 
+  if (validEffectStyles.indexOf(effectStyle) === -1) {
+    return player.sendCancelMessage("Choose a valid disco effect style.");
+  }
+
+  if (!Number.isFinite(effectInterval) || effectInterval < 0.5 || effectInterval > 30) {
+    return player.sendCancelMessage("Effect frequency must be from 0.5 to 30 seconds.");
+  }
+
+  if (!Number.isInteger(effectIntensity) || effectIntensity < 1 || effectIntensity > 12) {
+    return player.sendCancelMessage("Effect intensity must be a whole number from 1 to 12.");
+  }
+
+  if (!Number.isInteger(beatBpm) || (beatBpm !== 0 && (beatBpm < 40 || beatBpm > 240))) {
+    return player.sendCancelMessage("Beat BPM must be 0 or a whole number from 40 to 240.");
+  }
+
   if (!gameServer.world.creatureHandler.setRadioZoneAt(
     player.position,
     url,
     radius,
     fadeRadius,
     effectsEnabled,
+    effectStyle,
+    Math.round(effectInterval * 1000),
+    effectIntensity,
+    beatBpm,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
     return player.sendCancelMessage("Could not save the radio zone.");

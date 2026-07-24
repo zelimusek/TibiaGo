@@ -7,6 +7,18 @@ const Position = requireModule("utils/position");
 const fs = require("fs");
 const path = require("path");
 
+const RADIO_EFFECT_STYLES = {
+  disco: [CONST.EFFECT.MAGIC.SOUND_GREEN, CONST.EFFECT.MAGIC.SOUND_RED, CONST.EFFECT.MAGIC.SOUND_YELLOW, CONST.EFFECT.MAGIC.SOUND_PURPLE, CONST.EFFECT.MAGIC.SOUND_BLUE, CONST.EFFECT.MAGIC.SOUND_WHITE],
+  magic: [CONST.EFFECT.MAGIC.MAGIC_BLUE, CONST.EFFECT.MAGIC.MAGIC_RED, CONST.EFFECT.MAGIC.MAGIC_GREEN],
+  rings: [CONST.EFFECT.MAGIC.YELLOW_RINGS, CONST.EFFECT.MAGIC.GREEN_RINGS],
+  fire: [CONST.EFFECT.MAGIC.FIREAREA, CONST.EFFECT.MAGIC.HITBYFIRE],
+  energy: [CONST.EFFECT.MAGIC.LOSEENERGY, CONST.EFFECT.MAGIC.ENERGYHIT],
+  poison: [CONST.EFFECT.MAGIC.HITBYPOISON, CONST.EFFECT.MAGIC.POISONAREA],
+  death: [CONST.EFFECT.MAGIC.MORTAREA],
+  teleport: [CONST.EFFECT.MAGIC.TELEPORT],
+  blood: [CONST.EFFECT.MAGIC.DRAWBLOOD]
+};
+
 const {
   CreatureForgetPacket,
   CreatureTeleportPacket,
@@ -93,12 +105,16 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     url: zone ? zone.url : "",
     radius: zone && Number.isInteger(zone.radius) ? zone.radius : 4,
     fadeRadius: zone && Number.isInteger(zone.fadeRadius) ? zone.fadeRadius : 5,
-    effectsEnabled: !zone || zone.effectsEnabled !== false
+    effectsEnabled: !zone || zone.effectsEnabled !== false,
+    effectStyle: zone && RADIO_EFFECT_STYLES[zone.effectStyle] ? zone.effectStyle : "disco",
+    effectInterval: zone && Number.isFinite(zone.effectIntervalMs) ? zone.effectIntervalMs / 1000 : 2,
+    effectIntensity: zone && Number.isInteger(zone.effectIntensity) ? zone.effectIntensity : 3,
+    beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
   };
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyle, effectIntervalMs, effectIntensity, beatBpm, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -115,6 +131,10 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     radius: radius,
     fadeRadius: fadeRadius,
     effectsEnabled: effectsEnabled !== false,
+    effectStyle: RADIO_EFFECT_STYLES[effectStyle] ? effectStyle : "disco",
+    effectIntervalMs: effectIntervalMs,
+    effectIntensity: effectIntensity,
+    beatBpm: beatBpm,
     fadeMetric: "chebyshev",
     owner: owner,
     center: { x: position.x, y: position.y, z: position.z },
@@ -153,23 +173,25 @@ CreatureHandler.prototype.__playRadioZoneEffects = function () {
    * so a large venue never floods clients with packets.
    */
 
-  const effects = [
-    CONST.EFFECT.MAGIC.SOUND_GREEN,
-    CONST.EFFECT.MAGIC.SOUND_RED,
-    CONST.EFFECT.MAGIC.SOUND_YELLOW,
-    CONST.EFFECT.MAGIC.SOUND_PURPLE,
-    CONST.EFFECT.MAGIC.SOUND_BLUE,
-    CONST.EFFECT.MAGIC.SOUND_WHITE
-  ];
+  const now = Date.now();
 
   this.__radioZones.forEach(function (zone) {
     if (!zone.enabled || zone.effectsEnabled === false || !zone.center || !Number.isInteger(zone.radius)) {
       return;
     }
 
-    // Four effects look lively in a small dance floor while remaining very
-    // light even when several radio zones are configured.
-    let effectCount = Math.max(1, Math.min(4, Math.ceil((zone.radius * 2 + 1) / 3)));
+    // BPM takes priority when configured: one pulse per beat gives a stable,
+    // club-like rhythm even for external radio streams we cannot inspect.
+    let intervalMs = zone.beatBpm
+      ? 60000 / zone.beatBpm
+      : Math.max(500, Math.min(30000, Number(zone.effectIntervalMs) || 2000));
+    if (zone.__lastEffectAt && now - zone.__lastEffectAt < intervalMs) {
+      return;
+    }
+
+    zone.__lastEffectAt = now;
+    let effects = RADIO_EFFECT_STYLES[zone.effectStyle] || RADIO_EFFECT_STYLES.disco;
+    let effectCount = Math.max(1, Math.min(12, Number(zone.effectIntensity) || 3));
 
     for (let index = 0; index < effectCount; index++) {
       let x = zone.center.x + Math.floor(Math.random() * (zone.radius * 2 + 1)) - zone.radius;
@@ -417,9 +439,10 @@ CreatureHandler.prototype.tick = function () {
   // Reset the counter
   this.__numberActiveMonsters = 0;
 
-  // One ambient disco pulse every two seconds (40 server ticks at 50ms).
+  // Check radio effects four times per second. Each zone applies its own
+  // configured interval, so venues can independently control the tempo.
   this.__radioEffectTicks++;
-  if (this.__radioEffectTicks >= 40) {
+  if (this.__radioEffectTicks >= 5) {
     this.__radioEffectTicks = 0;
     this.__playRadioZoneEffects();
   }

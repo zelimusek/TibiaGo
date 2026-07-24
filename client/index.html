@@ -602,6 +602,31 @@
                   <input id="radio-editor-effects" type="checkbox" checked>
                   Disco light effects
                 </label>
+                <label for="radio-editor-effect-style">Effect style
+                  <select id="radio-editor-effect-style">
+                    <option value="disco">Disco colours</option>
+                    <option value="magic">Magic colours</option>
+                    <option value="rings">Magic rings</option>
+                    <option value="fire">Fire</option>
+                    <option value="energy">Energy</option>
+                    <option value="poison">Poison</option>
+                    <option value="death">Death</option>
+                    <option value="teleport">Teleport</option>
+                    <option value="blood">Blood</option>
+                  </select>
+                </label>
+                <div class="radio-editor-row">
+                  <label for="radio-editor-effect-interval">Frequency (seconds)
+                    <input id="radio-editor-effect-interval" type="number" min="0.5" max="30" step="0.5">
+                  </label>
+                  <label for="radio-editor-effect-intensity">Intensity (effects)
+                    <input id="radio-editor-effect-intensity" type="number" min="1" max="12" step="1">
+                  </label>
+                </div>
+                <label for="radio-editor-beat-bpm">Beat rhythm (BPM, 0 = use frequency)
+                  <input id="radio-editor-beat-bpm" type="number" min="0" max="240" step="1">
+                </label>
+                <p class="radio-editor-help">Set the BPM of the music to pulse once per beat. This overrides Frequency.</p>
                 <div class="modal-footer">
                   <button action="cancel" value="Cancel">Cancel</button>
                   <button action="confirm" value="Save">Save Radio</button>

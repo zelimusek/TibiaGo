@@ -232,7 +232,8 @@
   gap: 4px;
 }
 
-.radio-editor-body input {
+.radio-editor-body input,
+.radio-editor-body select {
   box-sizing: border-box;
   width: 100%;
 }
