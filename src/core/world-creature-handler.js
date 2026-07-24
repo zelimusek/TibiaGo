@@ -3,6 +3,7 @@
 const Corpse = requireModule("entities/corpse");
 const Monster = requireModule("monster/monster");
 const Player = requireModule("player/player");
+const Condition = requireModule("combat/condition");
 const Position = requireModule("utils/position");
 const fs = require("fs");
 const path = require("path");
@@ -57,8 +58,87 @@ const CreatureHandler = function () {
   this.__radioZones = this.__loadRadioZones();
   this.__radioEffectTicks = 0;
 
+  // One short dance contest may run in the club at a time.
+  this.__clubDance = null;
+
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
+
+}
+
+CreatureHandler.prototype.startClubDance = function () {
+
+  if(this.__clubDance !== null) {
+    return false;
+  }
+
+  this.__clubDance = {
+    endsAt: Date.now() + 30000,
+    scores: new Map(),
+    positions: new Map()
+  };
+  this.__broadcastClubDance("Dance contest started! Move around the dance floor for 30 seconds.");
+  return true;
+
+}
+
+CreatureHandler.prototype.__broadcastClubDance = function (message) {
+
+  this.__playerMap.forEach(function (player) {
+    player.sendCancelMessage(message);
+  });
+
+}
+
+CreatureHandler.prototype.__isOnClubDanceFloor = function (position) {
+
+  return position.z === 7 && position.x >= 32408 && position.x <= 32413 && position.y >= 32172 && position.y <= 32175;
+
+}
+
+CreatureHandler.prototype.__tickClubDance = function () {
+
+  if(this.__clubDance === null) {
+    return;
+  }
+
+  let contest = this.__clubDance;
+  if(Date.now() < contest.endsAt) {
+    this.__playerMap.forEach(function (player) {
+      if(!this.__isOnClubDanceFloor(player.position)) {
+        return;
+      }
+
+      let positionKey = "%s:%s:%s".format(player.position.x, player.position.y, player.position.z);
+      if(contest.positions.get(player.name) !== positionKey) {
+        contest.positions.set(player.name, positionKey);
+        contest.scores.set(player.name, (contest.scores.get(player.name) || 0) + 1);
+        process.gameServer.world.sendMagicEffect(player.position, CONST.EFFECT.MAGIC.SOUND_PURPLE);
+      }
+    }, this);
+    return;
+  }
+
+  let contenders = [];
+  this.__playerMap.forEach(function (player) {
+    let score = contest.scores.get(player.name) || 0;
+    if(score > 0 && this.__isOnClubDanceFloor(player.position)) {
+      contenders.push({ player: player, score: score });
+    }
+  }, this);
+  this.__clubDance = null;
+
+  if(contenders.length === 0) {
+    return this.__broadcastClubDance("Dance contest ended — nobody kept dancing on the floor.");
+  }
+
+  let bestScore = Math.max.apply(null, contenders.map(function (entry) { return entry.score; }));
+  let winners = contenders.filter(function (entry) { return entry.score === bestScore; });
+  let winner = winners[Math.floor(Math.random() * winners.length)].player;
+  winner.addCondition(Condition.prototype.HASTE, 60, 500, null);
+  winner.addCondition(Condition.prototype.MORPH, 120, 500, { id: 128, details: { head: 94, body: 114, legs: 94, feet: 114 } });
+  process.gameServer.world.sendMagicEffect(winner.position, CONST.EFFECT.MAGIC.SOUND_WHITE);
+  this.__broadcastClubDance("%s wins the dance contest with %s dance moves! Neon Champion look and Turbo speed for 30 seconds.".format(winner.name, bestScore));
 
 }
 
@@ -518,6 +598,8 @@ CreatureHandler.prototype.tick = function () {
     this.__radioEffectTicks = 0;
     this.__playRadioZoneEffects();
   }
+
+  this.__tickClubDance();
 
   // Handle always active NPCs
   this.sceneNPCs.forEach(npc => npc.cutsceneHandler.think());

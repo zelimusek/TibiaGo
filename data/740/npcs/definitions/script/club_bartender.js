@@ -30,7 +30,10 @@ function baseTalkState(state, player, message) {
     return this.respond("Temporary looks cost 20 gp: {neonlook}, {mask} or {glow}. They last one minute.");
   }
   if(message === "dance") {
-    return this.respond("The dance floor is ready! Stand on it with the other clubbers; the contest round will be added next.");
+    if(!process.gameServer.world.creatureHandler.startClubDance()) {
+      return this.respond("A dance contest is already running — get on the floor and move!");
+    }
+    return this.respond("The dance contest is on! Get to the dance floor and keep moving for 30 seconds.");
   }
   if(DRINKS[message]) {
     let drink = DRINKS[message];
