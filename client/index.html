@@ -627,6 +627,26 @@
                   <input id="radio-editor-beat-bpm" type="number" min="0" max="240" step="1">
                 </label>
                 <p class="radio-editor-help">Set the BPM of the music to pulse once per beat. This overrides Frequency.</p>
+                <div class="radio-editor-row">
+                  <label for="radio-editor-weather">Venue weather
+                    <select id="radio-editor-weather">
+                      <option value="none">None</option>
+                      <option value="rain">Rain</option>
+                      <option value="fog">Fog</option>
+                      <option value="storm">Storm</option>
+                    </select>
+                  </label>
+                  <label for="radio-editor-light">Venue lighting
+                    <select id="radio-editor-light">
+                      <option value="none">None</option>
+                      <option value="night">Night</option>
+                      <option value="blue">Blue</option>
+                      <option value="purple">Purple</option>
+                      <option value="red">Red</option>
+                    </select>
+                  </label>
+                </div>
+                <p class="radio-editor-help">Venue weather and lighting affect only players inside Radius.</p>
                 <div class="modal-footer">
                   <button action="cancel" value="Cancel">Cancel</button>
                   <button action="confirm" value="Save">Save Radio</button>

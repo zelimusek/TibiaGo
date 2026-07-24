@@ -216,7 +216,11 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let effectInterval = Number(message[7]);
   let effectIntensity = Number(message[8]);
   let beatBpm = Number(message[9]);
+  let weather = message[10] || "none";
+  let light = message[11] || "none";
   let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
+  let validWeather = ["none", "rain", "fog", "storm"];
+  let validLight = ["none", "night", "blue", "purple", "red"];
 
   try {
     let parsed = new URL(url);
@@ -253,6 +257,10 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Beat BPM must be 0 or a whole number from 40 to 240.");
   }
 
+  if (validWeather.indexOf(weather) === -1 || validLight.indexOf(light) === -1) {
+    return player.sendCancelMessage("Choose valid radio weather and lighting options.");
+  }
+
   if (!gameServer.world.creatureHandler.setRadioZoneAt(
     player.position,
     url,
@@ -263,6 +271,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     Math.round(effectInterval * 1000),
     effectIntensity,
     beatBpm,
+    weather,
+    light,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
     return player.sendCancelMessage("Could not save the radio zone.");

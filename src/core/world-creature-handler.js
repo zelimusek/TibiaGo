@@ -112,12 +112,14 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
       : [zone && RADIO_EFFECT_STYLES[zone.effectStyle] ? zone.effectStyle : "disco"],
     effectInterval: zone && Number.isFinite(zone.effectIntervalMs) ? zone.effectIntervalMs / 1000 : 2,
     effectIntensity: zone && Number.isInteger(zone.effectIntensity) ? zone.effectIntensity : 3,
-    beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
+    beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
+    weather: zone && ["none", "rain", "fog", "storm"].indexOf(zone.weather) !== -1 ? zone.weather : "none",
+    light: zone && ["none", "night", "blue", "purple", "red"].indexOf(zone.light) !== -1 ? zone.light : "none"
   };
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -138,6 +140,8 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     effectIntervalMs: effectIntervalMs,
     effectIntensity: effectIntensity,
     beatBpm: beatBpm,
+    weather: weather,
+    light: light,
     fadeMetric: "chebyshev",
     owner: owner,
     center: { x: position.x, y: position.y, z: position.z },
@@ -165,6 +169,51 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
   }, this);
 
   return true;
+
+}
+
+CreatureHandler.prototype.__isInsideRadioCore = function (zone, position) {
+
+  if (!zone || position.z !== zone.from.z || position.z !== zone.to.z) {
+    return false;
+  }
+
+  if (zone.fadeMetric === "chebyshev" && zone.center) {
+    let radius = Math.max(0, Number(zone.radius) || 0);
+    return Math.max(
+      Math.abs(position.x - zone.center.x),
+      Math.abs(position.y - zone.center.y)
+    ) <= radius;
+  }
+
+  return position.x >= Math.min(zone.from.x, zone.to.x)
+    && position.x <= Math.max(zone.from.x, zone.to.x)
+    && position.y >= Math.min(zone.from.y, zone.to.y)
+    && position.y <= Math.max(zone.from.y, zone.to.y);
+
+}
+
+CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
+
+  /*
+   * Radio ambience is deliberately client-local: weather and coloured light
+   * only affect players standing inside this venue, not the whole world.
+   */
+
+  let ambience = zone && this.__isInsideRadioCore(zone, player.position)
+    ? { weather: zone.weather || "none", light: zone.light || "none" }
+    : { weather: "none", light: "none" };
+  let ambienceKey = ambience.weather + ":" + ambience.light;
+
+  // Movement calls this synchronizer frequently. Only notify the browser
+  // when the local ambience actually changes.
+  if (player.__radioAmbienceKey === ambienceKey) {
+    return;
+  }
+
+  player.__radioAmbienceKey = ambienceKey;
+  let payload = encodeURIComponent(JSON.stringify(ambience));
+  player.write(new RadioStreamPacket(true, "radio-ambience:" + payload, 0));
 
 }
 
@@ -284,6 +333,8 @@ CreatureHandler.prototype.__syncRadioZone = function (player, oldPosition) {
   let newState = this.__getRadioZoneState(player.position);
   let oldZone = oldState ? oldState.zone : null;
   let newZone = newState ? newState.zone : null;
+
+  this.__syncRadioAmbience(player, newZone);
 
   if (oldZone && newZone && oldZone.id === newZone.id && Math.abs(oldState.volume - newState.volume) < 0.01) {
     return;

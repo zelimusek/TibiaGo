@@ -548,6 +548,7 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
    */
 
   let editorPrefix = "radio-editor:";
+  let ambiencePrefix = "radio-ambience:";
 
   if (packet.enabled && packet.url.startsWith(editorPrefix)) {
     try {
@@ -555,6 +556,31 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
       gameClient.interface.modalManager.open("radio-editor-modal", config);
     } catch (error) {
       gameClient.interface.setCancelMessage("Could not open the radio editor.");
+    }
+    return;
+  }
+
+  if (packet.enabled && packet.url.startsWith(ambiencePrefix)) {
+    try {
+      let ambience = JSON.parse(decodeURIComponent(packet.url.slice(ambiencePrefix.length)));
+      let weather = ambience.weather || "none";
+      let lightColors = {
+        none: [0, 0, 0, 0],
+        night: [8, 12, 48, 150],
+        blue: [12, 30, 110, 120],
+        purple: [88, 16, 110, 120],
+        red: [120, 16, 16, 110]
+      };
+      let color = lightColors[ambience.light] || lightColors.none;
+
+      gameClient.renderer.weatherCanvas.setRaining(weather === "rain" || weather === "storm");
+      gameClient.renderer.weatherCanvas.setWeather(weather === "fog" || weather === "storm" ? 0.45 : 0);
+      if (weather === "storm") {
+        gameClient.renderer.weatherCanvas.setThunder();
+      }
+      gameClient.renderer.setAmbientColor(color[0], color[1], color[2], color[3]);
+    } catch (error) {
+      console.warn("Could not apply radio ambience:", error);
     }
     return;
   }

@@ -14,6 +14,8 @@ const RadioEditorModal = function (element) {
   this.__effectInterval = document.getElementById("radio-editor-effect-interval");
   this.__effectIntensity = document.getElementById("radio-editor-effect-intensity");
   this.__beatBpm = document.getElementById("radio-editor-beat-bpm");
+  this.__weather = document.getElementById("radio-editor-weather");
+  this.__light = document.getElementById("radio-editor-light");
 
 }
 
@@ -36,6 +38,8 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   this.__effectInterval.value = Number.isFinite(config.effectInterval) ? config.effectInterval : 2;
   this.__effectIntensity.value = Number.isInteger(config.effectIntensity) ? config.effectIntensity : 3;
   this.__beatBpm.value = Number.isInteger(config.beatBpm) ? config.beatBpm : 0;
+  this.__weather.value = config.weather || "none";
+  this.__light.value = config.light || "none";
 
   setTimeout(function () {
     this.__url.focus();
@@ -55,6 +59,8 @@ RadioEditorModal.prototype.handleConfirm = function () {
   let effectInterval = Number(this.__effectInterval.value);
   let effectIntensity = Number(this.__effectIntensity.value);
   let beatBpm = Number(this.__beatBpm.value);
+  let weather = this.__weather.value;
+  let light = this.__light.value;
 
   try {
     let parsed = new URL(url);
@@ -101,7 +107,7 @@ RadioEditorModal.prototype.handleConfirm = function () {
   gameClient.send(new ChannelMessagePacket(
     CONST.CHANNEL.DEFAULT,
     1,
-    "/radio set %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm)
+    "/radio set %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light)
   ));
 
   return true;
