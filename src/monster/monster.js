@@ -223,28 +223,12 @@ Monster.prototype.getTarget = function () {
 
 }
 
-Monster.prototype.isMoving = function () {
-  /*
-   * Function Monster.isMoving
-   * A monster is moving while its movement behaviour is on cooldown.
-   */
-
-  return !this.behaviourHandler.actions.isAvailable(
-    this.behaviourHandler.handleActionMove
-  );
-};
-
 Monster.prototype.push = function (position) {
 
   /*
    * Function Monster.push
    * Cooldown function that handles the creature movement
    */
-
-  // Cannot push when the creature is moving
-  if (this.isMoving()) {
-    return;
-  }
 
   if (!position.besides(this.position)) {
     return;
@@ -262,7 +246,9 @@ Monster.prototype.push = function (position) {
   let slowness = this.position.isDiagonal(position) ? 2 * lockDuration : lockDuration;
 
   // Delegate to move the creature to the new tile position
-  gameServer.world.creatureHandler.moveCreature(this, position);
+  if (!gameServer.world.creatureHandler.moveCreature(this, position)) {
+    return;
+  }
 
   // Lock this function for a number of frames
   this.behaviourHandler.actions.lock(this.behaviourHandler.handleActionMove, slowness);

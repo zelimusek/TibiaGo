@@ -62,18 +62,14 @@ PacketHandler.prototype.__handlePushCreature = function (creature, position) {
    * Handles pushing of a monster to an adjacent tile
    */
 
-  // If the creature is moving do nothing
-  if (creature.isMoving()) {
-    return;
-  }
-
   // Must be adjacent
   if (!position.besides(creature.position)) {
     return;
   }
 
-  // Schedule the push event in the future
-  gameServer.world.eventQueue.addEvent(creature.push.bind(creature, position), 20);
+  // Apply it on the next tick. A longer delay lets a wandering monster leave
+  // its original tile before the drag is processed.
+  gameServer.world.eventQueue.addEvent(creature.push.bind(creature, position), 1);
 
 }
 

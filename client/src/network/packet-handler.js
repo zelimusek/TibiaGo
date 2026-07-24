@@ -927,6 +927,24 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
    * Handles an incoming server packet with character information
    */
 
+  // Monsters use the empty player-information fields. Give them the compact
+  // Tibia-style look text rather than a player level and vocation.
+  if (packet.level === 0 && packet.vocation === 0) {
+    let name = packet.name.toLowerCase();
+    let article = /^[aeiou]/.test(name) ? "an" : "a";
+    let message = "You see %s %s.".format(article, name);
+
+    gameClient.interface.notificationManager.setServerMessage(
+      message,
+      Interface.prototype.COLORS.LIGHTGREEN
+    );
+    gameClient.interface.channelManager.addConsoleMessage(
+      message,
+      Interface.prototype.COLORS.LIGHTGREEN
+    );
+    return;
+  }
+
   let gender = packet.sex === 1 ? "He" : "She";
 
   let vocationName = "nothing";
