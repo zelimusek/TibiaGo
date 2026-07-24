@@ -210,9 +210,10 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       light: zone.light || "none",
       discoCanvasEnabled: zone.discoCanvasEnabled === true,
       discoCanvasIntensity: Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
+      discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, discoCanvasIntensity: 60, beatBpm: 0 };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, discoCanvasIntensity: 60, discoCanvasRadius: 0, beatBpm: 0 };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser

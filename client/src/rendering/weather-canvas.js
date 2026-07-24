@@ -19,7 +19,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
-  this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0 };
+  this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0, radius: 0 };
   this.__rainIntensity = 0.025;
   this.__thunderIntensity = 0.0025;
 
@@ -112,12 +112,13 @@ WeatherCanvas.prototype.setWeatherType = function(type) {
 
 }
 
-WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm) {
+WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm, radius) {
 
   this.__discoLights = {
     enabled: enabled === true,
     intensity: Math.max(10, Math.min(100, Number(intensity) || 60)),
-    beatBpm: Number.isInteger(beatBpm) ? beatBpm : 0
+    beatBpm: Number.isInteger(beatBpm) ? beatBpm : 0,
+    radius: Math.max(0, Math.min(20, Number(radius) || 0))
   };
 
 }
@@ -149,24 +150,46 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let y = height * 0.48 + Math.sin(angle * 1.3) * height * 0.28;
     let color = colors[index];
     let gradient = context.createRadialGradient(x, y, 0, x, y, Math.max(width, height) * 0.34);
-    gradient.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.16 * intensity * pulse));
+    gradient.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.36 * intensity * pulse));
+    gradient.addColorStop(0.38, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.13 * intensity * pulse));
     gradient.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
     context.fillStyle = gradient;
     context.fillRect(0, 0, width, height);
   }
 
-  // Thin lasers rotate independently from the spotlights.
-  context.globalAlpha = 0.32 * intensity * pulse;
-  context.lineWidth = 2;
-  for(let index = 0; index < colors.length; index++) {
-    let angle = now / 680 + index * Math.PI / 3;
-    let color = colors[index];
+  // Laser fixtures live on the outer wall of the radio square, every four
+  // SQMs, instead of firing through the player in the centre of the room.
+  let playerPosition = gameClient.renderer.getStaticScreenPosition(gameClient.player.getPosition());
+  let centreX = (playerPosition.x + 0.5) * 32;
+  let centreY = (playerPosition.y + 0.5) * 32;
+  let radiusPixels = disco.radius * 32;
+  let offsets = [];
+
+  for(let offset = -disco.radius; offset <= disco.radius; offset += 4) {
+    offsets.push(offset);
+  }
+  if(offsets.length > 0 && offsets[offsets.length - 1] !== disco.radius) {
+    offsets.push(disco.radius);
+  }
+
+  context.globalAlpha = 0.82 * intensity * pulse;
+  context.lineWidth = 3;
+  offsets.forEach(function(offset, index) {
+    let color = colors[(index + Math.floor(now / 450)) % colors.length];
+    let x = centreX + offset * 32;
+    let y = centreY + offset * 32;
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
     context.beginPath();
-    context.moveTo(width * 0.5, height * 0.5);
-    context.lineTo(width * 0.5 + Math.cos(angle) * width, height * 0.5 + Math.sin(angle) * height);
+    context.moveTo(x - 12, centreY - radiusPixels);
+    context.lineTo(x + 12, centreY - radiusPixels);
+    context.moveTo(x - 12, centreY + radiusPixels);
+    context.lineTo(x + 12, centreY + radiusPixels);
+    context.moveTo(centreX - radiusPixels, y - 12);
+    context.lineTo(centreX - radiusPixels, y + 12);
+    context.moveTo(centreX + radiusPixels, y - 12);
+    context.lineTo(centreX + radiusPixels, y + 12);
     context.stroke();
-  }
+  });
 
   context.restore();
 
