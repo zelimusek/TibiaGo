@@ -19,7 +19,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
-  this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0, radius: 0 };
+  this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0, radius: 0, center: null };
   this.__rainIntensity = 0.025;
   this.__thunderIntensity = 0.0025;
 
@@ -112,13 +112,14 @@ WeatherCanvas.prototype.setWeatherType = function(type) {
 
 }
 
-WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm, radius) {
+WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm, radius, center) {
 
   this.__discoLights = {
     enabled: enabled === true,
     intensity: Math.max(10, Math.min(100, Number(intensity) || 60)),
     beatBpm: Number.isInteger(beatBpm) ? beatBpm : 0,
-    radius: Math.max(0, Math.min(20, Number(radius) || 0))
+    radius: Math.max(0, Math.min(20, Number(radius) || 0)),
+    center: center && Number.isInteger(center.x) && Number.isInteger(center.y) && Number.isInteger(center.z) ? center : null
   };
 
 }
@@ -159,9 +160,12 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
 
   // Laser fixtures live on the outer wall of the radio square, every four
   // SQMs, instead of firing through the player in the centre of the room.
-  let playerPosition = gameClient.renderer.getStaticScreenPosition(gameClient.player.getPosition());
-  let centreX = (playerPosition.x + 0.5) * 32;
-  let centreY = (playerPosition.y + 0.5) * 32;
+  let zoneCenter = disco.center
+    ? new Position(disco.center.x, disco.center.y, disco.center.z)
+    : gameClient.player.getPosition();
+  let zoneScreenPosition = gameClient.renderer.getStaticScreenPosition(zoneCenter);
+  let centreX = (zoneScreenPosition.x + 0.5) * 32;
+  let centreY = (zoneScreenPosition.y + 0.5) * 32;
   let radiusPixels = disco.radius * 32;
   let offsets = [];
 
@@ -180,14 +184,16 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let y = centreY + offset * 32;
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
     context.beginPath();
-    context.moveTo(x - 12, centreY - radiusPixels);
-    context.lineTo(x + 12, centreY - radiusPixels);
-    context.moveTo(x - 12, centreY + radiusPixels);
-    context.lineTo(x + 12, centreY + radiusPixels);
-    context.moveTo(centreX - radiusPixels, y - 12);
-    context.lineTo(centreX - radiusPixels, y + 12);
-    context.moveTo(centreX + radiusPixels, y - 12);
-    context.lineTo(centreX + radiusPixels, y + 12);
+    // Every fixture creates a long four-SQM beam along the outside wall.
+    // The beam's world anchor is the radio-zone centre, never the player.
+    context.moveTo(x - 64, centreY - radiusPixels);
+    context.lineTo(x + 64, centreY - radiusPixels);
+    context.moveTo(x - 64, centreY + radiusPixels);
+    context.lineTo(x + 64, centreY + radiusPixels);
+    context.moveTo(centreX - radiusPixels, y - 64);
+    context.lineTo(centreX - radiusPixels, y + 64);
+    context.moveTo(centreX + radiusPixels, y - 64);
+    context.lineTo(centreX + radiusPixels, y + 64);
     context.stroke();
   });
 

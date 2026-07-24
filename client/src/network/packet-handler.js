@@ -578,7 +578,8 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
         ambience.discoCanvasEnabled === true,
         ambience.discoCanvasIntensity,
         ambience.beatBpm,
-        ambience.discoCanvasRadius
+        ambience.discoCanvasRadius,
+        ambience.discoCanvasCenter
       );
       gameClient.renderer.weatherCanvas.setRaining(weather === "rain" || weather === "storm");
       gameClient.renderer.weatherCanvas.setWeather(
