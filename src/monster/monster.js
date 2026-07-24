@@ -223,6 +223,17 @@ Monster.prototype.getTarget = function () {
 
 }
 
+Monster.prototype.isMoving = function () {
+  /*
+   * Function Monster.isMoving
+   * A monster is moving while its movement behaviour is on cooldown.
+   */
+
+  return !this.behaviourHandler.actions.isAvailable(
+    this.behaviourHandler.handleActionMove
+  );
+};
+
 Monster.prototype.push = function (position) {
 
   /*
