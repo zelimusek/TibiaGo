@@ -131,7 +131,7 @@ WeatherCanvas.prototype.drawWeather = function() {
 
   this.screen.context.globalAlpha = this.__ambientAlpha;
 
-  let 	 = gameClient.player.getMoveOffset();
+  let off = gameClient.player.getMoveOffset();
 
   let selfx = 0.15 * gameClient.renderer.debugger.__nFrames + 256 * Math.cos(0.002 * gameClient.renderer.debugger.__nFrames);
   let selfy = 0.15 * gameClient.renderer.debugger.__nFrames + 256 * Math.sin(0.002 * gameClient.renderer.debugger.__nFrames);
