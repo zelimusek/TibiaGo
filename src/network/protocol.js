@@ -228,7 +228,7 @@ const CreatureTeleportPacket = function (guid, position) {
 CreatureTeleportPacket.prototype = Object.create(PacketWriter.prototype);
 CreatureTeleportPacket.prototype.constructor = CreatureTeleportPacket;
 
-const ServerMessagePacket = function (message) {
+const ServerMessagePacket = function (message, color = CONST.COLOR.RED) {
   /*
    * Class ServerMessagePacket
    * Wrapper for a packet that describes an outfit change
@@ -241,11 +241,12 @@ const ServerMessagePacket = function (message) {
   PacketWriter.call(
     this,
     CONST.PROTOCOL.SERVER.MESSAGE_SERVER,
-    stringEncoded.getEncodedLength()
+    stringEncoded.getEncodedLength() + 1
   );
 
   // Write the property
   this.writeBuffer(stringEncoded);
+  this.writeUInt8(color);
 };
 
 ServerMessagePacket.prototype = Object.create(PacketWriter.prototype);

@@ -8,7 +8,8 @@
     "DEFAULT": 0,
     "WORLD": 1,
     "TRADE": 2,
-    "HELP": 3
+    "HELP": 3,
+    "LOOT": 4
   },
   "MONSTER": {
     "RAT": 0

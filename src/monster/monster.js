@@ -131,16 +131,16 @@ Monster.prototype.createCorpse = function () {
 
   // Add loot to the corpse and schedule a decay event
   if (thing instanceof Corpse) {
-    this.lootHandler.addLoot(thing);
+    let droppedLoot = this.lootHandler.addLoot(thing);
 
     // Build loot message and send to all attackers
-    let lootItems = thing.getSlots().filter(item => item !== null);
     let lootText = "";
 
-    if (lootItems.length === 0) {
+    if (droppedLoot.length === 0) {
       lootText = "nothing";
     } else {
-      lootText = lootItems.map(item => {
+      lootText = droppedLoot.map(drop => {
+        let item = drop.item;
         if (item.isStackable() && item.getCount() > 1) {
           return item.getCount() + " " + item.getName();
         }
@@ -148,20 +148,22 @@ Monster.prototype.createCorpse = function () {
       }).join(", ");
     }
 
+    let lootColor = this.__getLootMessageColor(droppedLoot);
+
     // Send loot message to all players who damaged the monster
     this.damageMap.__map.forEach(function (entry, attacker) {
       if (attacker.isPlayer && attacker.isPlayer() && attacker.isOnline()) {
         let lootMessage = "Loot of " + monsterName.toLowerCase() + ": " + lootText;
 
         // Send to screen (popup message)
-        attacker.write(new ServerMessagePacket(lootMessage));
+        attacker.write(new ServerMessagePacket(lootMessage, lootColor));
 
-        // Also send to console/chat
+        // Also send to loot chat
         attacker.write(new ChannelWritePacket(
-          CONST.CHANNEL.DEFAULT,
+          CONST.CHANNEL.LOOT,
           "",
           lootMessage,
-          CONST.COLOR.LIGHTGREEN
+          lootColor
         ));
       }
     });
@@ -169,6 +171,33 @@ Monster.prototype.createCorpse = function () {
 
   // Add the experience
   return thing;
+
+}
+
+Monster.prototype.__getLootMessageColor = function (droppedLoot) {
+
+  /*
+   * Function Monster.__getLootMessageColor
+   * Colors loot messages based on the rarest item that dropped.
+   */
+
+  if (droppedLoot.length === 0) {
+    return CONST.COLOR.LIGHTGREEN;
+  }
+
+  let rarestProbability = droppedLoot.reduce(function (rarest, drop) {
+    return Math.min(rarest, drop.probability);
+  }, 1);
+
+  if (rarestProbability <= 0.05) {
+    return CONST.COLOR.LIGHTBLUE;
+  }
+
+  if (rarestProbability <= 0.25) {
+    return CONST.COLOR.WHITE;
+  }
+
+  return CONST.COLOR.LIGHTGREEN;
 
 }
 

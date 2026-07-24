@@ -173,7 +173,10 @@ NetworkManager.prototype.readPacket = function (packet) {
     }
 
     case CONST.PROTOCOL.SERVER.MESSAGE_SERVER: {
-      return this.packetHandler.handleServerMessage(packet.readString());
+      let message = packet.readString();
+      let color = packet.index < packet.buffer.length ? packet.readUInt8() : CONST.COLOR.RED;
+
+      return this.packetHandler.handleServerMessage(message, color);
     }
 
     case CONST.PROTOCOL.SERVER.CREATURE_REMOVE: {

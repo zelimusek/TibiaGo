@@ -26,6 +26,7 @@ const ChannelManager = function() {
 
   // Always add these two channels
   this.addChannel(0x00, "Default");
+  this.addChannel(0x04, "Loot");
   this.addLocalChannel("Console");
 
   // Add listeners to left and right buttons for the channels
@@ -417,7 +418,7 @@ ChannelManager.prototype.addChannel = function(id, name) {
   let existingChannel = this.getChannel(name);
 
   if(existingChannel !== null) {
-    return this.setActiveChannelElement(existingChannel);
+    return existingChannel;
   }
 
   this.__addChannel(new Channel(name, id));

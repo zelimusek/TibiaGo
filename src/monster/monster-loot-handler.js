@@ -23,8 +23,11 @@ LootHandler.prototype.addLoot = function (corpse) {
 
   // Invalid: too much loot for the container size..
   if (this.loots.length > corpse.getSize()) {
-    return console.warn("Corpse loot exceeds the corpse size");
+    console.warn("Corpse loot exceeds the corpse size");
+    return [];
   }
+
+  let droppedLoot = [];
 
   // Add each entry in the loot table
   this.loots.forEach(function (loot) {
@@ -49,8 +52,14 @@ LootHandler.prototype.addLoot = function (corpse) {
 
     // Push the loot to the container
     corpse.addFirstEmpty(item);
+    droppedLoot.push({
+      item,
+      probability: loot.probability
+    });
 
   });
+
+  return droppedLoot;
 
 }
 

@@ -25,6 +25,10 @@ CharacterMessage.prototype.format = function() {
    * Implements the format API to format a message in a particular way
    */
 
+  if(!this.name) {
+    return "%s: %s".format(this.__formatTime(), this.message);
+  }
+
   return "%s %s: %s".format(this.__formatTime(), this.name, this.message);
  
 }

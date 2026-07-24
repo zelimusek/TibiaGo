@@ -632,15 +632,14 @@ PacketHandler.prototype.handleServerError = function (message) {
 
 }
 
-PacketHandler.prototype.handleServerMessage = function (string) {
+PacketHandler.prototype.handleServerMessage = function (string, color = Interface.prototype.COLORS.RED) {
 
   /*
    * Function PacketHandler.handleServerMessage
    * Handles an incoming server broadcasted message
    */
 
-  // Server messages are always in red
-  gameClient.interface.notificationManager.setServerMessage(string, Interface.prototype.COLORS.RED);
+  gameClient.interface.notificationManager.setServerMessage(string, color);
 
 }
 

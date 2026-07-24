@@ -28,6 +28,7 @@ const ChannelManager = function() {
   this.__channels.set(CONST.CHANNEL.WORLD, new GlobalChannel(CONST.CHANNEL.WORLD, "World"));
   this.__channels.set(CONST.CHANNEL.TRADE, new GlobalChannel(CONST.CHANNEL.TRADE, "Trade"));
   this.__channels.set(CONST.CHANNEL.HELP, new GlobalChannel(CONST.CHANNEL.HELP, "Help"));
+  this.__channels.set(CONST.CHANNEL.LOOT, new GlobalChannel(CONST.CHANNEL.LOOT, "Loot"));
 
 }
 
