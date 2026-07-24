@@ -632,12 +632,14 @@ PacketHandler.prototype.handleServerError = function (message) {
 
 }
 
-PacketHandler.prototype.handleServerMessage = function (string, color = Interface.prototype.COLORS.RED) {
+PacketHandler.prototype.handleServerMessage = function (string) {
 
   /*
    * Function PacketHandler.handleServerMessage
    * Handles an incoming server broadcasted message
    */
+
+  let color = string.indexOf("Loot of ") === 0 ? Interface.prototype.COLORS.LIGHTGREEN : Interface.prototype.COLORS.RED;
 
   gameClient.interface.notificationManager.setServerMessage(string, color);
 
@@ -1205,6 +1207,11 @@ PacketHandler.prototype.handleChannelMessage = function (packet) {
    */
 
   let channel = gameClient.interface.channelManager.getChannelById(packet.id);
+
+  if (channel === null && packet.id === CONST.CHANNEL.LOOT) {
+    gameClient.interface.channelManager.addChannel(CONST.CHANNEL.LOOT, "Loot");
+    channel = gameClient.interface.channelManager.getChannelById(packet.id);
+  }
 
   if (channel === null) {
     return;

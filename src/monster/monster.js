@@ -156,7 +156,7 @@ Monster.prototype.createCorpse = function () {
         let lootMessage = "Loot of " + monsterName.toLowerCase() + ": " + lootText;
 
         // Send to screen (popup message)
-        attacker.write(new ServerMessagePacket(lootMessage, lootColor));
+        attacker.write(new ServerMessagePacket(lootMessage));
 
         // Also send to loot chat
         attacker.write(new ChannelWritePacket(
