@@ -1,0 +1,22 @@
+{
+  "creatureStatistics": {
+    "name": "Neon Nick",
+    "health": 150,
+    "maxHealth": 150,
+    "mana": 0,
+    "maxMana": 0,
+    "attack": 1,
+    "attackSlowness": 40,
+    "defense": 10,
+    "speed": 30,
+    "outfit": { "id": 130, "details": { "head": 94, "body": 114, "legs": 94, "feet": 114 } }
+  },
+  "behaviour": { "wanderRange": 0, "openDoors": false, "ignoreCharacters": true },
+  "conversation": {
+    "hearingRange": 5,
+    "greetings": ["hello", "hi"],
+    "farewells": ["bye", "goodbye"],
+    "keywords": { "job": "I run the Drink Bar and the club wardrobe. Say {drinks}, {wardrobe} or {dance}." },
+    "script": "club_bartender.js"
+  }
+}

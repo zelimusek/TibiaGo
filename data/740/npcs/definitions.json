@@ -61,5 +61,14 @@
     },
     "enabled": true,
     "definition": "sam.json"
+  },
+  "club_bartender": {
+    "position": {
+      "x": 32408,
+      "y": 32170,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "club_bartender.json"
   }
 }

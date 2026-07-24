@@ -13,7 +13,7 @@ function onStart(creature, properties) {
   this.__defaultOutfit = creature.getOutfit();
 
   process.gameServer.world.sendMagicEffect(creature.position, CONST.EFFECT.MAGIC.TELEPORT);
-  creature.changeOutfit(new Outfit({ "id": properties.id }));
+  creature.changeOutfit(new Outfit({ "id": properties.id, "details": properties.details || null }));
 
 }
 
