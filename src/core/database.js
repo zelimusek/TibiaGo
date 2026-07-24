@@ -419,9 +419,33 @@ Database.prototype.__loadDefinitions = function (definition) {
 
   let reference = new Map();
 
-  Object.entries(this.readDataDefinition(definition)).forEach(function ([key, value]) {
+  let indexedDefinitions = this.readDataDefinition(definition);
+
+  Object.entries(indexedDefinitions).forEach(function ([key, value]) {
     reference.set(Number(key), require(getDataFile(definition, "definitions", value)));
   });
+
+  // The monster folder contains more valid definitions than the historical
+  // definitions.json index. Load those files too so GM commands and XML
+  // spawns can use the complete datapack instead of only its old subset.
+  if (definition === "monsters") {
+    let directory = getDataFile(definition, "definitions");
+    let indexedFiles = new Set(Object.values(indexedDefinitions));
+    let nextId = Math.max(...reference.keys()) + 1;
+
+    fs.readdirSync(directory)
+      .filter(filename => filename.endsWith(".json") && !indexedFiles.has(filename))
+      .sort()
+      .forEach(filename => {
+        let monster = require(getDataFile(definition, "definitions", filename));
+
+        if (!monster.creatureStatistics || !monster.creatureStatistics.name) {
+          return;
+        }
+
+        reference.set(nextId++, monster);
+      });
+  }
 
   console.log("Loaded [[ %s ]] %s definitions.".format(reference.size, definition));
 

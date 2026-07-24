@@ -294,7 +294,7 @@ CommandHandler.prototype.handle = function (player, message) {
     );
   }
 
-  if (message[0] === "/m") {
+  if (message[0] === "/m" || message[0] === "/spawn") {
     let arg = message.slice(1).join(" ");
     let id = Number(arg);
 
