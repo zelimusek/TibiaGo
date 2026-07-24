@@ -166,36 +166,51 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let zoneScreenPosition = gameClient.renderer.getStaticScreenPosition(zoneCenter);
   let centreX = (zoneScreenPosition.x + 0.5) * 32;
   let centreY = (zoneScreenPosition.y + 0.5) * 32;
-  let radiusPixels = disco.radius * 32;
-  let offsets = [];
+  let sideLength = Math.max(1, disco.radius * 2);
+  let perimeter = sideLength * 4;
 
-  for(let offset = -disco.radius; offset <= disco.radius; offset += 4) {
-    offsets.push(offset);
-  }
-  if(offsets.length > 0 && offsets[offsets.length - 1] !== disco.radius) {
-    offsets.push(disco.radius);
-  }
-
-  context.globalAlpha = 0.82 * intensity * pulse;
+  context.globalAlpha = 0.9 * intensity * pulse;
   context.lineWidth = 3;
-  offsets.forEach(function(offset, index) {
-    let color = colors[(index + Math.floor(now / 450)) % colors.length];
-    let x = centreX + offset * 32;
-    let y = centreY + offset * 32;
+  for(let index = 0; index < 3; index++) {
+    // Three fixtures travel clockwise around the last ring of SQMs, spaced
+    // evenly around the perimeter like moving club lasers on the walls.
+    let travel = ((now / 520 + index * perimeter / 3) % perimeter + perimeter) % perimeter;
+    let offsetX;
+    let offsetY;
+    let directionX;
+    let directionY;
+
+    if(travel < sideLength) {
+      offsetX = -disco.radius + travel;
+      offsetY = -disco.radius;
+      directionX = 1;
+      directionY = 0;
+    } else if(travel < sideLength * 2) {
+      offsetX = disco.radius;
+      offsetY = -disco.radius + (travel - sideLength);
+      directionX = 0;
+      directionY = 1;
+    } else if(travel < sideLength * 3) {
+      offsetX = disco.radius - (travel - sideLength * 2);
+      offsetY = disco.radius;
+      directionX = -1;
+      directionY = 0;
+    } else {
+      offsetX = -disco.radius;
+      offsetY = disco.radius - (travel - sideLength * 3);
+      directionX = 0;
+      directionY = -1;
+    }
+
+    let color = colors[index];
+    let x = centreX + offsetX * 32;
+    let y = centreY + offsetY * 32;
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
     context.beginPath();
-    // Every fixture creates a long four-SQM beam along the outside wall.
-    // The beam's world anchor is the radio-zone centre, never the player.
-    context.moveTo(x - 64, centreY - radiusPixels);
-    context.lineTo(x + 64, centreY - radiusPixels);
-    context.moveTo(x - 64, centreY + radiusPixels);
-    context.lineTo(x + 64, centreY + radiusPixels);
-    context.moveTo(centreX - radiusPixels, y - 64);
-    context.lineTo(centreX - radiusPixels, y + 64);
-    context.moveTo(centreX + radiusPixels, y - 64);
-    context.lineTo(centreX + radiusPixels, y + 64);
+    context.moveTo(x - directionX * 14, y - directionY * 14);
+    context.lineTo(x + directionX * 14, y + directionY * 14);
     context.stroke();
-  });
+  }
 
   context.restore();
 
