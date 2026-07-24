@@ -105,6 +105,7 @@
     "src/ui/modals/modal-create-account.js",
     "src/ui/modals/modal-spellbook.js",
     "src/ui/modals/modal-hotbar-text.js",
+    "src/ui/modals/modal-hotbar-config.js",
     "src/ui/modals/modal-confirm.js",
     "src/ui/modals/modal-death.js",
     "src/ui/modals/modal-enter-name.js",

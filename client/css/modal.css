@@ -203,3 +203,109 @@
 #spellbook-wrapper-prototype {
   display: none;
 }
+
+#hotbar-config-modal {
+  width: 620px;
+  max-width: 92vw;
+}
+
+#hotbar-config-modal .modal-header {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.hotbar-config-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.hotbar-config-tabs button {
+  flex: 1 1 auto;
+  height: 38px;
+  background-image: url("/png/bg2.png");
+  color: white;
+  border: 1px solid black;
+  font-weight: bold;
+}
+
+.hotbar-config-tabs button.selected {
+  background-image: url("/png/bg3.png");
+  border-bottom-color: transparent;
+}
+
+.hotbar-config-content {
+  min-height: 230px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.hotbar-config-item-row,
+.hotbar-config-spell-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.hotbar-config-item-row:hover,
+.hotbar-config-spell-row:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotbar-config-item-row canvas,
+.hotbar-config-spell-row canvas {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  background-image: url("/png/bg2.png");
+  border: 1px solid black;
+}
+
+.hotbar-config-modes h3 {
+  margin: 0 0 10px 0;
+}
+
+.hotbar-config-modes button,
+.hotbar-config-text button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  background-image: url("/png/bg2.png");
+  color: white;
+  border: 1px solid black;
+  font-weight: bold;
+}
+
+.hotbar-config-text input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  padding: 10px;
+  font-size: 14px;
+  color: white;
+  background-image: url("/png/bg2.png");
+}
+
+.hotbar-config-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+  color: #ccc;
+  font-weight: bold;
+}
+
+.hotbar-config-footer {
+  text-align: center !important;
+}
+
+.hotbar-config-footer .danger {
+  color: #ff7777;
+  font-weight: bold;
+}

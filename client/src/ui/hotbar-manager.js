@@ -41,6 +41,7 @@ HotbarManager.prototype.addSlot = function (index, sid) {
     "icon": spell.icon
   });
   this.slots[index].text = null;
+  this.slots[index].item = null;
 
   this.slots[index].canvas.canvas.parentNode.lastElementChild.style.color = "white";
   this.slots[index].canvas.canvas.parentNode.title = "%s: %s".format(spell.name, spell.description);
@@ -64,6 +65,7 @@ HotbarManager.prototype.addTextSlot = function (index, text) {
   // Clear any spell and set text
   this.slots[index].spell = null;
   this.slots[index].text = text;
+  this.slots[index].item = null;
 
   // Clear the canvas and show text icon
   this.slots[index].canvas.clear();
@@ -71,6 +73,40 @@ HotbarManager.prototype.addTextSlot = function (index, text) {
 
   this.slots[index].canvas.canvas.parentNode.lastElementChild.style.color = "lightblue";
   this.slots[index].canvas.canvas.parentNode.title = "Say: " + text;
+
+  this.__saveConfiguration();
+
+}
+
+HotbarManager.prototype.addItemSlot = function (index, itemId, mode) {
+
+  /*
+   * Function HotbarManager.addItemSlot
+   * Adds an item hotkey to a slot. Item hotkeys store the item type, not a
+   * concrete slot, so runes/fluids continue to work after stack changes.
+   */
+
+  if (index < 0 || index >= this.slots.length) {
+    return;
+  }
+
+  let itemObject = this.__findItemObject(itemId);
+
+  this.slots[index].spell = null;
+  this.slots[index].text = null;
+  this.slots[index].item = {
+    id: itemId,
+    mode: mode
+  };
+
+  this.slots[index].canvas.clear();
+
+  if (itemObject !== null) {
+    this.slots[index].canvas.drawSprite(itemObject.which.peekItem(itemObject.index), new Position(0, 0), 32);
+  }
+
+  this.slots[index].canvas.canvas.parentNode.lastElementChild.style.color = "gold";
+  this.slots[index].canvas.canvas.parentNode.title = "%s: %s".format(this.__getItemNameById(itemId).capitalize(), this.__getItemModeLabel(mode));
 
   this.__saveConfiguration();
 
@@ -116,6 +152,7 @@ HotbarManager.prototype.clearSlot = function (index) {
   // Clear the reference and the canvas
   this.slots[index].spell = null;
   this.slots[index].text = null;
+  this.slots[index].item = null;
   this.slots[index].canvas.clear();
 
   this.slots[index].canvas.canvas.parentNode.lastElementChild.style.color = "grey";
@@ -147,7 +184,20 @@ HotbarManager.prototype.render = function () {
   this.slots.forEach(function (slot) {
 
     // The slot is empty and not active
-    if (slot.spell === null && slot.text === null) {
+    if (slot.spell === null && slot.text === null && slot.item === null) {
+      return;
+    }
+
+    if (slot.item !== null) {
+      let itemObject = this.__findItemObject(slot.item.id);
+      slot.canvas.clear();
+
+      if (itemObject === null) {
+        slot.canvas.canvas.parentNode.lastElementChild.style.color = "red";
+        return;
+      }
+
+      slot.canvas.drawSprite(itemObject.which.peekItem(itemObject.index), new Position(0, 0), 32);
       return;
     }
 
@@ -257,6 +307,10 @@ HotbarManager.prototype.__handleClick = function (i) {
     return;
   }
 
+  if (slot.item !== null) {
+    return this.__useItemSlot(slot);
+  }
+
   if (slot.spell === null) {
     return;
   }
@@ -287,8 +341,119 @@ HotbarManager.prototype.__createSlot = function (DOMElement) {
     "canvas": new Canvas(DOMElement.firstChild, 32, 32),
     "duration": DOMElement.children[1],
     "spell": null,
-    "text": null
+    "text": null,
+    "item": null
   });
+
+}
+
+HotbarManager.prototype.__findItemObject = function (itemId) {
+
+  let findInContainer = function (container) {
+    if (!container || !container.slots) {
+      return null;
+    }
+
+    for (let i = 0; i < container.slots.length; i++) {
+      let item = container.getSlotItem(i);
+
+      if (item !== null && item.id === itemId) {
+        return {
+          which: container,
+          index: i
+        };
+      }
+    }
+
+    return null;
+  };
+
+  let found = findInContainer(gameClient.player.equipment);
+
+  if (found !== null) {
+    return found;
+  }
+
+  let containers = Array.from(gameClient.player.__openedContainers || []);
+
+  for (let i = 0; i < containers.length; i++) {
+    found = findInContainer(containers[i]);
+
+    if (found !== null) {
+      return found;
+    }
+  }
+
+  return null;
+
+}
+
+HotbarManager.prototype.__getItemModeLabel = function (mode) {
+
+  switch (mode) {
+    case "self": return "Use on self";
+    case "target": return "Use on target";
+    case "crosshair": return "Use with crosshair";
+    case "equip-ring": return "Move to ring slot";
+    default: return "Use";
+  }
+
+}
+
+HotbarManager.prototype.__getItemName = function (item) {
+
+  let dataObject = item.getDataObject ? item.getDataObject() : null;
+  let props = dataObject && dataObject.properties ? dataObject.properties : {};
+  let serverProps = {};
+
+  if (gameClient.itemDefinitions && gameClient.itemDefinitions[item.id]) {
+    serverProps = gameClient.itemDefinitions[item.id].properties || {};
+  }
+
+  return serverProps.name || props.name || ("item " + item.id);
+
+}
+
+HotbarManager.prototype.__getItemNameById = function (itemId) {
+
+  let serverProps = {};
+
+  if (gameClient.itemDefinitions && gameClient.itemDefinitions[itemId]) {
+    serverProps = gameClient.itemDefinitions[itemId].properties || {};
+  }
+
+  let dataObject = gameClient.dataObjects ? gameClient.dataObjects.get(itemId) : null;
+  let props = dataObject && dataObject.properties ? dataObject.properties : {};
+
+  return serverProps.name || props.name || ("item " + itemId);
+
+}
+
+HotbarManager.prototype.__useItemSlot = function (slot) {
+
+  let itemObject = this.__findItemObject(slot.item.id);
+
+  if (itemObject === null) {
+    return gameClient.interface.setCancelMessage("You do not have this item.");
+  }
+
+  switch (slot.item.mode) {
+    case "self":
+      return gameClient.send(new ItemUseOnCreaturePacket(itemObject, gameClient.player.id));
+    case "target":
+      if (!gameClient.player.hasTarget()) {
+        return gameClient.interface.setCancelMessage("You have no target.");
+      }
+      return gameClient.send(new ItemUseOnCreaturePacket(itemObject, gameClient.player.getTarget().id));
+    case "crosshair":
+      gameClient.mouse.__multiUseObject = itemObject;
+      return gameClient.mouse.setCursor("crosshair");
+    case "equip-ring":
+      return gameClient.mouse.sendItemMove(itemObject, {
+        which: gameClient.player.equipment,
+        index: 8
+      }, itemObject.which.peekItem(itemObject.index).count || 1);
+  }
 
 }
 
@@ -354,6 +519,10 @@ HotbarManager.prototype.__loadConfiguration = function () {
     if (config.text) {
       this.addTextSlot(i, config.text);
     }
+    // Load item slot
+    else if (config.itemId) {
+      this.addItemSlot(i, config.itemId, config.mode || "crosshair");
+    }
     // Load spell slot
     else if (config.sid) {
       this.addSlot(i, config.sid);
@@ -376,6 +545,9 @@ HotbarManager.prototype.__saveConfiguration = function () {
     }
     if (slot.text !== null) {
       return { "text": slot.text };
+    }
+    if (slot.item !== null) {
+      return { "itemId": slot.item.id, "mode": slot.item.mode };
     }
     return null;
   });

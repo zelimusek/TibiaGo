@@ -28,11 +28,8 @@ HotbarMenu.prototype.click = function (event) {
 
   // Take action depending on the button
   switch (event.target.getAttribute("action")) {
-    case "add":
-      gameClient.interface.modalManager.open("spellbook-modal", index);
-      break;
-    case "add-text":
-      gameClient.interface.modalManager.open("hotbar-text-modal", index);
+    case "add-edit":
+      gameClient.interface.modalManager.open("hotbar-config-modal", index);
       break;
     case "remove":
       gameClient.interface.hotbarManager.clearSlot(index);

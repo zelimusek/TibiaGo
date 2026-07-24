@@ -107,8 +107,7 @@
   <!-- Menu for hotbar slot -->
   <div class="contextmenu modal" id="hotbar-menu">
     <div class="menu-header">Menu</div>
-    <button action="add">Add Spell</button>
-    <button action="add-text">Add Text</button>
+    <button action="add-edit">Add/Edit</button>
     <button action="remove">Remove</button>
   </div>
 
@@ -718,7 +717,7 @@
               </div>
             </div>
 
-            <!-- Hotbar Text Modal -->
+              <!-- Hotbar Text Modal -->
             <div id="hotbar-text-modal" class="modal">
               <button class="close-button-transparent symbol-button" action="cancel" value="Cancel">✕</button>
               <div class="modal-header">Add Custom Text</div>
@@ -731,6 +730,25 @@
                 <div class="modal-footer">
                   <button action="cancel" value="Cancel">Cancel</button>
                   <button action="confirm-text" value="Ok">Confirm</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hotbar Config Modal -->
+            <div id="hotbar-config-modal" class="modal">
+              <button class="close-button-transparent symbol-button" action="cancel" value="Cancel">✕</button>
+              <div class="modal-header">Add to Hotbar</div>
+              <div class="modal-body">
+                <div class="hotbar-config-tabs">
+                  <button class="selected" data-tab="items">Items</button>
+                  <button data-tab="spells">Spells</button>
+                  <button data-tab="text">Text</button>
+                  <button data-tab="actions">Actions</button>
+                </div>
+                <div id="hotbar-config-content"></div>
+                <hr>
+                <div class="modal-footer hotbar-config-footer">
+                  <button action="clear" class="danger">Clear Slot</button>
                 </div>
               </div>
             </div>
