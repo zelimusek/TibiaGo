@@ -740,11 +740,14 @@ const ItemInformationPacket = function (thing, includeDetails) {
   let weight = includeDetails && isPickupable && thing.getWeight ? thing.getWeight() : 0;
   this.writeUInt16(weight);
 
-  // Attack and Armor - check if getAttribute exists
+  // Attack and defense - weapons use `defense`, while armour pieces in the
+  // datapack still use the legacy `armor` property.
   let attack = includeDetails && thing.getAttribute ? thing.getAttribute("attack") : null;
-  let armor = includeDetails && thing.getAttribute ? thing.getAttribute("armor") : null;
+  let defense = includeDetails && thing.getAttribute
+    ? (thing.getAttribute("defense") ?? thing.getAttribute("armor"))
+    : null;
   this.writeUInt8(attack || 0);
-  this.writeUInt8(armor || 0);
+  this.writeUInt8(defense || 0);
 
   // Write the encoded strings
   this.writeBuffer(distance);

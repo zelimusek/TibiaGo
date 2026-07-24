@@ -891,7 +891,7 @@ PacketReader.prototype.readItemInformation = function () {
     "cid": this.readUInt16(),
     "weight": this.readUInt16(),
     "attack": this.readUInt8(),
-    "armor": this.readUInt8(),
+    "defense": this.readUInt8(),
     "distanceReadable": this.readString(),
     "article": this.readString(),
     "name": this.readString(),
