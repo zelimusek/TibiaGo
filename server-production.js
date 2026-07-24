@@ -153,9 +153,17 @@ function serveStaticFile(req, res) {
 function serveFile(fullPath, res) {
   const ext = path.extname(fullPath).toLowerCase();
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
+  const headers = { "Content-Type": contentType };
+
+  // The installed PWA must always receive current application code. Assets
+  // remain cacheable through the service worker, but a stale JS protocol can
+  // otherwise leave the game on a black screen after a server update.
+  if ([".html", ".js", ".css", ".webmanifest"].includes(ext)) {
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+  }
 
   const stream = fs.createReadStream(fullPath);
-  res.writeHead(200, { "Content-Type": contentType });
+  res.writeHead(200, headers);
   stream.pipe(res);
   stream.on("error", () => {
     res.writeHead(500);

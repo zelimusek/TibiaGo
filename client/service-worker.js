@@ -1,4 +1,4 @@
-const CACHE_NAME = "tibiago-static-v2";
+const CACHE_NAME = "tibiago-static-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
