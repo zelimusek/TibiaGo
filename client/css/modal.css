@@ -261,6 +261,27 @@
   gap: 8px;
 }
 
+.radio-editor-styles {
+  display: grid;
+  gap: 5px 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.radio-editor-styles > span {
+  grid-column: 1 / -1;
+}
+
+.radio-editor-styles label {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+}
+
+.radio-editor-styles input {
+  width: auto;
+}
+
 .hotbar-config-tabs {
   display: flex;
   gap: 10px;

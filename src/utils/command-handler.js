@@ -212,11 +212,11 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let radius = Number(message[3]);
   let fadeRadius = Number(message[4]);
   let effectsEnabled = message[5] !== "0";
-  let effectStyle = message[6] || "disco";
+  let effectStyles = (message[6] || "disco").split(",");
   let effectInterval = Number(message[7]);
   let effectIntensity = Number(message[8]);
   let beatBpm = Number(message[9]);
-  let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood"];
+  let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
 
   try {
     let parsed = new URL(url);
@@ -235,8 +235,10 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Radius Effect must be a whole number from 0 to 50.");
   }
 
-  if (validEffectStyles.indexOf(effectStyle) === -1) {
-    return player.sendCancelMessage("Choose a valid disco effect style.");
+  if (effectStyles.length === 0 || effectStyles.some(function (style) {
+    return validEffectStyles.indexOf(style) === -1;
+  })) {
+    return player.sendCancelMessage("Choose one or more valid disco effect styles.");
   }
 
   if (!Number.isFinite(effectInterval) || effectInterval < 0.5 || effectInterval > 30) {
@@ -257,7 +259,7 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     radius,
     fadeRadius,
     effectsEnabled,
-    effectStyle,
+    effectStyles,
     Math.round(effectInterval * 1000),
     effectIntensity,
     beatBpm,

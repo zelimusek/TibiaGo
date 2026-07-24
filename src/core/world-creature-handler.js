@@ -16,7 +16,8 @@ const RADIO_EFFECT_STYLES = {
   poison: [CONST.EFFECT.MAGIC.HITBYPOISON, CONST.EFFECT.MAGIC.POISONAREA],
   death: [CONST.EFFECT.MAGIC.MORTAREA],
   teleport: [CONST.EFFECT.MAGIC.TELEPORT],
-  blood: [CONST.EFFECT.MAGIC.DRAWBLOOD]
+  blood: [CONST.EFFECT.MAGIC.DRAWBLOOD],
+  lightning: [CONST.EFFECT.MAGIC.ENERGYHIT, CONST.EFFECT.MAGIC.LOSEENERGY, CONST.EFFECT.MAGIC.SOUND_WHITE]
 };
 
 const {
@@ -106,7 +107,9 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     radius: zone && Number.isInteger(zone.radius) ? zone.radius : 4,
     fadeRadius: zone && Number.isInteger(zone.fadeRadius) ? zone.fadeRadius : 5,
     effectsEnabled: !zone || zone.effectsEnabled !== false,
-    effectStyle: zone && RADIO_EFFECT_STYLES[zone.effectStyle] ? zone.effectStyle : "disco",
+    effectStyles: zone && Array.isArray(zone.effectStyles)
+      ? zone.effectStyles.filter(function (style) { return RADIO_EFFECT_STYLES[style]; })
+      : [zone && RADIO_EFFECT_STYLES[zone.effectStyle] ? zone.effectStyle : "disco"],
     effectInterval: zone && Number.isFinite(zone.effectIntervalMs) ? zone.effectIntervalMs / 1000 : 2,
     effectIntensity: zone && Number.isInteger(zone.effectIntensity) ? zone.effectIntensity : 3,
     beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
@@ -114,7 +117,7 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyle, effectIntervalMs, effectIntensity, beatBpm, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -131,7 +134,7 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     radius: radius,
     fadeRadius: fadeRadius,
     effectsEnabled: effectsEnabled !== false,
-    effectStyle: RADIO_EFFECT_STYLES[effectStyle] ? effectStyle : "disco",
+    effectStyles: effectStyles,
     effectIntervalMs: effectIntervalMs,
     effectIntensity: effectIntensity,
     beatBpm: beatBpm,
@@ -190,7 +193,13 @@ CreatureHandler.prototype.__playRadioZoneEffects = function () {
     }
 
     zone.__lastEffectAt = now;
-    let effects = RADIO_EFFECT_STYLES[zone.effectStyle] || RADIO_EFFECT_STYLES.disco;
+    let styles = Array.isArray(zone.effectStyles) && zone.effectStyles.length > 0
+      ? zone.effectStyles
+      : [zone.effectStyle || "disco"];
+    let effects = styles.reduce(function (combined, style) {
+      return combined.concat(RADIO_EFFECT_STYLES[style] || []);
+    }, []);
+    effects = effects.length > 0 ? effects : RADIO_EFFECT_STYLES.disco;
     let effectCount = Math.max(1, Math.min(12, Number(zone.effectIntensity) || 3));
 
     for (let index = 0; index < effectCount; index++) {

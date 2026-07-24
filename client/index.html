@@ -602,19 +602,19 @@
                   <input id="radio-editor-effects" type="checkbox" checked>
                   Disco light effects
                 </label>
-                <label for="radio-editor-effect-style">Effect style
-                  <select id="radio-editor-effect-style">
-                    <option value="disco">Disco colours</option>
-                    <option value="magic">Magic colours</option>
-                    <option value="rings">Magic rings</option>
-                    <option value="fire">Fire</option>
-                    <option value="energy">Energy</option>
-                    <option value="poison">Poison</option>
-                    <option value="death">Death</option>
-                    <option value="teleport">Teleport</option>
-                    <option value="blood">Blood</option>
-                  </select>
-                </label>
+                <div class="radio-editor-styles">
+                  <span>Combine effect styles</span>
+                  <label><input name="radio-effect-style" type="checkbox" value="disco" checked> Disco colours</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="magic"> Magic colours</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="rings"> Magic rings</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="fire"> Fire</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="energy"> Energy</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="lightning"> Lightning</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="poison"> Poison</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="death"> Death</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="teleport"> Teleport</label>
+                  <label><input name="radio-effect-style" type="checkbox" value="blood"> Blood</label>
+                </div>
                 <div class="radio-editor-row">
                   <label for="radio-editor-effect-interval">Frequency (seconds)
                     <input id="radio-editor-effect-interval" type="number" min="0.5" max="30" step="0.5">
