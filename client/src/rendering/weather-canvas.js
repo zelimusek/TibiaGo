@@ -104,6 +104,39 @@ WeatherCanvas.prototype.handleThunder = function() {
 
 }
 
+WeatherCanvas.prototype.drawRain = function() {
+
+  /*
+   * Draw a lightweight, deterministic layer of falling raindrops. The old
+   * weather code only enabled rain ambience, so the option had sound but no
+   * visible precipitation.
+   */
+
+  let context = this.screen.context;
+  let width = this.screen.canvas.width;
+  let height = this.screen.canvas.height;
+  let frame = gameClient.renderer.debugger.__nFrames;
+  let count = Math.max(45, Math.floor((width * height) / 7000));
+
+  context.save();
+  context.globalAlpha = 0.58;
+  context.strokeStyle = "#b9dcff";
+  context.lineWidth = 1;
+  context.beginPath();
+
+  for(let index = 0; index < count; index++) {
+    let x = (index * 83 + frame * 5) % (width + 12) - 6;
+    let y = (index * 47 + frame * 13) % (height + 12) - 6;
+
+    context.moveTo(x, y);
+    context.lineTo(x - 2, y + 9);
+  }
+
+  context.stroke();
+  context.restore();
+
+}
+
 WeatherCanvas.prototype.drawWeather = function() {
 
   /*
@@ -117,6 +150,9 @@ WeatherCanvas.prototype.drawWeather = function() {
   // Underground has no weather
   if(!gameClient.player.isUnderground()) {
     this.handleThunder();
+    if(this.isRaining()) {
+      this.drawRain();
+    }
   }
 
   if(this.__counter > 0) {
