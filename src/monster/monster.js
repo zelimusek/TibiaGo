@@ -43,7 +43,8 @@ const Monster = function (cid, data) {
 
   // If monster has special attacks, add the special attack action
   if (this.specialAttacks.length > 0) {
-    this.behaviourHandler.actions.add(this.handleSpecialAttacks.bind(this));
+    this.__specialAttackAction = this.handleSpecialAttacks.bind(this);
+    this.behaviourHandler.actions.add(this.__specialAttackAction);
   }
 
   // Load spells from data if provided (legacy format)
@@ -389,7 +390,7 @@ Monster.prototype.handleSpecialAttacks = function () {
 
   // Must have a target before casting any special attacks
   if (!this.behaviourHandler.hasTarget()) {
-    return;
+    return this.__lockSpecialAttack();
   }
 
   const target = this.behaviourHandler.getTarget();
@@ -468,6 +469,27 @@ Monster.prototype.handleSpecialAttacks = function () {
     // Only one special attack per think cycle
     break;
   }
+
+  this.__lockSpecialAttack();
+
+}
+
+Monster.prototype.__lockSpecialAttack = function () {
+  /*
+   * Function Monster.__lockSpecialAttack
+   * Limits special attacks independently from melee attacks.
+   */
+
+  if (!this.__specialAttackAction) {
+    return;
+  }
+
+  let intervalMs = CONFIG.COMBAT && CONFIG.COMBAT.MONSTER_SPELL_INTERVAL_MS || 2000;
+  let intervalFrames = Math.max(1, Math.round(
+    intervalMs / CONFIG.SERVER.MS_TICK_INTERVAL
+  ));
+
+  this.behaviourHandler.actions.lock(this.__specialAttackAction, intervalFrames);
 
 }
 

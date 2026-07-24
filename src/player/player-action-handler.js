@@ -74,8 +74,13 @@ ActionHandler.prototype.handleActionAttack = function () {
   // Handle combat with the target
   gameServer.world.combatHandler.handleCombat(this.__player);
 
-  // Lock the action for the inverse of the attack speed of the player
-  this.actions.lock(this.handleActionAttack, this.__player.getProperty(CONST.PROPERTIES.ATTACK_SPEED));
+  // Attack speed is stored in server ticks. Apply the configured global
+  // interval multiplier without changing movement or item-use cooldowns.
+  let multiplier = CONFIG.COMBAT && CONFIG.COMBAT.PLAYER_ATTACK_INTERVAL_MULTIPLIER || 1;
+  let attackInterval = Math.max(1, Math.round(
+    this.__player.getProperty(CONST.PROPERTIES.ATTACK_SPEED) * multiplier
+  ));
+  this.actions.lock(this.handleActionAttack, attackInterval);
 
 }
 

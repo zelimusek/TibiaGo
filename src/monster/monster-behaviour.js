@@ -154,9 +154,13 @@ MonsterBehaviour.prototype.handleActionAttack = function () {
   // Delegate to handle the actual combat
   gameServer.world.combatHandler.handleCombat(this.monster);
 
-  // And lock the attack action until next time
-  // Convert attackSpeed from milliseconds to frames
-  let attackSpeedFrames = Math.floor(this.monster.getProperty(CONST.PROPERTIES.ATTACK_SPEED) / CONFIG.SERVER.MS_TICK_INTERVAL);
+  // And lock the attack action until next time. Monster data stores this
+  // value in milliseconds, unlike the player's value which is in ticks.
+  let multiplier = CONFIG.COMBAT && CONFIG.COMBAT.MONSTER_ATTACK_INTERVAL_MULTIPLIER || 1;
+  let attackSpeedFrames = Math.max(1, Math.round(
+    this.monster.getProperty(CONST.PROPERTIES.ATTACK_SPEED) /
+    CONFIG.SERVER.MS_TICK_INTERVAL * multiplier
+  ));
   this.actions.lock(this.handleActionAttack, attackSpeedFrames);
 
 }
