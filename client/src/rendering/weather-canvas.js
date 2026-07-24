@@ -179,15 +179,22 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   context.globalAlpha = 0.72 * intensity * pulse;
   context.lineWidth = 3;
   fixtures.forEach(function(fixture, index) {
-    let angle = now / 680 + index * Math.PI * 2 / fixtures.length;
     let color = colors[index];
     let x = centreX + fixture[0] * 32;
     let y = centreY + fixture[1] * 32;
+    // Aim the fixture at the centre of the radio zone, then gently sweep the
+    // three-beam fan left and right instead of rotating endlessly clockwise.
+    let inwardAngle = Math.atan2(-fixture[1], -fixture[0]);
+    let sweep = Math.sin(now / 760 + index * 1.7) * 0.72;
+
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
-    context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + Math.cos(angle) * beamLength, y + Math.sin(angle) * beamLength);
-    context.stroke();
+    for(let beam = -1; beam <= 1; beam++) {
+      let angle = inwardAngle + sweep + beam * 0.24;
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(x + Math.cos(angle) * beamLength, y + Math.sin(angle) * beamLength);
+      context.stroke();
+    }
   });
 
   context.restore();

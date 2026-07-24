@@ -215,14 +215,16 @@
 }
 
 #radio-editor-modal {
-  width: 420px;
-  max-width: 92vw;
+  width: 680px;
+  max-width: 96vw;
 }
 
 .radio-editor-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  max-height: 78vh;
+  overflow-y: auto;
 }
 
 .radio-editor-body > label,
@@ -263,8 +265,8 @@
 
 .radio-editor-styles {
   display: grid;
-  gap: 5px 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .radio-editor-styles > span {
