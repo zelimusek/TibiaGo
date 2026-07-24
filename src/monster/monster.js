@@ -251,10 +251,10 @@ Monster.prototype.push = function (position) {
   let slowness = this.position.isDiagonal(position) ? 2 * lockDuration : lockDuration;
 
   // Delegate to move the creature to the new tile position
-  gameServer.world.moveCreature(this, position);
+  gameServer.world.creatureHandler.moveCreature(this, position);
 
   // Lock this function for a number of frames
-  this.behaviourHandler.actions.lock(this.handleActionMove, slowness);
+  this.behaviourHandler.actions.lock(this.behaviourHandler.handleActionMove, slowness);
 
 }
 
