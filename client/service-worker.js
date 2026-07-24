@@ -1,7 +1,5 @@
-const CACHE_NAME = "tibiago-static-v3";
+const CACHE_NAME = "tibiago-static-v4";
 const APP_SHELL = [
-  "/",
-  "/index.html",
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
   "/png/pwa-icon-512.png"
@@ -30,23 +28,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).catch(() => caches.match("/index.html"))
-    );
-    return;
-  }
-
-  if (/\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)) {
-    event.respondWith(
-      fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      }).catch(() => caches.match(request))
-    );
+  // The game is online-only, so its code must always be current. Caching the
+  // launcher or source modules can mix an old client protocol with a newly
+  // deployed server and lead to a black screen after reconnecting.
+  if (request.mode === "navigate" || /\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)) {
+    event.respondWith(fetch(request));
     return;
   }
 

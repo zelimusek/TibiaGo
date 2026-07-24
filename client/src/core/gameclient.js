@@ -173,8 +173,12 @@ GameClient.prototype.reset = function () {
    * Function to reset the gameclient to the initial state ready for another server connection
    */
 
-  // Save settings
-  this.renderer.minimap.save();
+  // Save settings. A disconnect can also happen while the renderer is still
+  // being created, so only touch it when a game world actually exists.
+  if (this.renderer) {
+    this.renderer.minimap.save();
+  }
+
   this.interface.settings.saveState();
   this.interface.soundManager.stopAll();
 
@@ -182,7 +186,9 @@ GameClient.prototype.reset = function () {
   this.gameLoop.abort();
 
   // Clear the screen
-  this.renderer.screen.clear();
+  if (this.renderer) {
+    this.renderer.screen.clear();
+  }
 
   if (gameClient.player) {
     // Close all references to contains
@@ -192,6 +198,15 @@ GameClient.prototype.reset = function () {
 
   // Close all windows
   this.interface.reset();
+
+  // Events from the previous character (movement unlocks, spell cooldowns,
+  // floating text, etc.) must never run after another character logs in.
+  this.eventQueue = new EventQueue();
+
+  // Server data creates fresh instances for the next login. Dropping these
+  // references prevents input/rendering from reading the old world in between.
+  this.world = null;
+  this.renderer = null;
 
 }
 

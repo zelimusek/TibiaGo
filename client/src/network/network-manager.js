@@ -464,15 +464,22 @@ NetworkManager.prototype.__handleClose = function (event) {
    * Callback function for when the websocket connection is closed
    */
 
-  console.log("Disconnected");
-
-  // If we are connected to the game world: handle a reset
-  if (this.state.connected && gameClient.renderer) {
-    gameClient.reset();
+  // A late close event from an older socket must not reset a newly logged-in
+  // session. This can otherwise leave the new renderer on a black screen.
+  if (event.target !== this.socket) {
+    return;
   }
 
-  // Set connected to false
+  console.log("Disconnected");
+
+  let wasConnected = this.state.connected;
+  this.socket = null;
   this.state.connected = false;
+
+  // If we are connected to the game world: handle a reset
+  if (wasConnected && gameClient.renderer) {
+    gameClient.reset();
+  }
 
 }
 
