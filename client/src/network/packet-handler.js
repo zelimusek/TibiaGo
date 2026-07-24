@@ -1008,8 +1008,8 @@ PacketHandler.prototype.handleItemInformation = function (packet) {
     message += " (Attack: %s)".format(packet.attack);
   }
 
-  if (packet.defense !== 0) {
-    message += " (Defense: %s)".format(packet.defense);
+  if (packet.armor !== 0) {
+    message += " (Armor: %s)".format(packet.armor);
   }
 
   // When debugging lets show the client and server identifier
