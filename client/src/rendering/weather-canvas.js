@@ -166,51 +166,29 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let zoneScreenPosition = gameClient.renderer.getStaticScreenPosition(zoneCenter);
   let centreX = (zoneScreenPosition.x + 0.5) * 32;
   let centreY = (zoneScreenPosition.y + 0.5) * 32;
-  let sideLength = Math.max(1, disco.radius * 2);
-  let perimeter = sideLength * 4;
+  // Three fixed fixtures are mounted on the zone walls. Their beams sweep
+  // across the dance floor just like the original rotating lasers did around
+  // the player, but their source never moves with a creature.
+  let fixtures = [
+    [0, -disco.radius],
+    [-disco.radius, disco.radius * 0.5],
+    [disco.radius, disco.radius * 0.5]
+  ];
+  let beamLength = Math.max(width, height) * 1.5;
 
-  context.globalAlpha = 0.9 * intensity * pulse;
+  context.globalAlpha = 0.72 * intensity * pulse;
   context.lineWidth = 3;
-  for(let index = 0; index < 3; index++) {
-    // Three fixtures travel clockwise around the last ring of SQMs, spaced
-    // evenly around the perimeter like moving club lasers on the walls.
-    let travel = ((now / 520 + index * perimeter / 3) % perimeter + perimeter) % perimeter;
-    let offsetX;
-    let offsetY;
-    let directionX;
-    let directionY;
-
-    if(travel < sideLength) {
-      offsetX = -disco.radius + travel;
-      offsetY = -disco.radius;
-      directionX = 1;
-      directionY = 0;
-    } else if(travel < sideLength * 2) {
-      offsetX = disco.radius;
-      offsetY = -disco.radius + (travel - sideLength);
-      directionX = 0;
-      directionY = 1;
-    } else if(travel < sideLength * 3) {
-      offsetX = disco.radius - (travel - sideLength * 2);
-      offsetY = disco.radius;
-      directionX = -1;
-      directionY = 0;
-    } else {
-      offsetX = -disco.radius;
-      offsetY = disco.radius - (travel - sideLength * 3);
-      directionX = 0;
-      directionY = -1;
-    }
-
+  fixtures.forEach(function(fixture, index) {
+    let angle = now / 680 + index * Math.PI * 2 / fixtures.length;
     let color = colors[index];
-    let x = centreX + offsetX * 32;
-    let y = centreY + offsetY * 32;
+    let x = centreX + fixture[0] * 32;
+    let y = centreY + fixture[1] * 32;
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
     context.beginPath();
-    context.moveTo(x - directionX * 14, y - directionY * 14);
-    context.lineTo(x + directionX * 14, y + directionY * 14);
+    context.moveTo(x, y);
+    context.lineTo(x + Math.cos(angle) * beamLength, y + Math.sin(angle) * beamLength);
     context.stroke();
-  }
+  });
 
   context.restore();
 
