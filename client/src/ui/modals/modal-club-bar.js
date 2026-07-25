@@ -8,9 +8,11 @@ ClubBarModal.prototype.constructor = ClubBarModal;
 ClubBarModal.prototype.handleOpen = function(config) {
   document.getElementById("club-bar-title").innerText = config.name;
   this.list.innerHTML = ""; this.selected = null;
-  config.drinks.forEach(function(drink) {
+  let items = config.items || [];
+  document.getElementById("club-bar-text").innerText = config.text || "Choose an option.";
+  items.forEach(function(drink) {
     let button = document.createElement("button"); button.className = "club-bar-item";
-    button.innerHTML = "<span>" + drink.name + "</span><b>" + drink.price + " gp</b>";
+    button.innerHTML = "<span>" + drink.name + "</span><b>" + (drink.price ? drink.price + " gp" : "") + "</b>";
     button.onclick = function() { this.selected = drink.key; Array.from(this.list.children).forEach(x => x.classList.remove("selected")); button.classList.add("selected"); }.bind(this);
     this.list.appendChild(button);
   }, this);

@@ -13,11 +13,15 @@ const WARDROBE = {
   glow: { price: 20, id: 130, details: { head: 114, body: 94, legs: 114, feet: 94 }, text: "Glow Look" }
 };
 
+function openMenu(player, menu) {
+  player.write(new RadioStreamPacket(true, "club-menu:" + encodeURIComponent(JSON.stringify(menu)), 0));
+}
+
 module.exports = function clubBartender() {
   this.setBaseState(baseTalkState);
   this.on("focus", player => {
     this.say("Welcome, %s! Choose a drink or a temporary club style.".format(player.name));
-    player.write(new RadioStreamPacket(true, "club-menu:" + encodeURIComponent(JSON.stringify({ name: "Neon Nick's Drink Bar", drinks: Object.keys(DRINKS).map(key => ({ key: key, name: key === "turbo" ? "Turbo Cola" : key[0].toUpperCase() + key.slice(1) + " Shot", price: DRINKS[key].price })) })), 0));
+    openMenu(player, { name: "Neon Nick", text: "Welcome to the club! What can I get you?", items: [{ key: "drinks", name: "Drinks" }, { key: "wardrobe", name: "Wardrobe" }, { key: "dance", name: "Dance" }] });
   });
   this.on("defocus", player => this.say("Keep the party alive, %s!".format(player.name)));
 };
@@ -28,6 +32,7 @@ function pay(player, price) {
 
 function baseTalkState(state, player, message) {
   if(message === "drinks" || message === "drink") {
+    openMenu(player, { name: "Neon Nick's Drink Bar", items: Object.keys(DRINKS).map(key => ({ key: key, name: key === "turbo" ? "Turbo Cola" : key[0].toUpperCase() + key.slice(1) + " Shot", price: DRINKS[key].price })) });
     return this.respond("I serve {neon} (25 gp), {turbo} (40 gp) and {lava} (30 gp). All effects are temporary and cosmetic, apart from Turbo's brief speed boost.");
   }
   if(message === "wardrobe" || message === "outfit") {
