@@ -74,7 +74,7 @@ function getDescription() {
     return `${place}. ${name} - ${formatExperience(entry.gained)} EXP (Level ${level})`;
   });
 
-  return "CYRK Guild EXP Podium (last 24h): " + podium.join(" | ") + ".";
+  return "CYRK Guild EXP Podium (last 24h):\n" + podium.join("\n") + ".";
 }
 
 // Warm the cache during server startup, so the first look at the noticeboard
