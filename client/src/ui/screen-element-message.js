@@ -81,7 +81,9 @@ MessageElement.prototype.setTextPosition = function () {
   let fraction = gameClient.interface.getSpriteScaling();
 
   // Center the text horizontally (match CharacterElement)
-  offset.left += fraction / 2;
+  // Speech sits a few virtual pixels left of the tile centre, matching the
+  // visual centre of the Tibia outfit rather than its rectangular sprite box.
+  offset.left += fraction * 0.35;
 
   // Keep speech directly below the nameplate, but above the sprite. The old
   // desktop calculation added a positive offset and pushed text into the
