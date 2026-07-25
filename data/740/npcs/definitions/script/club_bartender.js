@@ -36,6 +36,7 @@ function baseTalkState(state, player, message) {
     return this.respond("I serve {neon} (25 gp), {turbo} (40 gp) and {lava} (30 gp). All effects are temporary and cosmetic, apart from Turbo's brief speed boost.");
   }
   if(message === "wardrobe" || message === "outfit") {
+    openMenu(player, { name: "Neon Nick's Wardrobe", items: Object.keys(WARDROBE).map(key => ({ key: key, name: WARDROBE[key].text, price: WARDROBE[key].price })) });
     return this.respond("Temporary looks cost 20 gp: {neonlook}, {mask} or {glow}. They last one minute.");
   }
   if(message === "dance") {
