@@ -1013,6 +1013,8 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
     case 6: vocationName = "Royal Paladin"; break;
     case 7: vocationName = "Master Sorcerer"; break;
     case 8: vocationName = "Elder Druid"; break;
+    case 9: vocationName = "God"; break;
+    case 10: vocationName = "Gamemaster"; break;
   }
 
   // Format: "You see Name (Level X). He is a Vocation."

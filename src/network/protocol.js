@@ -688,12 +688,21 @@ const CreatureInformationPacket = function (creature) {
 
   // Add some information on the player
   if (creature.isPlayer()) {
+    let role = creature.getProperty(CONST.PROPERTIES.ROLE);
+    let isBootstrapGod = CONFIG.DATABASE.DEFAULT_CHARACTER &&
+      creature.getProperty(CONST.PROPERTIES.NAME).toLowerCase() === CONFIG.DATABASE.DEFAULT_CHARACTER.NAME.toLowerCase();
+    let vocation = creature.getProperty(CONST.PROPERTIES.VOCATION);
+    if (role === CONST.ROLES.GOD || isBootstrapGod) {
+      vocation = 9;
+    } else if (role === CONST.ROLES.GAMEMASTER) {
+      vocation = 10;
+    }
     this.writeUInt16(
       creature.skills.getSkillLevel(CONST.PROPERTIES.EXPERIENCE)
     );
     this.writeUInt8(creature.getProperty(CONST.PROPERTIES.SEX));
-    this.writeUInt8(creature.getProperty(CONST.PROPERTIES.VOCATION));
-    this.writeUInt8(creature.getProperty(CONST.PROPERTIES.ROLE));
+    this.writeUInt8(vocation);
+    this.writeUInt8(role);
   } else {
     this.writeUInt16(0);
     this.writeUInt8(0);
