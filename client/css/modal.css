@@ -219,6 +219,12 @@
   max-width: 96vw;
 }
 
+#club-bar-modal { width: 440px; max-width: 92vw; }
+#club-bar-list { max-height: 300px; overflow-y: auto; margin-bottom: 12px; }
+.club-bar-item { display:flex; justify-content:space-between; width:100%; padding:10px; background:transparent; border:0; border-bottom:1px solid #333; color:white; font-weight:bold; font-size:16px; text-align:left; }
+.club-bar-item b { color:#ffd500; }
+.club-bar-item:hover, .club-bar-item.selected { background:#222; color:#ffd500; }
+
 .radio-editor-body {
   display: flex;
   flex-direction: column;

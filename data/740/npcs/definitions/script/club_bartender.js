@@ -1,4 +1,5 @@
 const Condition = requireModule("combat/condition");
+const { RadioStreamPacket } = requireModule("network/protocol");
 
 const DRINKS = {
   neon: { price: 25, effect: CONST.EFFECT.MAGIC.SOUND_PURPLE, text: "Neon Shot: a colourful club aura for one minute." },
@@ -14,7 +15,10 @@ const WARDROBE = {
 
 module.exports = function clubBartender() {
   this.setBaseState(baseTalkState);
-  this.on("focus", player => this.say("Welcome, %s! Say {drinks}, {wardrobe} or {dance}.".format(player.name)));
+  this.on("focus", player => {
+    this.say("Welcome, %s! Choose a drink or a temporary club style.".format(player.name));
+    player.write(new RadioStreamPacket(true, "club-menu:" + encodeURIComponent(JSON.stringify({ name: "Neon Nick's Drink Bar", drinks: Object.keys(DRINKS).map(key => ({ key: key, name: key === "turbo" ? "Turbo Cola" : key[0].toUpperCase() + key.slice(1) + " Shot", price: DRINKS[key].price })) })), 0));
+  });
   this.on("defocus", player => this.say("Keep the party alive, %s!".format(player.name)));
 };
 

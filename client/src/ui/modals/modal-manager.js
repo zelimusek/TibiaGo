@@ -30,6 +30,7 @@ const ModalManager = function () {
   this.register(HotbarConfigModal, "hotbar-config-modal");
   this.register(DeathModal, "death-modal");
   this.register(RadioEditorModal, "radio-editor-modal");
+  this.register(ClubBarModal, "club-bar-modal");
   this.register(WindowQuestLog, "quest-log-modal");
 
   this.__addEventListeners();

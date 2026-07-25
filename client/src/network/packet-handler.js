@@ -549,6 +549,12 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
 
   let editorPrefix = "radio-editor:";
   let ambiencePrefix = "radio-ambience:";
+  let clubMenuPrefix = "club-menu:";
+
+  if(packet.enabled && packet.url.startsWith(clubMenuPrefix)) {
+    gameClient.interface.modalManager.open("club-bar-modal", JSON.parse(decodeURIComponent(packet.url.slice(clubMenuPrefix.length))));
+    return;
+  }
 
   if (packet.enabled && packet.url.startsWith(editorPrefix)) {
     try {
