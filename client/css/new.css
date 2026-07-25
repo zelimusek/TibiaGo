@@ -161,6 +161,7 @@ body {
   max-width: 256px;
   top: 50%;
   text-align: center;
+  white-space: pre-line;
   position: absolute;
   padding: 4px;
 }
