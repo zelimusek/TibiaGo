@@ -61,7 +61,8 @@ PacketReader.prototype.readCharacterInformation = function () {
     "level": this.readUInt16(),
     "sex": this.readUInt8(),
     "vocation": this.readUInt8(),
-    "role": this.readUInt8()
+    "role": this.readUInt8(),
+    "title": this.readString()
   });
 
 }
