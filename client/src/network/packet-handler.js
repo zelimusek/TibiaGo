@@ -1064,9 +1064,7 @@ PacketHandler.prototype.handleItemInformation = function (packet) {
     message += " (Attack: %s)".format(packet.attack);
   }
 
-  if(packet.title) {
-    vocationName = packet.title;
-  } else if(packet.role === CONST.ROLES.GOD) {
+  if(packet.role === CONST.ROLES.GOD) {
     vocationName = "God";
   } else if(packet.role === CONST.ROLES.GAMEMASTER) {
     vocationName = "Gamemaster";

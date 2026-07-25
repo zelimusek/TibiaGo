@@ -359,9 +359,6 @@ const CreatureStatePacket = function (creature) {
   let stringEncoded = this.encodeString(
     creature.getProperty(CONST.PROPERTIES.NAME)
   );
-  let role = creature.isPlayer() ? creature.getProperty(CONST.PROPERTIES.ROLE) : CONST.ROLES.NONE;
-  let title = role === CONST.ROLES.GOD ? "God" : role === CONST.ROLES.GAMEMASTER ? "Gamemaster" : "";
-  let titleEncoded = this.encodeString(title);
 
   // Inherits from packet writer
   PacketWriter.call(
@@ -684,7 +681,7 @@ const CreatureInformationPacket = function (creature) {
   PacketWriter.call(
     this,
     CONST.PROTOCOL.SERVER.CREATURE_INFORMATION,
-    stringEncoded.getEncodedLength() + titleEncoded.getEncodedLength() + 5
+    stringEncoded.getEncodedLength() + 5
   );
 
   this.writeBuffer(stringEncoded);
@@ -696,14 +693,13 @@ const CreatureInformationPacket = function (creature) {
     );
     this.writeUInt8(creature.getProperty(CONST.PROPERTIES.SEX));
     this.writeUInt8(creature.getProperty(CONST.PROPERTIES.VOCATION));
-    this.writeUInt8(role);
+    this.writeUInt8(creature.getProperty(CONST.PROPERTIES.ROLE));
   } else {
     this.writeUInt16(0);
     this.writeUInt8(0);
     this.writeUInt8(0);
     this.writeUInt8(0);
   }
-  this.writeBuffer(titleEncoded);
 };
 
 CreatureInformationPacket.prototype = Object.create(PacketWriter.prototype);
