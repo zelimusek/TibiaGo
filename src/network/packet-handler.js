@@ -3,6 +3,7 @@
 const Condition = requireModule("combat/condition");
 const MailboxHandler = requireModule("utils/mailbox-handler");
 const Monster = requireModule("monster/monster");
+const GuildExpRanking = requireModule("utils/guild-exp-ranking");
 
 const { ItemInformationPacket, CreatureInformationPacket } = requireModule("network/protocol");
 
@@ -237,7 +238,16 @@ PacketHandler.prototype.handleItemLook = function (player, packet) {
   let hasUniqueId = thing.hasUniqueId ? thing.hasUniqueId() : false;
   let includeDetails = !hasUniqueId && (packet.which.constructor.name !== "Tile" || player.isBesidesThing(packet.which));
 
-  return player.write(new ItemInformationPacket(thing, includeDetails));
+  const position = thing.getPosition ? thing.getPosition() : null;
+  const isGuildExpNoticeboard = position &&
+    position.x === 32405 && position.y === 32175 && position.z === 7 &&
+    thing.id === 1811;
+
+  return player.write(new ItemInformationPacket(
+    thing,
+    includeDetails,
+    isGuildExpNoticeboard ? GuildExpRanking.getDescription() : null
+  ));
 
 }
 

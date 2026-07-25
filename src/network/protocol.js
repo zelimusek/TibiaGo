@@ -714,7 +714,7 @@ const CreatureInformationPacket = function (creature) {
 CreatureInformationPacket.prototype = Object.create(PacketWriter.prototype);
 CreatureInformationPacket.prototype.constructor = CreatureInformationPacket;
 
-const ItemInformationPacket = function (thing, includeDetails) {
+const ItemInformationPacket = function (thing, includeDetails, descriptionOverride = null) {
   /*
    * Class ItemInformationPacket
    * Wrapper for thing information sent to the player
@@ -725,7 +725,9 @@ const ItemInformationPacket = function (thing, includeDetails) {
   let distanceContent = isDistanceReadable && thing.getContent ? thing.getContent() : null;
   let articleText = thing.getArticle ? thing.getArticle() : "";
   let nameText = thing.getName ? thing.getName() : "unknown";
-  let descriptionText = includeDetails && thing.getDescription ? thing.getDescription() : null;
+  let descriptionText = descriptionOverride !== null
+    ? descriptionOverride
+    : (includeDetails && thing.getDescription ? thing.getDescription() : null);
 
   // Encode all the strings
   let distance = this.encodeString(distanceContent);
