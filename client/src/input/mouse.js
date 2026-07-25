@@ -160,12 +160,49 @@ Mouse.prototype.getWorldObject = function (event) {
    * Returns an object from the world
    */
 
+  // Creature sprites may extend over the neighbouring SQMs.  When the click
+  // lands on our own visible sprite, it must still operate on the SQM below
+  // the player (for example a ladder or sewer grate), not on the SQM covered
+  // by the sprite artwork.
+  let selfTile = this.__getPlayerSpriteTile(event);
+
   // Objects taken from the world are always at the top position (0xFF)
   return new Object({
-    "which": gameClient.renderer.screen.getWorldCoordinates(event),
+    "which": selfTile || gameClient.renderer.screen.getWorldCoordinates(event),
     "index": 0xFF
   });
 
+}
+
+Mouse.prototype.__getPlayerSpriteTile = function (event) {
+
+  if (!gameClient.player || !gameClient.renderer || !gameClient.renderer.screen) {
+    return null;
+  }
+
+  let frames = gameClient.player.getCharacterFrames();
+  if (frames === null) {
+    return null;
+  }
+
+  let point = gameClient.renderer.screen.getCanvasCoordinates(event);
+  let scaling = gameClient.interface.getSpriteScalingVector();
+  let position = gameClient.renderer.getCreatureScreenPosition(gameClient.player);
+  let width = frames.characterGroup.width || 1;
+  let height = frames.characterGroup.height || 1;
+
+  // Matches Canvas.__drawCharacter(), which renders creatures with a 0.25
+  // SQM visual offset to center them in their tile.
+  let left = (position.x - 0.25) * scaling.x;
+  let top = (position.y - 0.25) * scaling.y;
+  let right = left + width * scaling.x;
+  let bottom = top + height * scaling.y;
+
+  if (point.x < left || point.x >= right || point.y < top || point.y >= bottom) {
+    return null;
+  }
+
+  return gameClient.world.getTileFromWorldPosition(gameClient.player.getPosition());
 }
 
 Mouse.prototype.look = function (object) {

@@ -1,8 +1,7 @@
 module.exports = function useSewerGrate(player, tile, index, item) {
 
-  // A player may use the grate immediately after stepping onto its SQM.
-  // Keep the movement guard for grates used from a neighbouring tile.
-  if (player.isMoving() && !player.getPosition().equals(tile.position)) {
+  // Only allowed when not moving
+  if (player.isMoving()) {
     return true;
   }
 
