@@ -349,9 +349,6 @@ Mouse.prototype.__handleContextMenu = function (event) {
   // Stop default propagation
   event.preventDefault();
 
-  // Track right button state
-  this.__rightButtonDown = true;
-
   // Use-With cancellation: Right-click cancels the action
   if (this.__multiUseObject !== null) {
     this.__multiUseObject = null;
@@ -615,6 +612,15 @@ Mouse.prototype.__handleMouseDown = function (event) {
       this.__suppressNextContextMenu = true;
       return;
     }
+  }
+
+  // Track the right button at its actual press time. The browser's
+  // contextmenu event happens after mouseup in some browsers, so setting this
+  // flag there made the next left click disappear as a false "both buttons"
+  // Look shortcut.
+  if (event.button === 2) {
+    this.__rightButtonDown = true;
+    return;
   }
 
   // Only process left button for normal operations
