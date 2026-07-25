@@ -87,7 +87,10 @@ MessageElement.prototype.setTextPosition = function () {
   // desktop calculation added a positive offset and pushed text into the
   // character body below the health bar.
   let isMobile = gameClient.touch && gameClient.touch.isMobileMode;
-  offset.top -= isMobile ? (fraction * 1.8) : (fraction * 0.72);
+  // Desktop speech belongs between the status/nameplate and the character
+  // sprite. A small upward shift keeps it under the HP bars without covering
+  // them (or the nickname) as the larger previous offset did.
+  offset.top -= isMobile ? (fraction * 1.8) : (fraction * 0.05);
 
   this.__updateTextPosition(offset);
 
