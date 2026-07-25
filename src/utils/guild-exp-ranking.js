@@ -77,4 +77,8 @@ function getDescription() {
   return "CYRK Guild EXP Podium (last 24h): " + podium.join(" | ") + ".";
 }
 
+// Warm the cache during server startup, so the first look at the noticeboard
+// normally already has a complete podium to display.
+refresh();
+
 module.exports = { getDescription, refresh };
