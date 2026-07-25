@@ -83,9 +83,11 @@ MessageElement.prototype.setTextPosition = function () {
   // Center the text horizontally (match CharacterElement)
   offset.left += fraction / 2;
 
-  // Offset vertically - mobile needs larger offset due to CSS scaling
+  // Keep speech directly below the nameplate, but above the sprite. The old
+  // desktop calculation added a positive offset and pushed text into the
+  // character body below the health bar.
   let isMobile = gameClient.touch && gameClient.touch.isMobileMode;
-  offset.top -= isMobile ? (fraction * 1.8) : (-fraction / 6);
+  offset.top -= isMobile ? (fraction * 1.8) : (fraction * 0.72);
 
   this.__updateTextPosition(offset);
 
