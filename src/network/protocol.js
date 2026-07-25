@@ -681,7 +681,7 @@ const CreatureInformationPacket = function (creature) {
   PacketWriter.call(
     this,
     CONST.PROTOCOL.SERVER.CREATURE_INFORMATION,
-    stringEncoded.getEncodedLength() + 4
+    stringEncoded.getEncodedLength() + 5
   );
 
   this.writeBuffer(stringEncoded);
@@ -693,8 +693,10 @@ const CreatureInformationPacket = function (creature) {
     );
     this.writeUInt8(creature.getProperty(CONST.PROPERTIES.SEX));
     this.writeUInt8(creature.getProperty(CONST.PROPERTIES.VOCATION));
+    this.writeUInt8(creature.getProperty(CONST.PROPERTIES.ROLE));
   } else {
     this.writeUInt16(0);
+    this.writeUInt8(0);
     this.writeUInt8(0);
     this.writeUInt8(0);
   }

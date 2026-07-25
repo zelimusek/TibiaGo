@@ -1001,7 +1001,7 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
     return;
   }
 
-  let gender = packet.sex === 1 ? "He" : "She";
+  let gender = packet.sex === CONST.SEX.MALE ? "He" : "She";
 
   let vocationName = "nothing";
   switch (packet.vocation) {
@@ -1062,6 +1062,12 @@ PacketHandler.prototype.handleItemInformation = function (packet) {
 
   if (packet.attack !== 0) {
     message += " (Attack: %s)".format(packet.attack);
+  }
+
+  if(packet.role === CONST.ROLES.GOD) {
+    vocationName = "God";
+  } else if(packet.role === CONST.ROLES.GAMEMASTER) {
+    vocationName = "Gamemaster";
   }
 
   if (packet.armor !== 0) {
