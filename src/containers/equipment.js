@@ -48,6 +48,16 @@ Equipment.prototype.getParent = function () {
   return this.__player;
 };
 
+Equipment.prototype.getPosition = function () {
+  /*
+   * Function Equipment.getPosition
+   * Equipped items are carried by their player, so range checks must use the
+   * player's current map position.
+   */
+
+  return this.__player.getPosition();
+};
+
 Equipment.prototype.toJSON = function () {
   /*
    * Function Equipment.toJSON
