@@ -205,6 +205,18 @@ Mouse.prototype.__getPlayerSpriteTile = function (event) {
   return gameClient.world.getTileFromWorldPosition(gameClient.player.getPosition());
 }
 
+Mouse.prototype.__getOtherCreatures = function (tile) {
+
+  if (!tile || !tile.monsters) {
+    return new Set();
+  }
+
+  // Tiles keep every creature in this legacy-named collection, including the
+  // local player.  The player is not a target and must not block using an
+  // object placed on the same SQM.
+  return new Set(Array.from(tile.monsters).filter(creature => !gameClient.isSelf(creature)));
+}
+
 Mouse.prototype.look = function (object) {
 
   /*
@@ -235,14 +247,14 @@ Mouse.prototype.use = function (object) {
 
   if (object.which instanceof Tile) {
 
-
-    if (object.which.monsters.size !== 0) {
+    let otherCreatures = this.__getOtherCreatures(object.which);
+    if (otherCreatures.size !== 0) {
 
       if (gameClient.player.isInProtectionZone()) {
         return gameClient.interface.setCancelMessage("You may not attack from within protection zone.");
       }
 
-      return gameClient.world.targetMonster(object.which.monsters);
+      return gameClient.world.targetMonster(otherCreatures);
     }
   }
 
@@ -433,8 +445,9 @@ Mouse.prototype.__handleContextMenu = function (event) {
     // or right-click on container/corpse opens it directly
     if (!gameClient.interface.settings.isClassicControlEnabled()) {
       // Attack monsters
-      if (tile !== null && tile.which.monsters && tile.which.monsters.size > 0) {
-        return gameClient.world.targetMonster(tile.which.monsters);
+      let otherCreatures = tile !== null ? this.__getOtherCreatures(tile.which) : new Set();
+      if (otherCreatures.size > 0) {
+        return gameClient.world.targetMonster(otherCreatures);
       }
 
       // In Regular Controls: right-click uses items directly
