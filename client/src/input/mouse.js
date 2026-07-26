@@ -450,19 +450,13 @@ Mouse.prototype.__handleContextMenu = function (event) {
         return gameClient.world.targetMonster(otherCreatures);
       }
 
-      // In Regular Controls: right-click uses items directly
-      // Open containers/corpses directly, use other items directly
-      // Only show menu for multi-use items (which need a target)
+      // In Regular Controls: right-click uses items directly.  Multi-use
+      // items (such as runes) enter targeting mode through Mouse.use(), so
+      // they must not be routed through the context menu first.
       if (tile !== null && tile.which.items.length > 0) {
-        let topItem = tile.which.peekItem(0xFF);
-
-        // Multi-use items need a target, so show the menu for them
-        if (topItem.isMultiUse()) {
-          // Fall through to show menu
-        } else {
-          // Use the item directly (containers, sewer grates, ladders, etc)
-          return this.use(tile);
-        }
+        // Use the item directly (containers, runes, sewer grates, ladders,
+        // etc.). Mouse.use() switches multi-use items to the crosshair.
+        return this.use(tile);
       }
     }
 
