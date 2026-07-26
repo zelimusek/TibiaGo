@@ -92,8 +92,9 @@ CreatureHandler.prototype.__broadcastClubDance = function (message) {
 
 CreatureHandler.prototype.applyClubDrinkAura = function (player, effect) {
 
-  player.__clubDrinkAura = { effect: effect, expiresAt: Date.now() + 60000 };
-  gameServer.world.sendMagicEffect(player.position, effect);
+  let effects = Array.isArray(effect) ? effect : [effect];
+  player.__clubDrinkAura = { effects: effects, expiresAt: Date.now() + 60000 };
+  gameServer.world.sendMagicEffect(player.position, effects[0]);
 
 }
 
@@ -108,7 +109,8 @@ CreatureHandler.prototype.__tickClubDrinkAuras = function () {
       delete player.__clubDrinkAura;
       return;
     }
-    gameServer.world.sendMagicEffect(player.position, player.__clubDrinkAura.effect);
+    let effects = player.__clubDrinkAura.effects || [player.__clubDrinkAura.effect];
+    gameServer.world.sendMagicEffect(player.position, effects[Math.floor(Math.random() * effects.length)]);
   });
 
 }

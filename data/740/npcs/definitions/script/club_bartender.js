@@ -8,10 +8,32 @@ const DRINKS = {
 };
 
 const WARDROBE = {
-  neonlook: { price: 20, id: 128, details: { head: 94, body: 114, legs: 94, feet: 114 }, text: "Neon Look" },
-  mask: { price: 20, id: 129, details: { head: 0, body: 94, legs: 19, feet: 114 }, text: "Masked Look" },
-  glow: { price: 20, id: 130, details: { head: 114, body: 94, legs: 114, feet: 94 }, text: "Glow Look" }
+  neonlook: { price: 20, text: "Neon Look" },
+  mask: { price: 20, text: "Masked Look" },
+  glow: { price: 20, text: "Glow Look" }
 };
+
+const NEON_AURA = [
+  CONST.EFFECT.MAGIC.SOUND_BLUE,
+  CONST.EFFECT.MAGIC.SOUND_PURPLE,
+  CONST.EFFECT.MAGIC.SOUND_GREEN,
+  CONST.EFFECT.MAGIC.SOUND_WHITE
+];
+
+function getWardrobeLook(player, style) {
+  let male = player.getProperty(CONST.PROPERTIES.SEX) === 1;
+  let outfits = male
+    ? { neonlook: 130, mask: 129, glow: 134 }
+    : { neonlook: 138, mask: 137, glow: 142 };
+
+  let colors = {
+    neonlook: { head: 78, body: 94, legs: 80, feet: 96 },
+    mask: { head: 96, body: 78, legs: 94, feet: 80 },
+    glow: { head: 80, body: 78, legs: 96, feet: 94 }
+  };
+
+  return { id: outfits[style], details: colors[style] };
+}
 
 function openMenu(player, menu) {
   player.write(new RadioStreamPacket(true, "club-menu:" + encodeURIComponent(JSON.stringify(menu)), 0));
@@ -56,8 +78,9 @@ function baseTalkState(state, player, message) {
   if(WARDROBE[message]) {
     let look = WARDROBE[message];
     if(!pay(player, look.price)) return this.respond("You need %s gold coins for that look.".format(look.price));
-    player.addCondition(Condition.prototype.MORPH, 120, 500, look);
-    process.gameServer.world.sendMagicEffect(player.position, CONST.EFFECT.MAGIC.TELEPORT);
+    player.addCondition(Condition.prototype.MORPH, 120, 500, getWardrobeLook(player, message));
+    if(message === "neonlook") process.gameServer.world.creatureHandler.applyClubDrinkAura(player, NEON_AURA);
+    else process.gameServer.world.sendMagicEffect(player.position, CONST.EFFECT.MAGIC.TELEPORT);
     return this.respond("Looking good! Your %s lasts one minute.".format(look.text));
   }
 }
