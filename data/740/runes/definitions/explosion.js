@@ -8,8 +8,8 @@ module.exports = function explosion(source, target) {
     CONST.EFFECT.PROJECTILE.FIRE
   );
 
-  // Explosion is a 3x3 area centred on the chosen tile.
-  target.position.getSquare(1).forEach(function(position) {
+  // Classic explosion is a cross: centre plus north, east, south and west.
+  [target.position].concat(target.position.getNESW()).forEach(function(position) {
     let tile = process.gameServer.world.getTileFromWorldPosition(position);
 
     if (tile === null || tile.isBlockSolid()) {

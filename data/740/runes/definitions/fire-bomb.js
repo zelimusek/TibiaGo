@@ -15,12 +15,10 @@ module.exports = function fireBomb(source, target) {
       return;
     }
 
-    if(tile.isBlockSolid()) {
-      return;
-    }
-
     // 1492 is the first stage of a normal, decaying fire field. 1487 does not
-    // decay and would leave permanent fire on the map.
+    // decay and would leave permanent fire on the map. Do not use the tile's
+    // ground-solid flag here: the legacy map marks several ordinary floor
+    // tiles with it, which reduced a 3x3 bomb to a single visible field.
     tile.addTopThing(process.gameServer.database.createThing(1492));
 
     // A creature already standing in the new field is affected immediately.
