@@ -31,7 +31,7 @@ class Inspector:
     def open_chrome(self):
         if not CHROME.exists(): return self.report("Chrome was not found.")
         profile = Path(tempfile.gettempdir()) / "TibiaGoPacketInspectorChrome"
-        self.process = subprocess.Popen([str(CHROME), f"--remote-debugging-port={DEBUG_PORT}", f"--user-data-dir={profile}", "--new-window", GAME_URL])
+        self.process = subprocess.Popen([str(CHROME), f"--remote-debugging-port={DEBUG_PORT}", f"--remote-allow-origins=http://127.0.0.1:{DEBUG_PORT}", f"--user-data-dir={profile}", "--new-window", GAME_URL])
         self.report("Chrome started. Log in manually, then click Attach inspector.")
 
     def attach(self): threading.Thread(target=self.attach_worker, daemon=True).start()
