@@ -30,6 +30,13 @@ const stepMs = Math.max(700, Number(process.env.BOT_STEP_MS || 900));
 const CLIENT = { LATENCY: 0, LOGOUT: 1, MOVE: 2 };
 const SERVER = { CREATURE_STATE: 12, PLAYER_LOGIN: 17, PLAYER_LOGOUT: 18 };
 const DIRECTIONS = [0, 1, 2, 3]; // north, east, south, west
+const PROPERTY_NAMES = {
+  0: "name", 1: "health", 2: "maxHealth", 3: "mana", 4: "maxMana",
+  5: "capacity", 6: "maxCapacity", 7: "attack", 8: "defense",
+  9: "attackSpeed", 10: "speed", 13: "role", 14: "sex", 15: "vocation",
+  18: "magic", 19: "fist", 20: "club", 21: "sword", 22: "axe",
+  23: "distance", 24: "shielding", 25: "fishing", 26: "experience"
+};
 
 if (!account || !password) {
   console.error("Set BOT_ACCOUNT and BOT_PASSWORD before running this QA tool.");
@@ -98,10 +105,40 @@ function tryReadCreatureState(buffer, offset) {
   };
 }
 
+function inspectPropertyFrames(buffer) {
+  let index = 0;
+  let found = false;
+
+  // The server batches outgoing packets. This decodes a consecutive batch of
+  // property updates, which is what the walker receives after each movement.
+  while (index < buffer.length && buffer[index] === 37) {
+    if (index + 6 > buffer.length) return found;
+    let id = readUInt32(buffer, index + 1);
+    let property = buffer[index + 5];
+    let name = PROPERTY_NAMES[property] || "property#" + property;
+    index += 6;
+
+    if (property === 0) {
+      let value = readableString(buffer, index);
+      if (!value) return found;
+      console.log("   PROPERTY: creature %d %s = %s", id, name, value.value);
+      index = value.next;
+    } else {
+      if (index + 4 > buffer.length) return found;
+      console.log("   PROPERTY: creature %d %s = %d", id, name, readUInt32(buffer, index));
+      index += 4;
+    }
+    found = true;
+  }
+
+  return found;
+}
+
 function inspectFrame(data) {
   let buffer = Buffer.from(data);
   console.log("<- WebSocket frame: %d bytes, first opcode %d", buffer.length, buffer[0]);
   if (printRaw) console.log(buffer.subarray(0, 96).toString("hex"));
+  inspectPropertyFrames(buffer);
 
   for (let index = 0; index < buffer.length; index++) {
     let creature = tryReadCreatureState(buffer, index);
