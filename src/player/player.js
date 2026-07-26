@@ -819,6 +819,12 @@ Player.prototype.getSpeed = function () {
     baseSpeed = Math.floor(baseSpeed * 1.3 - 24);
   }
 
+  // Paralyze is intentionally applied after haste. It reduces the final
+  // movement speed substantially while preserving equipment and level bonuses.
+  if (this.hasCondition(Condition.prototype.PARALYZED)) {
+    baseSpeed = Math.floor(baseSpeed * 0.4);
+  }
+
   // Apply strong haste (if implemented)
   if (this.hasCondition(Condition.prototype.STRONG_HASTE)) {
     // Strong Haste formula: speed * 1.7 - 56

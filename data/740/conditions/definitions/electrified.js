@@ -29,7 +29,7 @@ function onTick(creature) {
    * Callback fired every condition tick
    */
 
-  process.gameServer.world.applyEnvironmentalDamage(creature, 5, CONST.COLOR.LIGHTBLUE);
+  process.gameServer.world.combatHandler.applyEnvironmentalDamage(creature, 5, CONST.COLOR.LIGHTBLUE);
   process.gameServer.world.sendMagicEffect(creature.position, CONST.EFFECT.MAGIC.ENERGYHIT);
 
 }

@@ -21,6 +21,7 @@ StatusBar.prototype.STATUS.set(5, { "title": "You are in a protection zone.", "s
 StatusBar.prototype.STATUS.set(11, { "title": "You are wearing a magic shield.", "src": "/png/status/status-magic-shield.png" });
 StatusBar.prototype.STATUS.set(13, { "title": "You are hungry.", "src": "/png/status/status-hungry.png" });
 StatusBar.prototype.STATUS.set(14, { "title": "You are hasted.", "src": "/png/status/status-haste.png" });
+StatusBar.prototype.STATUS.set(16, { "title": "You are paralyzed.", "src": "/png/status/status-bleeding.png" });
 
 StatusBar.prototype.update = function () {
 

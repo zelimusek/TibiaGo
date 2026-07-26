@@ -332,7 +332,6 @@ ItemStack.prototype.applyFieldDamage = function(creature) {
    * Adds the reference of a creature to the tile
    */
 
-  return;
   // Go over the item stack from top to bottom
   for(let i = this.__items.length - 1; i >= 0; i--) {
 

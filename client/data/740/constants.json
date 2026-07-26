@@ -231,7 +231,8 @@
     "MAGIC_FLAME": 12,
     "SATED": 13,
     "HASTE": 14,
-    "ARENA": 15
+    "ARENA": 15,
+    "PARALYZED": 16
   },
   "BLOODTYPE": {
     "BLOOD": 0,

@@ -83,3 +83,4 @@ ConditionManager.prototype.MAGIC_FLAME = 12;
 ConditionManager.prototype.SATED = 13;
 ConditionManager.prototype.HASTE = 14;
 ConditionManager.prototype.ARENA = 15;
+ConditionManager.prototype.PARALYZED = 16;

@@ -32,7 +32,7 @@ function onTick(creature) {
   let damage = Math.max(1, 3 * (this.getFraction()));
 
   // Apply poison damage to the player
-  process.gameServer.world.applyEnvironmentalDamage(creature, damage, CONST.COLOR.LIGHTGREEN);
+  process.gameServer.world.combatHandler.applyEnvironmentalDamage(creature, damage, CONST.COLOR.LIGHTGREEN);
   process.gameServer.world.sendMagicEffect(creature.position, CONST.EFFECT.MAGIC.GREEN_RINGS);
 
 }

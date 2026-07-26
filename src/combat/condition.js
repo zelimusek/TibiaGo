@@ -115,5 +115,6 @@ Condition.prototype.MAGIC_FLAME = 12;
 Condition.prototype.SATED = 13;
 Condition.prototype.HASTE = 14;
 Condition.prototype.ARENA = 15;
+Condition.prototype.PARALYZED = 16;
 
 module.exports = Condition;
