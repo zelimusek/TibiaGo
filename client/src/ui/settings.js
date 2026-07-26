@@ -163,7 +163,6 @@ Settings.prototype.__toggle = function (event) {
     case "show-performance":
     case "enable-resolution":
     case "anti-aliasing":
-    case "enable-network-inspector":
       this.__state[event.target.id] = event.target.checked;
       if (event.target.id === "enable-sound") {
         gameClient.interface.soundManager.enableSound(event.target.checked);
@@ -251,7 +250,6 @@ Settings.prototype.__getCleanState = function () {
     "enable-weather": document.getElementById("enable-weather").checked,
     "show-performance": document.getElementById("show-performance").checked,
     "anti-aliasing": document.getElementById("anti-aliasing").checked,
-    "enable-network-inspector": document.getElementById("enable-network-inspector").checked,
     "fps-mode": document.getElementById("fps-mode").value,
     "mouse-control-mode": document.getElementById("mouse-control-mode").value,
     "enable-resolution": document.getElementById("enable-resolution").checked,
@@ -279,7 +277,6 @@ Settings.prototype.__applyState = function (id) {
     case "show-performance":
     case "enable-resolution":
     case "anti-aliasing":
-    case "enable-network-inspector":
       element.checked = Boolean(this.__state[id]);
       break;
     case "fps-mode":

@@ -267,7 +267,6 @@ NetworkManager.prototype.send = function (packet) {
   }
 
   buffer = packet.getBuffer();
-  this.__inspectPacket("OUT", buffer);
 
   // Save some state
   this.state.bytesSent += buffer.length;
@@ -390,24 +389,6 @@ NetworkManager.prototype.loadGameFilesServer = function () {
 
 }
 
-NetworkManager.prototype.__inspectPacket = function (direction, buffer) {
-  let toggle = document.getElementById("enable-network-inspector");
-  if (!toggle || !toggle.checked) return;
-  let panel = document.getElementById("network-inspector-panel");
-  if (!panel) {
-    panel = document.createElement("pre");
-    panel.id = "network-inspector-panel";
-    panel.style.cssText = "position:fixed;left:8px;bottom:8px;width:390px;max-height:180px;overflow:auto;z-index:10050;margin:0;padding:8px;background:rgba(0,0,0,.86);border:1px solid #4cc;color:#bff;font:11px monospace;pointer-events:auto";
-    document.body.appendChild(panel);
-  }
-  let bytes = new Uint8Array(buffer);
-  let preview = Array.from(bytes.subarray(0, 18)).map(x => x.toString(16).padStart(2, "0")).join(" ");
-  panel.textContent += "%s opcode=%s bytes=%s  %s\n".format(direction, bytes[0], bytes.length, preview);
-  let lines = panel.textContent.split("\n");
-  if (lines.length > 24) panel.textContent = lines.slice(-24).join("\n");
-  panel.scrollTop = panel.scrollHeight;
-};
-
 NetworkManager.prototype.connect = function () {
 
   /*
@@ -451,8 +432,6 @@ NetworkManager.prototype.__handlePacket = function (event) {
    * Function NetworkManager.__handlePacket
    * Handles an incoming binary message
    */
-
-  this.__inspectPacket("IN", event.data);
 
   // Wrap the buffer in a readable packet
   let packet = new PacketReader(event.data);
