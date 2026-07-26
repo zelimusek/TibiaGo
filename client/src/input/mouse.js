@@ -354,7 +354,10 @@ Mouse.prototype.__handleCanvasMouseUp = function (event) {
 
   // If we are using an item already
   if (this.__multiUseObject !== null) {
-    return this.__handleItemUseWith(this.__multiUseObject, this.__mouseDownObject);
+    // Resolve the target from the actual release position.  Relying on the
+    // object saved during mouse-down can leave a ground item's Use With action
+    // without a valid target after the browser has handled the context menu.
+    return this.__handleItemUseWith(this.__multiUseObject, this.getWorldObject(event));
   }
 
   // Get the world coordinates from the clicked canvas position
