@@ -6,8 +6,8 @@ module.exports = function heavyMagicMissile(source, target) {
    * HMM rune deals energy damage to a single target
    */
 
-  // If no monsters on the tile
-  if (target.monsters.size === 0) {
+  // A point rune can target either a monster or another player.
+  if (target.monsters.size === 0 && target.players.size === 0) {
     return false;
   }
 
@@ -25,6 +25,13 @@ module.exports = function heavyMagicMissile(source, target) {
   target.monsters.forEach(function (monster) {
     let damage = Number.prototype.random(minDamage, maxDamage);
     process.gameServer.world.__damageEntity(source, monster, damage, CONST.COLOR.LIGHTBLUE);
+  });
+
+  target.players.forEach(function (player) {
+    if (player !== source) {
+      let damage = Number.prototype.random(minDamage, maxDamage);
+      process.gameServer.world.__damageEntity(source, player, damage, CONST.COLOR.LIGHTBLUE);
+    }
   });
 
   return true;
