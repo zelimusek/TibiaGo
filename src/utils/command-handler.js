@@ -49,6 +49,36 @@ CommandHandler.prototype.handleCommandWaypoint = function (player, waypoint) {
   );
 };
 
+CommandHandler.prototype.handleCommandAdvance = function (player, amount) {
+  /*
+   * CommandHandler.handleCommandAdvance
+   * Teleports a GM forward by the requested number of SQMs.
+   */
+
+  let distance = Number(amount);
+
+  if (!Number.isInteger(distance) || distance < 1 || distance > 50) {
+    return player.sendCancelMessage("Usage: /a [1-50]");
+  }
+
+  let direction = player.getProperty(CONST.PROPERTIES.DIRECTION);
+  let destination = player.getPosition();
+
+  for (let step = 0; step < distance; step++) {
+    destination = destination.getPositionFromDirection(direction);
+
+    if (destination === null) {
+      return player.sendCancelMessage("Your current direction is invalid.");
+    }
+  }
+
+  if (!gameServer.world.getTileFromWorldPosition(destination)) {
+    return player.sendCancelMessage("There is no valid tile at that destination.");
+  }
+
+  return gameServer.world.creatureHandler.teleportCreature(player, destination);
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -393,6 +423,10 @@ CommandHandler.prototype.handle = function (player, message) {
       player,
       new Position(Number(message[1]), Number(message[2]), Number(message[3]))
     );
+  }
+
+  if (message[0] === "/a") {
+    return this.handleCommandAdvance(player, message[1]);
   }
 
   if (message[0] === "/broadcast") {
