@@ -474,7 +474,7 @@ ObjectBuffer.prototype.__mapVersionFlag = function (flag) {
       3: this.attributes.ThingAttrOnTop,
       4: this.attributes.ThingAttrContainer,
       5: this.attributes.ThingAttrStackable,
-      6: this.attributes.ThingAttrMultiUse,
+      6: this.attributes.ThingAttrForceUse,
       7: this.attributes.ThingAttrFloorChange,
       8: this.attributes.ThingAttrWritable,
       9: this.attributes.ThingAttrWritableOnce,
