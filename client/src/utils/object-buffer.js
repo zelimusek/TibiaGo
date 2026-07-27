@@ -410,28 +410,45 @@ ObjectBuffer.prototype.__mapVersionFlag = function (flag) {
 
   } else if (this.__version >= 755 && this.__version < 780) {
 
-    // Increment flags 1 to 15
-    if (flag > 0 && flag <= 15) {
-      if (flag === 5) return this.attributes.ThingAttrMultiUse;
-      if (flag === 6) return this.attributes.ThingAttrForceUse;
-      return flag + 1;
-    } else {
+    // 7.55-7.72 (including 7.60) has a distinct DAT layout.  It is not a
+    // simple one-byte shift: header 7 is the old ladder/floor-change flag and
+    // must not be interpreted as a writable item (which would consume two
+    // bytes and desynchronise the rest of Tibia.dat).
+    const legacy755Flags = {
+      0: this.attributes.ThingAttrGround,
+      1: this.attributes.ThingAttrGroundBorder,
+      2: this.attributes.ThingAttrOnBottom,
+      3: this.attributes.ThingAttrOnTop,
+      4: this.attributes.ThingAttrContainer,
+      5: this.attributes.ThingAttrStackable,
+      6: this.attributes.ThingAttrMultiUse,
+      7: this.attributes.ThingAttrFloorChange,
+      8: this.attributes.ThingAttrWritable,
+      9: this.attributes.ThingAttrWritableOnce,
+      10: this.attributes.ThingAttrFluidContainer,
+      11: this.attributes.ThingAttrSplash,
+      12: this.attributes.ThingAttrNotWalkable,
+      13: this.attributes.ThingAttrNotMoveable,
+      14: this.attributes.ThingAttrBlockProjectile,
+      15: this.attributes.ThingAttrNotPathable,
+      16: this.attributes.ThingAttrPickupable,
+      17: this.attributes.ThingAttrHangable,
+      18: this.attributes.ThingAttrHookSouth,
+      19: this.attributes.ThingAttrHookEast,
+      20: this.attributes.ThingAttrRotateable,
+      21: this.attributes.ThingAttrLight,
+      23: this.attributes.ThingAttrTranslucent,
+      24: this.attributes.ThingAttrDisplacement,
+      25: this.attributes.ThingAttrElevation,
+      26: this.attributes.ThingAttrLyingCorpse,
+      27: this.attributes.ThingAttrAnimateAlways,
+      28: this.attributes.ThingAttrMinimapColor,
+      29: this.attributes.ThingAttrLensHelp,
+      30: this.attributes.ThingAttrFullGround
+    };
 
-      // Switch around some flags
-      switch (flag) {
-        case 16: return this.attributes.ThingAttrLight;
-        case 17: return this.attributes.ThingAttrFloorChange;
-        case 18: return this.attributes.ThingAttrFullGround;
-        case 19: return this.attributes.ThingAttrElevation;
-        case 20: return this.attributes.ThingAttrDisplacement;
-        case 22: return this.attributes.ThingAttrMinimapColor;
-        case 23: return this.attributes.ThingAttrFloorChange;
-        case 24: return this.attributes.ThingAttrLyingCorpse;
-        case 25: return this.attributes.ThingAttrHangable;
-        case 26: return this.attributes.ThingAttrHookSouth;
-        case 27: return this.attributes.ThingAttrHookEast;
-        case 28: return this.attributes.ThingAttrAnimateAlways;
-      }
+    if (legacy755Flags.hasOwnProperty(flag)) {
+      return legacy755Flags[flag];
     }
 
   } else if (this.__version >= 740) {
