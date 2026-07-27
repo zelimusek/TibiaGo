@@ -23,6 +23,7 @@ CommandHandler.prototype.WAYPOINTS = new Object({
   ankrahmun: new Position(33194, 32853, 7),
   darama: new Position(33213, 32454, 13),
   cormaya: new Position(33301, 31968, 7),
+  disco: new Position(32515, 32375, 7),
   fibula: new Position(32174, 32437, 7),
   "white-flower": new Position(32346, 32362, 8),
   "femur-hills": new Position(32536, 31837, 10),
