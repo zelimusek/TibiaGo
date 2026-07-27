@@ -111,6 +111,13 @@ OTBMParser.prototype.__parseItem = function(item) {
   // Create a thing with an identifier
   let thing = gameServer.database.createThing(item.properties.id);
 
+  if (thing === null) {
+    let position = item.getPosition();
+    throw new Error(
+      `Map item ID ${item.properties.id} is missing from the item definitions at ${position.x}, ${position.y}, ${position.z}.`
+    );
+  }
+
   // Attach the map attributes
   item.properties.attributes.forEach(function(value, attribute) {
 
