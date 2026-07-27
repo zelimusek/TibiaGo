@@ -92,6 +92,15 @@ async function build() {
     await fs.copy(path.join(CLIENT_DIR, 'definitions.json'), path.join(DIST_DIR, 'definitions.json'));
     await fs.copy(path.join(CLIENT_DIR, 'manifest.webmanifest'), path.join(DIST_DIR, 'manifest.webmanifest'));
     await fs.copy(path.join(CLIENT_DIR, 'service-worker.js'), path.join(DIST_DIR, 'service-worker.js'));
+    const dataRoot = path.join(__dirname, '..', 'data');
+    for (const version of await fs.readdir(dataRoot)) {
+        const definitions = path.join(dataRoot, version, 'items', 'definitions.json');
+        const clientDataDirectory = path.join(CLIENT_DIR, 'data', version);
+        if (await fs.pathExists(definitions) && await fs.pathExists(clientDataDirectory)) {
+            await fs.copy(definitions, path.join(clientDataDirectory, 'definitions.json'));
+            await fs.copy(definitions, path.join(DIST_DIR, 'data', version, 'definitions.json'));
+        }
+    }
     console.log('Copied definitions.json');
 
     // 7. Bundle and Minify CSS

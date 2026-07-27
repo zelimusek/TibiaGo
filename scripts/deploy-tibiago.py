@@ -68,6 +68,7 @@ ALLOWED_PREFIXES = (
     "src/",
     "client/",
     "data/740/",
+    "data/760/",
 )
 
 # Individual files to upload

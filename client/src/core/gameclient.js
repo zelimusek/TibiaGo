@@ -16,7 +16,7 @@ const GameClient = function () {
    *
    */
 
-  this.SERVER_VERSION = "740";
+  this.SERVER_VERSION = "760";
   this.ASSET_VERSION = this.__getAssetVersion();
   this.CLIENT_VERSION = "0.0.1"
 
@@ -53,11 +53,12 @@ const GameClient = function () {
 
   // Load item definitions
   this.itemDefinitions = {};
-  fetch("./definitions.json").then(response => {
+  fetch("./data/%s/definitions.json".format(this.ASSET_VERSION)).then(response => {
+    if (!response.ok) throw new Error("Missing item definitions for asset version " + this.ASSET_VERSION);
     return response.json();
   }).then(data => {
     this.itemDefinitions = data;
-  });
+  }).catch(error => console.error("Unable to load item definitions.", error));
 
   document.getElementById("client-version").innerHTML = this.CLIENT_VERSION;
 
