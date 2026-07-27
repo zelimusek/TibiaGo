@@ -13,8 +13,12 @@ module.exports = function greatFireball(source, target) {
   // permanently on the map.
   target.addTopThing(process.gameServer.database.createThing(1492));
 
-  // Casting directly under a creature should affect it immediately.
-  target.creatures.forEach(function(creature) {
+  // Casting directly under a creature should affect it immediately. The
+  // players/monsters getters also work when the tile has no creature set.
+  target.players.forEach(function(creature) {
+    target.itemStack.applyFieldDamage(creature);
+  });
+  target.monsters.forEach(function(creature) {
     target.itemStack.applyFieldDamage(creature);
   });
 

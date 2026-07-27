@@ -19,7 +19,10 @@ module.exports = function energyBomb(source, target) {
     tile.addTopThing(process.gameServer.database.createThing(1495));
 
     // Like fire bomb, affect a creature already standing in the new field.
-    tile.creatures.forEach(function(creature) {
+    tile.players.forEach(function(creature) {
+      tile.itemStack.applyFieldDamage(creature);
+    });
+    tile.monsters.forEach(function(creature) {
       tile.itemStack.applyFieldDamage(creature);
     });
   });

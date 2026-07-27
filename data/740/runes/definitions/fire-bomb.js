@@ -22,7 +22,12 @@ module.exports = function fireBomb(source, target) {
     tile.addTopThing(process.gameServer.database.createThing(1492));
 
     // A creature already standing in the new field is affected immediately.
-    tile.creatures.forEach(function(creature) {
+    // Tile.creatures exists only on occupied tiles; these getters safely
+    // return empty sets on ordinary floor tiles.
+    tile.players.forEach(function(creature) {
+      tile.itemStack.applyFieldDamage(creature);
+    });
+    tile.monsters.forEach(function(creature) {
       tile.itemStack.applyFieldDamage(creature);
     });
 
