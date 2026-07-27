@@ -97,8 +97,22 @@ async function build() {
         const definitions = path.join(dataRoot, version, 'items', 'definitions.json');
         const clientDataDirectory = path.join(CLIENT_DIR, 'data', version);
         if (await fs.pathExists(definitions) && await fs.pathExists(clientDataDirectory)) {
-            await fs.copy(definitions, path.join(clientDataDirectory, 'definitions.json'));
-            await fs.copy(definitions, path.join(DIST_DIR, 'data', version, 'definitions.json'));
+            const serverDefinitions = await fs.readJson(definitions);
+            const clientDefinitions = {};
+
+            for (const definition of Object.values(serverDefinitions)) {
+                // Packets contain the client-side Tibia.dat ID, not the server ID
+                // used as the key in data/<version>/items/definitions.json.
+                if (!Number.isInteger(definition.id) || definition.id <= 0) continue;
+                if (clientDefinitions[definition.id]) {
+                    throw new Error(`Duplicate client item ID ${definition.id} in ${definitions}`);
+                }
+                clientDefinitions[definition.id] = definition;
+            }
+
+            const serialized = JSON.stringify(clientDefinitions, null, 4);
+            await fs.writeFile(path.join(clientDataDirectory, 'definitions.json'), serialized);
+            await fs.outputFile(path.join(DIST_DIR, 'data', version, 'definitions.json'), serialized);
         }
     }
     console.log('Copied definitions.json');

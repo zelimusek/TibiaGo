@@ -10,6 +10,9 @@
  * Examples:
  *   node scripts/convert-rme-items.js --version 740 --source C:\RME\data\740
  *   node scripts/convert-rme-items.js --version 760 --source C:\RME\data\760
+ *
+ * Server definitions are keyed by server ID. When the default output is used,
+ * a separate client definitions file is also generated and keyed by client ID.
  */
 
 const fs = require("fs");
@@ -172,17 +175,38 @@ function finishEntry(serverId, entry) {
   delete entry.node;
 }
 
+function indexByClientId(entries) {
+  const clientEntries = {};
+
+  for (const entry of Object.values(entries)) {
+    // Fluid pseudo-items use client ID 0 and are never rendered directly.
+    if (!Number.isInteger(entry.id) || entry.id <= 0) continue;
+    if (clientEntries[entry.id]) {
+      throw new Error(`Duplicate client item ID ${entry.id}`);
+    }
+    clientEntries[entry.id] = entry;
+  }
+
+  return clientEntries;
+}
+
 async function main() {
   const version = option("--version");
   const sourceArgument = option("--source");
   const outputArgument = option("--output");
+  const clientOutputArgument = option("--client-output");
   const baseArgument = option("--base");
   if (!version || !sourceArgument) {
-    throw new Error("Usage: node scripts/convert-rme-items.js --version <version> --source <RME version directory> [--base <complete items.xml>] [--output <definitions.json>]");
+    throw new Error("Usage: node scripts/convert-rme-items.js --version <version> --source <RME version directory> [--base <complete items.xml>] [--output <server-definitions.json>] [--client-output <client-definitions.json>]");
   }
 
   const source = path.resolve(sourceArgument);
   const output = path.resolve(outputArgument || path.join(ROOT, "data", version, "items", "definitions.json"));
+  const clientOutput = clientOutputArgument
+    ? path.resolve(clientOutputArgument)
+    : outputArgument
+      ? null
+      : path.join(ROOT, "client", "data", version, "definitions.json");
   const otbFile = path.join(source, "items.otb");
   const versionXml = path.join(source, "items.xml");
   const supplementXml = path.join(source, "items2.xml");
@@ -218,11 +242,20 @@ async function main() {
   fs.writeFileSync(output, JSON.stringify(entries, null, 4));
 
   const values = Object.values(entries);
+  let clientCount = 0;
+  if (clientOutput) {
+    const clientEntries = indexByClientId(entries);
+    fs.mkdirSync(path.dirname(clientOutput), { recursive: true });
+    fs.writeFileSync(clientOutput, JSON.stringify(clientEntries, null, 4));
+    clientCount = Object.keys(clientEntries).length;
+  }
+
   const named = values.filter(entry => entry.properties.name).length;
   const friction = values.filter(entry => entry.properties.friction !== undefined).length;
   console.log(`Converted ${values.length} OTB entries for ${version}.`);
   console.log(`Applied base=${baseApplied}, supplement=${supplementApplied}, version overrides=${versionApplied}.`);
   console.log(`Named=${named}, friction=${friction}, output=${output}`);
+  if (clientOutput) console.log(`Client-indexed=${clientCount}, output=${clientOutput}`);
 }
 
 main().catch(error => {

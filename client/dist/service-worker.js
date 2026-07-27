@@ -1,4 +1,4 @@
-const CACHE_NAME = "tibiago-static-v7";
+const CACHE_NAME = "tibiago-static-v9";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
