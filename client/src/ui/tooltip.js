@@ -157,6 +157,10 @@ Tooltip.prototype.__generateContent = function (item, dataObject) {
     if (defense) statsHtml += `<div class="stat"><span class="icon">🛡️</span> Defense: ${defense}</div>`;
     if (weight) statsHtml += `<div class="stat"><span class="icon">⚖️</span> Weight: ${(weight / 100).toFixed(2)} oz</div>`;
 
+    if (serverProps.type === "rune") {
+        statsHtml += `<div class="stat">Charges: ${item.getCount()}</div>`;
+    }
+
     statsHtml += '</div>';
 
     let descriptionHtml = '';

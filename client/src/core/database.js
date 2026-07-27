@@ -220,7 +220,9 @@ Database.prototype.loadGameAssets = function () {
    * Wrapper around indexedDB for storing minimap information
    */
 
-  this.loadConstants().then(function (constant) {
+  let definitionsReady = gameClient.itemDefinitionsReady || Promise.resolve({});
+
+  Promise.all([this.loadConstants(), definitionsReady]).then(function ([constant]) {
 
     window.CONST = constant;
 

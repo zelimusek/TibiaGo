@@ -78,6 +78,23 @@ ObjectBuffer.prototype.attributes = new Object({
   "ThingAttrLast": 255
 });
 
+// Items handled by server-side "useWith" actions but not consistently marked
+// as multi-use in older Tibia.dat formats.
+ObjectBuffer.prototype.MULTI_USE_ITEM_NAMES = new Set([
+  "fishing rod",
+  "rope",
+  "machete",
+  "pick",
+  "shovel",
+  "wheat",
+  "bunch of wheat",
+  "lump of dough",
+  "flour",
+  "scythe",
+  "lamp",
+  "used lamp"
+]);
+
 ObjectBuffer.prototype.getOutfit = function (id) {
 
   /*
@@ -260,10 +277,46 @@ ObjectBuffer.prototype.__load = function (name, buffer) {
     // Create a new data object
     let dataObject = new DataObject(this.__readFlags(packet));
 
-    // Force stackable flag for known item ranges (e.g. runes)
-    // Runes are usually 2261 to 2316
-    if (id >= 2261 && id <= 2316) {
+    // Tibia.dat does not mark classic runes as stackable/multi-use in every
+    // supported client version. Use the converted definition when available
+    // and keep version-specific fallbacks because definitions load in parallel.
+    let itemDefinition = gameClient.itemDefinitions && gameClient.itemDefinitions[id];
+    let itemProperties = itemDefinition && itemDefinition.properties
+      ? itemDefinition.properties
+      : {};
+    let itemType = itemProperties.type;
+    let itemName = (itemProperties.name || "").toLowerCase();
+    let isRune = itemType === "rune";
+
+    if (!isRune && this.__version === 740) {
+      isRune = id >= 2261 && id <= 2316;
+    }
+
+    if (!isRune && this.__version === 760) {
+      isRune = id >= 3148 && id <= 3203;
+    }
+
+    if (isRune || itemProperties.stackable === true || (itemDefinition && (itemDefinition.flags & 128))) {
       dataObject.flags.set(PropBitFlag.prototype.flags.DatFlagStackable);
+    }
+
+    if (isRune
+      || itemType === "fluidContainer"
+      || itemType === "key"
+      || this.MULTI_USE_ITEM_NAMES.has(itemName)) {
+      dataObject.flags.set(PropBitFlag.prototype.flags.DatFlagMultiUse);
+    }
+
+    if (itemType === "container" || itemType === "corpse" || itemType === "depot") {
+      dataObject.flags.set(PropBitFlag.prototype.flags.DatFlagContainer);
+    }
+
+    if (itemType === "fluidContainer") {
+      dataObject.flags.set(PropBitFlag.prototype.flags.DatFlagFluidContainer);
+    }
+
+    if (itemType === "splash") {
+      dataObject.flags.set(PropBitFlag.prototype.flags.DatFlagSplash);
     }
 
     // Update the group count if this is an outfit

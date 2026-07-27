@@ -374,8 +374,12 @@ NetworkManager.prototype.loadGameFilesServer = function () {
     return fetch(url, { cache: "no-store" }).then(this.fetchCallback);
   }, this);
 
-  // Wait for completing of resources
-  Promise.all(promises).then(function ([dataSprites, dataObjects]) {
+  // Definitions correct a few semantic flags missing from older Tibia.dat
+  // files, so do not parse the objects before those definitions are ready.
+  let definitionsReady = gameClient.itemDefinitionsReady || Promise.resolve({});
+
+  // Wait for completing of resources and item definitions
+  Promise.all([promises[0], promises[1], definitionsReady]).then(function ([dataSprites, dataObjects]) {
 
     // Load the sprites and data objects
     gameClient.spriteBuffer.load("Tibia.spr", { "target": { "result": dataSprites } });
