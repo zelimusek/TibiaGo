@@ -16,7 +16,7 @@ const GameClient = function () {
    *
    */
 
-  this.SERVER_VERSION = "760";
+  this.SERVER_VERSION = "740";
   this.ASSET_VERSION = this.__getAssetVersion();
   this.CLIENT_VERSION = "0.0.1"
 

@@ -38,7 +38,7 @@
     "ON_ALREADY_ONLINE": "replace",
     "EXTERNAL_HOST": "wss://gravak.fun/gameworld",
     "VERSION": "0.0.0",
-    "CLIENT_VERSION": "760",
+    "CLIENT_VERSION": "740",
     "DATE": "2022-03-24",
     "PORT": 2222,
     "HOST": "0.0.0.0",
