@@ -279,12 +279,12 @@ button.symbol-button {
   box-sizing: border-box;
 }
 
-/* Keep both desktop sidebars fixed. A long chat entry must not resize them. */
+/* Keep both desktop sidebars at their natural width. A long chat entry must
+ * not shrink or resize them, while the right sidebar remains wide enough for
+ * its controls. */
 #game-wrapper > .oogwrap {
-  flex: 0 0 180px;
-  width: 180px;
-  min-width: 180px;
-  max-width: 180px;
+  flex: 0 0 auto;
+  min-width: max-content;
 }
 
 #game-wrapper .column {
