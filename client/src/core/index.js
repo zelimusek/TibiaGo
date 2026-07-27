@@ -1,5 +1,5 @@
 const CLIENT_VERSION = "0.0.1";
-const SERVER_VERSION = "740";
+const SERVER_VERSION = "760";
 
 window.onload = function windowOnLoad() {
 
