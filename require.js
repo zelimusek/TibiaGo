@@ -1,6 +1,13 @@
+const fs = require("fs");
 const path = require("path");
 
 global.CONFIG = require("./config");
+
+// Allows an isolated local datapack check without changing config.json or the
+// production default. Example: TIBIAGO_CLIENT_VERSION=760 node server-production.js
+if (process.env.TIBIAGO_CLIENT_VERSION) {
+  CONFIG.SERVER.CLIENT_VERSION = process.env.TIBIAGO_CLIENT_VERSION;
+}
 
 // Create some useful global functions
 global.getDataFile = function () {
@@ -10,7 +17,14 @@ global.getDataFile = function () {
    * Returns a file from the base data directory
    */
 
-  return path.join(__dirname, "data", CONFIG.SERVER.CLIENT_VERSION, ...arguments);
+  let versionPath = path.join(__dirname, "data", CONFIG.SERVER.CLIENT_VERSION, ...arguments);
+  if (fs.existsSync(versionPath) || CONFIG.SERVER.CLIENT_VERSION === "740") {
+    return versionPath;
+  }
+
+  // New asset versions share the same game scripts, monsters and map logic
+  // until a version-specific file is explicitly supplied (such as 760 items).
+  return path.join(__dirname, "data", "740", ...arguments);
 
 }
 
