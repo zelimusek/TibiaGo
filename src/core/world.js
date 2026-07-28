@@ -73,6 +73,18 @@ World.prototype.tick = function () {
 
 }
 
+World.prototype.teleportCreature = function (creature, position) {
+
+  /*
+   * Function World.teleportCreature
+   * Backwards-compatible world API used by datapack actions, runes and NPC
+   * scenes. The creature handler owns the actual teleport implementation.
+   */
+
+  return this.creatureHandler.teleportCreature(creature, position);
+
+}
+
 World.prototype.addTopThing = function (position, thing) {
 
   /*

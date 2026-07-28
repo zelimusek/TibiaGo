@@ -192,6 +192,15 @@ Creature.prototype.addCondition = function (id, ticks, value, properties) {
   return this.conditions.addCondition(id, ticks, value, properties);
 };
 
+Creature.prototype.sendCancelMessage = function () {
+  /*
+   * Function Creature.sendCancelMessage
+   * Non-player creatures do not own a client socket. Conditions are shared
+   * by players, monsters and NPCs, so player-facing status messages must be
+   * a safe no-op for base creatures. Player overrides this method.
+   */
+};
+
 Creature.prototype.removeCondition = function (id) {
   /*
    * Function Creature.addCondition
