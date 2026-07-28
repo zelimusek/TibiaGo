@@ -20,7 +20,7 @@ const Touch = function () {
         currentX: 0,
         currentY: 0,
         direction: null,
-        moveInterval: null
+        animationFrame: null
     };
 
     // Action mode (null, 'look', 'use')
@@ -45,7 +45,6 @@ const Touch = function () {
 }
 
 Touch.prototype.JOYSTICK_DEADZONE = 15;
-Touch.prototype.JOYSTICK_MOVE_INTERVAL = 150; // ms between moves
 Touch.prototype.LONG_PRESS_DURATION = 500; // ms for long press
 
 Touch.prototype.__initialize = function () {
@@ -161,10 +160,10 @@ Touch.prototype.__cleanup = function () {
      * Clean up mobile controls when switching to desktop mode
      */
 
-    if (this.joystick.moveInterval) {
-        clearInterval(this.joystick.moveInterval);
-        this.joystick.moveInterval = null;
-    }
+    this.joystick.active = false;
+    this.joystick.direction = null;
+    this.__stopJoystickMovementLoop();
+    this.__resetJoystickVisual();
 
     this.actionMode = null;
     this.__clearActionButtonHighlights();
@@ -370,6 +369,7 @@ Touch.prototype.__handleJoystickStart = function (event) {
     this.joystick.currentY = touch.clientY;
 
     this.__updateJoystickVisual();
+    this.__processJoystickInput();
 
 }
 
@@ -405,16 +405,8 @@ Touch.prototype.__handleJoystickEnd = function (event) {
     this.joystick.active = false;
     this.joystick.direction = null;
 
-    // Reset joystick visual
-    if (this.joystickKnob) {
-        this.joystickKnob.style.transform = 'translate(0, 0)';
-    }
-
-    // Stop continuous movement
-    if (this.joystick.moveInterval) {
-        clearInterval(this.joystick.moveInterval);
-        this.joystick.moveInterval = null;
-    }
+    this.__stopJoystickMovementLoop();
+    this.__resetJoystickVisual();
 
 }
 
@@ -430,16 +422,27 @@ Touch.prototype.__updateJoystickVisual = function () {
     let dx = this.joystick.currentX - this.joystick.startX;
     let dy = this.joystick.currentY - this.joystick.startY;
 
-    // Limit to joystick bounds
-    let maxOffset = 30;
     let distance = Math.sqrt(dx * dx + dy * dy);
+    let direction = distance >= this.JOYSTICK_DEADZONE
+        ? this.__vectorToCardinalDirection(dx, dy)
+        : null;
+    let maxOffset = 9;
 
-    if (distance > maxOffset) {
-        dx = (dx / distance) * maxOffset;
-        dy = (dy / distance) * maxOffset;
+    dx = 0;
+    dy = 0;
+
+    if (direction === CONST.DIRECTION.NORTH) {
+        dy = -maxOffset;
+    } else if (direction === CONST.DIRECTION.EAST) {
+        dx = maxOffset;
+    } else if (direction === CONST.DIRECTION.SOUTH) {
+        dy = maxOffset;
+    } else if (direction === CONST.DIRECTION.WEST) {
+        dx = -maxOffset;
     }
 
     this.joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+    this.__setJoystickVisualDirection(direction);
 
 }
 
@@ -457,60 +460,93 @@ Touch.prototype.__processJoystickInput = function () {
     // Deadzone check
     if (distance < this.JOYSTICK_DEADZONE) {
         this.joystick.direction = null;
-        if (this.joystick.moveInterval) {
-            clearInterval(this.joystick.moveInterval);
-            this.joystick.moveInterval = null;
-        }
+        this.__stopJoystickMovementLoop();
         return;
     }
 
-    // Calculate direction (8-directional)
-    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    let direction = this.__angleToDirection(angle);
+    // The mobile D-pad deliberately supports only four cardinal directions.
+    // Dominant-axis selection also prevents accidental diagonals near corners.
+    let direction = this.__vectorToCardinalDirection(dx, dy);
 
-    // Only update if direction changed
     if (direction !== this.joystick.direction) {
         this.joystick.direction = direction;
-
-        // Stop existing interval
-        if (this.joystick.moveInterval) {
-            clearInterval(this.joystick.moveInterval);
-        }
-
-        // Move immediately
         this.__moveInDirection(direction);
+    }
 
-        // Start continuous movement
-        this.joystick.moveInterval = setInterval(() => {
-            if (this.joystick.active && this.joystick.direction) {
-                this.__moveInDirection(this.joystick.direction);
-            }
-        }, this.JOYSTICK_MOVE_INTERVAL);
+    this.__startJoystickMovementLoop();
+
+}
+
+Touch.prototype.__vectorToCardinalDirection = function (dx, dy) {
+
+    /*
+     * Function Touch.__vectorToCardinalDirection
+     * Convert a joystick vector to one of four cardinal directions
+     */
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+        return dx >= 0 ? CONST.DIRECTION.EAST : CONST.DIRECTION.WEST;
+    }
+
+    return dy >= 0 ? CONST.DIRECTION.SOUTH : CONST.DIRECTION.NORTH;
+
+}
+
+Touch.prototype.__startJoystickMovementLoop = function () {
+
+    /*
+     * Function Touch.__startJoystickMovementLoop
+     * Retry movement on the next rendered frame instead of dropping steps on a
+     * fixed timer while the previous step is still being animated.
+     */
+
+    if (this.joystick.animationFrame !== null) return;
+
+    this.joystick.animationFrame = window.requestAnimationFrame(() => {
+        this.joystick.animationFrame = null;
+
+        if (!this.joystick.active || this.joystick.direction === null) return;
+
+        this.__moveInDirection(this.joystick.direction);
+        this.__startJoystickMovementLoop();
+    });
+
+}
+
+Touch.prototype.__stopJoystickMovementLoop = function () {
+
+    if (this.joystick.animationFrame === null) return;
+
+    window.cancelAnimationFrame(this.joystick.animationFrame);
+    this.joystick.animationFrame = null;
+
+}
+
+Touch.prototype.__setJoystickVisualDirection = function (direction) {
+
+    if (!this.virtualJoystick) return;
+
+    let directionName = null;
+    if (direction === CONST.DIRECTION.NORTH) directionName = 'north';
+    if (direction === CONST.DIRECTION.EAST) directionName = 'east';
+    if (direction === CONST.DIRECTION.SOUTH) directionName = 'south';
+    if (direction === CONST.DIRECTION.WEST) directionName = 'west';
+
+    if (directionName === null) {
+        this.virtualJoystick.removeAttribute('data-direction');
+    } else {
+        this.virtualJoystick.setAttribute('data-direction', directionName);
     }
 
 }
 
-Touch.prototype.__angleToDirection = function (angle) {
+Touch.prototype.__resetJoystickVisual = function () {
 
-    /*
-     * Function Touch.__angleToDirection
-     * Convert angle to NESW direction
-     */
+    if (this.joystickKnob) {
+        this.joystickKnob.style.transform = 'translate(0, 0)';
+    }
 
-    // Normalize angle to 0-360
-    if (angle < 0) angle += 360;
-
-    // 8-directional mapping
-    if (angle >= 337.5 || angle < 22.5) return CONST.DIRECTION.EAST;
-    if (angle >= 22.5 && angle < 67.5) return CONST.DIRECTION.SOUTHEAST;
-    if (angle >= 67.5 && angle < 112.5) return CONST.DIRECTION.SOUTH;
-    if (angle >= 112.5 && angle < 157.5) return CONST.DIRECTION.SOUTHWEST;
-    if (angle >= 157.5 && angle < 202.5) return CONST.DIRECTION.WEST;
-    if (angle >= 202.5 && angle < 247.5) return CONST.DIRECTION.NORTHWEST;
-    if (angle >= 247.5 && angle < 292.5) return CONST.DIRECTION.NORTH;
-    if (angle >= 292.5 && angle < 337.5) return CONST.DIRECTION.NORTHEAST;
-
-    return null;
+    this.__setJoystickVisualDirection(null);
 
 }
 

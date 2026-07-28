@@ -387,29 +387,97 @@ screen and (max-width: 768px) {
     height: var(--mobile-joystick-size);
     position: relative;
     flex-shrink: 0;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 #virtual-joystick {
     position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(40, 40, 40, 0.85) 0%, rgba(20, 20, 20, 0.7) 100%);
-    border: 3px solid rgba(100, 100, 100, 0.6);
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    background:
+        radial-gradient(circle at center, rgba(32, 34, 37, 0.98) 0 25%, transparent 26%),
+        radial-gradient(circle, rgba(48, 50, 54, 0.94) 0%, rgba(23, 24, 27, 0.96) 68%, rgba(12, 13, 15, 0.98) 100%);
+    border: 2px solid rgba(115, 118, 124, 0.72);
+    box-shadow:
+        0 5px 14px rgba(0, 0, 0, 0.58),
+        inset 0 1px 2px rgba(255, 255, 255, 0.12),
+        inset 0 -4px 9px rgba(0, 0, 0, 0.42);
+}
+
+.joystick-arrow {
+    position: absolute;
+    z-index: 2;
+    width: 0;
+    height: 0;
+    opacity: 0.72;
+    filter: drop-shadow(0 1px 1px #000);
+    transition: opacity 60ms linear, filter 60ms linear;
+}
+
+.joystick-arrow-north {
+    top: 12%;
+    left: 50%;
+    margin-left: -6px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 10px solid #a9aaad;
+}
+
+.joystick-arrow-east {
+    top: 50%;
+    right: 12%;
+    margin-top: -6px;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 10px solid #a9aaad;
+}
+
+.joystick-arrow-south {
+    bottom: 12%;
+    left: 50%;
+    margin-left: -6px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 10px solid #a9aaad;
+}
+
+.joystick-arrow-west {
+    top: 50%;
+    left: 12%;
+    margin-top: -6px;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 10px solid #a9aaad;
+}
+
+#virtual-joystick[data-direction="north"] .joystick-arrow-north,
+#virtual-joystick[data-direction="east"] .joystick-arrow-east,
+#virtual-joystick[data-direction="south"] .joystick-arrow-south,
+#virtual-joystick[data-direction="west"] .joystick-arrow-west {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.85));
 }
 
 #joystick-knob {
     position: absolute;
-    width: 45%;
-    height: 45%;
-    top: 27.5%;
-    left: 27.5%;
+    z-index: 3;
+    width: 25%;
+    height: 25%;
+    top: 37.5%;
+    left: 37.5%;
+    box-sizing: border-box;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #888 0%, #444 50%, #333 100%);
-    border: 2px solid #999;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-    transition: transform 0.05s ease-out;
+    background: radial-gradient(circle at 35% 30%, #54565a 0%, #303236 48%, #1b1c1f 100%);
+    border: 2px solid #55585d;
+    box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.65),
+        inset 0 1px 1px rgba(255, 255, 255, 0.12);
+    transition: transform 45ms linear;
 }
 
 /* ======================================
