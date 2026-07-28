@@ -298,14 +298,12 @@ Touch.prototype.__performTapAction = function () {
 
         default:
             // Default: walk to tile
-            if (!gameClient.player.isMoving()) {
-                let targetTile = gameClient.renderer.screen.getWorldCoordinates(fakeEvent);
-                if (targetTile) {
-                    gameClient.world.pathfinder.findPath(
-                        gameClient.player.__position,
-                        targetTile.__position
-                    );
-                }
+            let targetTile = gameClient.renderer.screen.getWorldCoordinates(fakeEvent);
+            if (targetTile) {
+                gameClient.world.pathfinder.findPath(
+                    gameClient.player.getPosition(),
+                    targetTile.__position
+                );
             }
             break;
     }

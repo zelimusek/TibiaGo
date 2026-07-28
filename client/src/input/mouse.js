@@ -613,9 +613,18 @@ Mouse.prototype.__handleMouseClick = function () {
     return;
   }
 
-  // Player has autowalk requested
-  if (!gameClient.player.isMoving() && this.__mouseDownObject.which.constructor.name === "Tile") {
-    return gameClient.world.pathfinder.findPath(gameClient.player.__position, gameClient.renderer.screen.getWorldCoordinates(event).__position);
+  // Player has autowalk requested. Always accept the newest click, including
+  // while a step animation is active. The pathfinder replaces the old route
+  // and starts the new one as soon as movement unlocks.
+  if (
+    this.__mouseDownObject !== null &&
+    this.__mouseDownObject.which !== null &&
+    this.__mouseDownObject.which.constructor.name === "Tile"
+  ) {
+    return gameClient.world.pathfinder.findPath(
+      gameClient.player.getPosition(),
+      this.__mouseDownObject.which.getPosition()
+    );
   }
 
 }

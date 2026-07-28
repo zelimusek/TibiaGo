@@ -12,10 +12,10 @@ const Pathfinder = function () {
   // Final destination for continuous autowalking (when destination is far)
   this.__finalDestination = null;
 
-  // Lock to prevent concurrent pathfinding operations
-  this.__isProcessing = false;
-  this.__lastPathfindTime = 0;
-  this.__pathfindCooldown = 100; // Minimum ms between pathfinding calls
+  // Every user-requested destination invalidates delayed work from older
+  // paths. Only one continuation timer may exist at a time.
+  this.__requestId = 0;
+  this.__continuationTimer = null;
 
 }
 
@@ -130,7 +130,11 @@ Pathfinder.prototype.findPathWithWaypoints = function (begin, stop, waypoints) {
    * This ensures the character follows the visual path shown on the map
    */
 
+  // This is a new user request: invalidate every older path and timer.
+  this.__startRequest();
+
   // Store waypoints and final destination
+  this.__pathfindCache = new Array();
   this.__waypoints = waypoints.slice(); // Copy array
   this.__finalDestination = stop;
   this.__usingWaypoints = true;
@@ -228,22 +232,14 @@ Pathfinder.prototype.findPath = function (begin, stop, isFinalDestination = true
    * Does client-side pathfinding with continuous walking support
    */
 
-  let currentTime = performance.now();
-
-  // For new user-initiated clicks (isFinalDestination=true), check cooldown
+  // A new click always replaces the previous path. Path searches are
+  // synchronous, so throttling them only allowed an older delayed route to
+  // win and send the player back towards the previous destination.
   if (isFinalDestination) {
-    // Check cooldown to prevent rapid click issues
-    if (currentTime - this.__lastPathfindTime < this.__pathfindCooldown) {
-      // If player is currently moving, simply update the destination
-      if (gameClient.player.isMoving()) {
-        this.__finalDestination = stop;
-        return;
-      }
-    }
-    this.__lastPathfindTime = currentTime;
-
-    // Clear any existing path cache to prevent stacking
+    this.__startRequest();
     this.__pathfindCache = new Array();
+    this.__waypoints = null;
+    this.__usingWaypoints = false;
     this.__finalDestination = stop;
   }
 
@@ -458,6 +454,7 @@ Pathfinder.prototype.setPathfindCache = function (path) {
    */
 
   if (path === null) {
+    this.__startRequest();
     this.__finalDestination = null; // Cancel continuous walking
     this.__waypoints = null; // Clear waypoints
     this.__usingWaypoints = false;
@@ -465,8 +462,45 @@ Pathfinder.prototype.setPathfindCache = function (path) {
     return;
   }
 
+  this.__clearContinuationTimer();
   this.__pathfindCache = path;
   this.handlePathfind();
+
+}
+
+Pathfinder.prototype.__startRequest = function () {
+
+  this.__requestId++;
+  this.__clearContinuationTimer();
+
+}
+
+Pathfinder.prototype.__clearContinuationTimer = function () {
+
+  if (this.__continuationTimer === null) {
+    return;
+  }
+
+  clearTimeout(this.__continuationTimer);
+  this.__continuationTimer = null;
+
+}
+
+Pathfinder.prototype.__scheduleContinuation = function (callback, delay) {
+
+  let requestId = this.__requestId;
+  this.__clearContinuationTimer();
+
+  this.__continuationTimer = setTimeout(function () {
+    this.__continuationTimer = null;
+
+    // A newer click, logout or character reset makes this callback stale.
+    if (requestId !== this.__requestId || !gameClient.player) {
+      return;
+    }
+
+    callback();
+  }.bind(this), delay);
 
 }
 
@@ -492,11 +526,6 @@ Pathfinder.prototype.handlePathfind = function () {
    * Handles the next pathfinding action
    */
 
-  // Prevent concurrent pathfinding execution
-  if (this.__isProcessing) {
-    return;
-  }
-
   // Check if the player is already moving - if so, wait for movement to complete
   if (gameClient.player && gameClient.player.isMoving()) {
     return;
@@ -510,7 +539,7 @@ Pathfinder.prototype.handlePathfind = function () {
 
     // If using waypoints, continue to next waypoint
     if (this.__usingWaypoints && this.__waypoints && this.__waypoints.length > 0) {
-      setTimeout(function () {
+      this.__scheduleContinuation(function () {
         let playerPos = gameClient.player.getPosition();
         self.__navigateToNextWaypoint(playerPos);
       }, 300);
@@ -520,18 +549,22 @@ Pathfinder.prototype.handlePathfind = function () {
     // Otherwise, try to reach final destination
     if (this.__finalDestination !== null) {
       let dest = this.__finalDestination;
-      setTimeout(function () {
-        if (self.__finalDestination !== null) {
-          let playerPos = gameClient.player.getPosition();
-          // Check if we've reached the destination
-          if (playerPos.x === dest.x && playerPos.y === dest.y && playerPos.z === dest.z) {
-            self.__finalDestination = null;
-            self.__waypoints = null;
-            self.__usingWaypoints = false;
-          } else {
-            // Continue pathfinding towards destination
-            self.findPath(playerPos, dest, false);
-          }
+      this.__scheduleContinuation(function () {
+        // The request id already matches; also require the destination to
+        // still be the one captured by this continuation.
+        if (self.__finalDestination !== dest) {
+          return;
+        }
+
+        let playerPos = gameClient.player.getPosition();
+        // Check if we've reached the destination
+        if (playerPos.x === dest.x && playerPos.y === dest.y && playerPos.z === dest.z) {
+          self.__finalDestination = null;
+          self.__waypoints = null;
+          self.__usingWaypoints = false;
+        } else {
+          // Continue pathfinding towards destination
+          self.findPath(playerPos, dest, false);
         }
       }, 300);
     }
