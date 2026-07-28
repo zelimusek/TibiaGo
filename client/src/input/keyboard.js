@@ -470,23 +470,29 @@ Keyboard.prototype.__keyDown = function (event) {
 
   // Must focus on the main game body (i.e., the game screen)
   if (document.activeElement !== document.body) {
-    return this.__handleKeyType(event.keyCode);
+    return this.__handleKeyType(event);
   }
 
   // Otherwise set the key activity to true
   this.__activeKeys.add(event.keyCode);
 };
 
-Keyboard.prototype.__handleKeyType = function (key) {
+Keyboard.prototype.__handleKeyType = function (event) {
   /*
    * Function Keyboard.__handleKeyType
    * Handles the key type
    */
 
-  // If shift is down repeat the previous message
+  // Shift+Up/Down navigates the independent sent-input history.
   if (this.isShiftDown()) {
-    if (key === Keyboard.prototype.KEYS.UP_ARROW) {
-      gameClient.interface.channelManager.suggestPrevious();
+    if (event.keyCode === Keyboard.prototype.KEYS.UP_ARROW) {
+      event.preventDefault();
+      return gameClient.interface.channelManager.suggestPrevious();
+    }
+
+    if (event.keyCode === Keyboard.prototype.KEYS.DOWN_ARROW) {
+      event.preventDefault();
+      return gameClient.interface.channelManager.suggestNext();
     }
   }
 };

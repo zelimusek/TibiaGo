@@ -19,6 +19,9 @@ const ChannelManager = function() {
   this.__activeIndex = 0;
   this.__disabled = true;
   this.__currentDragElement = null;
+  this.__messageHistory = new Array();
+  this.__messageHistoryIndex = 0;
+  this.__messageHistoryDraft = "";
 
   // Element for the text input
   this.__inputElement = document.getElementById("chat-input");
@@ -51,6 +54,8 @@ ChannelManager.prototype.LOUDNESS = new Object({
   "SAY": 1,
   "YELL": 2
 });
+
+ChannelManager.prototype.MAX_MESSAGE_HISTORY = 5;
 
 ChannelManager.prototype.getLoudness = function() {
 
@@ -290,15 +295,60 @@ ChannelManager.prototype.suggestPrevious = function() {
 
   /*
    * Function ChannelManager.suggestPrevious
-   * Suggests the previously sent message
+   * Moves one entry backwards through sent chat input.
    */
 
-  // Empty
-  if(this.getActiveChannel().isEmpty()) {
+  this.__suggestHistory(-1);
+
+}
+
+ChannelManager.prototype.suggestNext = function() {
+
+  /*
+   * Function ChannelManager.suggestNext
+   * Moves one entry forwards through sent chat input.
+   */
+
+  this.__suggestHistory(1);
+
+}
+
+ChannelManager.prototype.__suggestHistory = function(increment) {
+
+  if(this.__messageHistory.length === 0) {
     return;
   }
 
-  this.__inputElement.value = this.getActiveChannel().lastMessageSelf();
+  // Preserve unfinished text when history navigation starts, so Shift+Down
+  // can return to it after browsing older messages.
+  if(this.__messageHistoryIndex === this.__messageHistory.length && increment < 0) {
+    this.__messageHistoryDraft = this.__inputElement.value;
+  }
+
+  this.__messageHistoryIndex = Math.max(
+    0,
+    Math.min(this.__messageHistory.length, this.__messageHistoryIndex + increment)
+  );
+
+  if(this.__messageHistoryIndex === this.__messageHistory.length) {
+    this.__inputElement.value = this.__messageHistoryDraft;
+    return;
+  }
+
+  this.__inputElement.value = this.__messageHistory[this.__messageHistoryIndex];
+
+}
+
+ChannelManager.prototype.__rememberMessage = function(message) {
+
+  this.__messageHistory.push(message);
+
+  if(this.__messageHistory.length > this.MAX_MESSAGE_HISTORY) {
+    this.__messageHistory.shift();
+  }
+
+  this.__messageHistoryIndex = this.__messageHistory.length;
+  this.__messageHistoryDraft = "";
 
 }
 
@@ -518,6 +568,11 @@ ChannelManager.prototype.handleMessageSend = function() {
   if(channel.constructor === LocalChannel) {
     return gameClient.interface.setCancelMessage("Cannot write to a local channel.");
   }
+
+  // Keep an input history independent of messages echoed by the server.
+  // GM commands are sent like regular chat input but are not necessarily
+  // echoed into a channel, so channel contents cannot serve as history.
+  this.__rememberMessage(message);
 
   // Writing in a private channel
   if(channel.constructor === PrivateChannel) {
