@@ -324,17 +324,7 @@ Canvas.prototype.drawSprite = function (thing, position, size) {
         let index = frameGroup.getSpriteIndex(frame, pattern.x, pattern.y, pattern.z, l, x, y);
 
         // Draw the actual sprite
-        // DAT stores multi-tile sprite parts from the far (top-left) part
-        // towards the tile anchor (bottom-right). Draw them in that same
-        // coordinate system; using x/y directly mirrors 2x1 and 1x2 objects
-        // and makes counters, walls and other large objects look misaligned.
-        this.__drawSprite(
-          frameGroup.getSprite(index),
-          position,
-          frameGroup.width - 1 - x,
-          frameGroup.height - 1 - y,
-          size
-        );
+        this.__drawSprite(frameGroup.getSprite(index), position, x, y, size);
 
       }
     }
