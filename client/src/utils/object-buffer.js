@@ -685,7 +685,13 @@ ObjectBuffer.prototype.__readFlags = function (packet) {
       case this.attributes.ThingAttrDisplacement: {
         flags.set(PropBitFlag.prototype.flags.DatFlagDisplacement);
         if (this.__version >= 755) {
-          packet.readLight();
+          properties.displacement = {
+            x: packet.readUInt16(),
+            y: packet.readUInt16()
+          };
+        } else {
+          // Older DAT versions use the classic fixed displacement.
+          properties.displacement = { x: 8, y: 8 };
         }
         break;
       }

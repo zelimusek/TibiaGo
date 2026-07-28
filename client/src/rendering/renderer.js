@@ -243,6 +243,28 @@ Renderer.prototype.getStaticScreenPosition = function (position) {
 
 }
 
+Renderer.prototype.__applyThingDisplacement = function (position, thing) {
+
+  /*
+   * DAT displacement is expressed in pixels and moves a world sprite
+   * towards the top-left of its tile. It must not be applied to inventory
+   * canvases, so keep it in the world renderer instead of Canvas.drawSprite.
+   */
+
+  let displacement = thing.getDataObject().properties.displacement;
+
+  if (!displacement) {
+    return position;
+  }
+
+  return new Position(
+    position.x - displacement.x / 32,
+    position.y - displacement.y / 32,
+    position.z
+  );
+
+}
+
 Renderer.prototype.getCreatureScreenPosition = function (creature) {
 
   /*
@@ -533,16 +555,18 @@ Renderer.prototype.__renderTileObjects = function (tile) {
       continue;
     }
 
-    // Should render item light?
-    if (lightingEnabled && item.isLight()) {
-      this.__renderLight(tile, position, item);
-    }
-
     // Handle the current elevation of the tile (reuse object when possible)
     let renderPosition = new Position(
       position.x - elevation,
       position.y - elevation
     );
+
+    renderPosition = this.__applyThingDisplacement(renderPosition, item);
+
+    // Should render item light?
+    if (lightingEnabled && item.isLight()) {
+      this.__renderLight(tile, renderPosition, item);
+    }
 
     // Draw the sprite at the right position
     this.screen.drawSprite(item, renderPosition, 32);
@@ -595,6 +619,8 @@ Renderer.prototype.__renderAlwaysOnTopItems = function (tile, items, position) {
       position.x - tile.__renderElevation,
       position.y - tile.__renderElevation
     );
+
+    renderPosition = this.__applyThingDisplacement(renderPosition, item);
 
     this.screen.drawSprite(item, renderPosition, 32);
   }
