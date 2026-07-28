@@ -129,8 +129,14 @@ EventQueue.prototype.tick = function() {
 
     this.__handledCounter++;
 
-    // Execute the bound callback
-    nextEvent.callback();
+    // A single malformed scheduled action (decay, condition, NPC callback,
+    // etc.) must not terminate the entire Node process. Keep the stack trace
+    // in the production log so the underlying definition can still be fixed.
+    try {
+      nextEvent.callback();
+    } catch (error) {
+      console.error("[EventQueue] Scheduled callback failed:", error);
+    }
   
   }
 

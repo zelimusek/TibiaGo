@@ -355,8 +355,18 @@ Thing.prototype.getRemainingDuration = function () {
     return this.duration;
   }
 
+  // A detached or already cleaned-up item may no longer have a live event.
+  // Fall back to its stored duration instead of crashing description/tooltip
+  // generation while the item is being moved or serialized.
+  if (!this.__scheduledDecayEvent || this.__scheduledDecayEvent.isCancelled()) {
+    return this.duration;
+  }
+
   // Just return the remaining number of frames until decay
-  return Math.floor(1E-3 * CONFIG.SERVER.MS_TICK_INTERVAL * this.__scheduledDecayEvent.remainingFrames());
+  return Math.max(
+    0,
+    Math.floor(1E-3 * CONFIG.SERVER.MS_TICK_INTERVAL * this.__scheduledDecayEvent.remainingFrames())
+  );
 
 }
 
@@ -480,6 +490,14 @@ Thing.prototype.remove = function () {
    * Removes an item from the gameworld
    */
 
+  // A decay-to-zero callback can fire after an item was already detached.
+  // Treat it as an already completed removal instead of terminating Node.
+  if (!this.__parent || typeof this.__parent.deleteThing !== "function") {
+    console.warn("[Thing.remove] Skipping detached item: %s.".format(this.__getDebugDescription()));
+    this.cleanup();
+    return -1;
+  }
+
   // Delegate to the internal handler: other classes may implement the .remove() function for special handling (e.g., containers)
   return this.__parent.deleteThing(this);
 
@@ -516,10 +534,47 @@ Thing.prototype.replace = function (thing) {
    * Replaces one thing with another at the same position
    */
 
+  if (thing === null) {
+    console.error("[Thing.replace] Refusing to replace %s with an unknown item.".format(this.__getDebugDescription()));
+    this.cleanup();
+    return null;
+  }
+
+  let parent = this.__parent;
+
+  // An old decay event can outlive an item that failed to enter the world or
+  // was already removed. Never let that stale event terminate the game loop.
+  if (!parent || typeof parent.addThing !== "function" || typeof parent.deleteThing !== "function") {
+    console.warn("[Thing.replace] Skipping detached item: %s.".format(this.__getDebugDescription()));
+    thing.cleanup();
+    this.cleanup();
+    return null;
+  }
+
   this.copyProperties(thing);
 
-  // Replacing means adding and removing an item at the same time
-  this.__parent.addThing(thing, this.remove());
+  // Capture the parent before remove(): containers detach the old item as part
+  // of removal. Verify the old item was actually present before inserting its
+  // replacement.
+  let index = this.remove();
+
+  if (index === null || typeof index === "undefined" || index < 0) {
+    console.warn("[Thing.replace] Parent no longer contains %s.".format(this.__getDebugDescription()));
+    thing.cleanup();
+    this.cleanup();
+    return null;
+  }
+
+  parent.addThing(thing, index);
+
+  // A full/invalid destination may reject the replacement. Its decay event
+  // must then be cancelled so it cannot fire later as an orphan.
+  if (thing.getParent() !== parent) {
+    console.warn("[Thing.replace] Parent rejected replacement for %s.".format(this.__getDebugDescription()));
+    thing.cleanup();
+    this.cleanup();
+    return null;
+  }
 
   // Clean up the thing
   this.cleanup();
@@ -837,7 +892,7 @@ Thing.prototype.cleanup = function () {
    * Deletes a thing by cleaning up: other classes (e.g., containers may implement the "delete" method)
    */
 
-  if (this.__scheduledDecayEvent) {
+  if (this.__scheduledDecayEvent && !this.__scheduledDecayEvent.isCancelled()) {
     this.__scheduledDecayEvent.cancel();
   }
 
@@ -850,8 +905,31 @@ Thing.prototype.__scheduleDecay = function (duration) {
    * Schedules a decay event for a particular thing
    */
 
+  // Scheduling the same item twice used to leave an older callback alive.
+  // This happened for restored lit torches: cleanup cancelled only the newest
+  // callback and the stale one later tried to decay a detached item.
+  if (this.__scheduledDecayEvent && !this.__scheduledDecayEvent.isCancelled()) {
+    this.__scheduledDecayEvent.cancel();
+  }
+
   // Get the decaying properties
   let properties = this.__getDecayProperties();
+
+  // Broken datapack links must be reported when scheduling, not several hours
+  // later from inside the game loop. Keep the item in its current form if the
+  // configured target does not exist.
+  if (
+    properties.decayTo !== 0 &&
+    gameServer.database.getThingPrototype(properties.decayTo) === null
+  ) {
+    console.error(
+      "[Decay] Not scheduling invalid target %s for %s.".format(
+        properties.decayTo,
+        this.__getDebugDescription()
+      )
+    );
+    return null;
+  }
 
   // Decay to zero means remove from game world
   if (properties.decayTo === 0) {
@@ -876,8 +954,34 @@ Thing.prototype.__decayCallback = function (id) {
    * Callback fired when an item has to be decayed
    */
 
+  let parent = this.__parent;
+
+  // Decay events are asynchronous. An item can be removed before its callback
+  // runs, so validate the parent instead of throwing from Thing.replace().
+  if (!parent || typeof parent.addThing !== "function" || typeof parent.deleteThing !== "function") {
+    console.warn(
+      "[Decay] Cancelled orphaned item %s (decayTo=%s).".format(
+        this.__getDebugDescription(),
+        id
+      )
+    );
+    this.cleanup();
+    return null;
+  }
+
   // Create a new thing with a particular "decay to" identifier
   let thing = gameServer.database.createThing(id);
+
+  if (thing === null) {
+    console.error(
+      "[Decay] Invalid decay target %s for %s.".format(
+        id,
+        this.__getDebugDescription()
+      )
+    );
+    this.cleanup();
+    return null;
+  }
 
   // If this is a splash we should copy over the count which indicates the fluid type
   if (this.isSplash()) {
@@ -890,7 +994,22 @@ Thing.prototype.__decayCallback = function (id) {
   }
 
   // Call the replace function
-  this.replace(thing);
+  return this.replace(thing);
+
+}
+
+Thing.prototype.__getDebugDescription = function () {
+
+  /*
+   * Function Thing.__getDebugDescription
+   * Returns enough metadata to identify malformed decay definitions in logs.
+   */
+
+  let prototype = this.getPrototype();
+  let clientId = prototype && typeof prototype.id !== "undefined" ? prototype.id : "unknown";
+  let name = prototype && prototype.properties ? prototype.properties.name : "unknown";
+
+  return 'SID=%s CID=%s name="%s"'.format(this.id, clientId, name || "unknown");
 
 }
 
