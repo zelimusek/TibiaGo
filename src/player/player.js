@@ -589,7 +589,20 @@ Player.prototype.consumeAmmunition = function () {
    * Consumes a single piece of ammunition
    */
 
-  return this.containerManager.equipment.removeIndex(CONST.EQUIPMENT.QUIVER, 1);
+  let equipment = this.containerManager.equipment;
+  let weapon = equipment.getDistanceWeapon();
+
+  if (weapon === null || weapon.getAttribute("ammoType") === null) {
+    return null;
+  }
+
+  let ammunition = equipment.peekIndex(CONST.EQUIPMENT.QUIVER);
+
+  if (ammunition === null || !weapon.isRightAmmunition(ammunition)) {
+    return null;
+  }
+
+  return equipment.removeIndex(CONST.EQUIPMENT.QUIVER, 1);
 };
 
 Player.prototype.isAmmunitionEquipped = function () {
@@ -854,24 +867,24 @@ Player.prototype.getAttack = function () {
    * https://tibia.fandom.com/wiki/Formulae#Melee
    */
 
-  // States of player
-  const OFFENSIVE = 0;
-  const BALANCED = 1;
-  const DEFENSIVE = 2;
-
   let mode = this.fightMode;
-
   let B = this.getBaseDamage();
-  let W = 20;
-  let weaponType = this.containerManager.equipment.getWeaponType();
+  let equipment = this.containerManager.equipment;
+  let W = equipment.getAttackValue();
+  let weaponType = equipment.getWeaponType();
   let S = this.skills.getSkillLevel(weaponType);
 
+  // Unarmed combat uses the character's base attack value.
+  if (W <= 0) {
+    W = Number(this.getProperty(CONST.PROPERTIES.ATTACK)) || 4;
+  }
+
   switch (mode) {
-    case OFFENSIVE:
+    case CONST.FIGHT_MODE.OFFENSIVE:
       return B + Math.floor(Math.floor(W * (6 / 5)) * ((S + 4) / 28));
-    case BALANCED:
+    case CONST.FIGHT_MODE.BALANCED:
       return B + Math.floor(W * ((S + 4) / 28));
-    case DEFENSIVE:
+    case CONST.FIGHT_MODE.DEFENSIVE:
       return B + Math.floor(Math.ceil(W * (3 / 5)) * ((S + 4) / 28));
   }
 
@@ -881,10 +894,43 @@ Player.prototype.getAttack = function () {
 Player.prototype.getDefense = function () {
   /*
    * Function Player.getDefense
-   * Returns the attack of a creature
+   * Returns active defense from the equipped shield/weapon and relevant skill.
    */
 
-  return this.getProperty(CONST.PROPERTIES.DEFENSE);
+  let baseDefense = Number(this.getProperty(CONST.PROPERTIES.DEFENSE)) || 0;
+  let equipment = this.containerManager.equipment;
+  let itemDefense = equipment.getDefenseValue();
+
+  if (itemDefense <= 0) {
+    return baseDefense;
+  }
+
+  let skillType = equipment.isShieldEquipped()
+    ? CONST.PROPERTIES.SHIELDING
+    : equipment.getWeaponType();
+  let skill = this.skills.getSkillLevel(skillType);
+  let modeMultiplier = 0.75;
+
+  if (this.fightMode === CONST.FIGHT_MODE.OFFENSIVE) {
+    modeMultiplier = 0.5;
+  } else if (this.fightMode === CONST.FIGHT_MODE.DEFENSIVE) {
+    modeMultiplier = 1;
+  }
+
+  let equipmentDefense = Math.floor(
+    itemDefense * ((skill + 4) / 28) * modeMultiplier
+  );
+
+  return baseDefense + Math.max(0, equipmentDefense);
+};
+
+Player.prototype.getArmor = function () {
+  /*
+   * Function Player.getArmor
+   * Returns the combined armor value of all equipped armor pieces.
+   */
+
+  return this.containerManager.equipment.getArmorValue();
 };
 
 Player.prototype.setFightMode = function (mode) {

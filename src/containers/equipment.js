@@ -268,6 +268,96 @@ Equipment.prototype.getWeaponType = function () {
 
 };
 
+Equipment.prototype.getWeapon = function () {
+  /*
+   * Function Equipment.getWeapon
+   * Returns the equipped offensive weapon, regardless of the hand it is in.
+   */
+
+  let slots = [CONST.EQUIPMENT.LEFT, CONST.EQUIPMENT.RIGHT];
+
+  for (let i = 0; i < slots.length; i++) {
+    let item = this.peekIndex(slots[i]);
+
+    if (item === null) {
+      continue;
+    }
+
+    let weaponType = item.getAttribute("weaponType");
+    if (["sword", "club", "axe", "distance"].includes(weaponType)) {
+      return item;
+    }
+  }
+
+  return null;
+};
+
+Equipment.prototype.getDistanceWeapon = function () {
+  let weapon = this.getWeapon();
+  return weapon !== null && weapon.isDistanceWeapon() ? weapon : null;
+};
+
+Equipment.prototype.getShield = function () {
+  let slots = [CONST.EQUIPMENT.LEFT, CONST.EQUIPMENT.RIGHT];
+  let bestShield = null;
+  let bestDefense = 0;
+
+  for (let i = 0; i < slots.length; i++) {
+    let item = this.peekIndex(slots[i]);
+
+    if (item === null || item.getAttribute("weaponType") !== "shield") {
+      continue;
+    }
+
+    let defense = Number(item.getAttribute("defense")) || 0;
+    if (bestShield === null || defense > bestDefense) {
+      bestShield = item;
+      bestDefense = defense;
+    }
+  }
+
+  return bestShield;
+};
+
+Equipment.prototype.getAttackValue = function () {
+  /*
+   * Function Equipment.getAttackValue
+   * Returns melee weapon attack or distance weapon + ammunition attack.
+   */
+
+  let weapon = this.getWeapon();
+  if (weapon === null) {
+    return 0;
+  }
+
+  let attack = Number(weapon.getAttribute("attack")) || 0;
+
+  if (weapon.isDistanceWeapon() && weapon.getAttribute("ammoType") !== null) {
+    let ammunition = this.peekIndex(CONST.EQUIPMENT.QUIVER);
+    if (ammunition !== null && weapon.isRightAmmunition(ammunition)) {
+      attack += Number(ammunition.getAttribute("attack")) || 0;
+    }
+  }
+
+  return attack;
+};
+
+Equipment.prototype.getDefenseValue = function () {
+  /*
+   * Function Equipment.getDefenseValue
+   * Shields take priority. Without a shield, the weapon's defense is used.
+   */
+
+  let defensiveItem = this.getShield() || this.getWeapon();
+  return defensiveItem === null
+    ? 0
+    : Number(defensiveItem.getAttribute("defense")) || 0;
+};
+
+Equipment.prototype.getArmorValue = function () {
+  return this.getAttributeState("armor");
+};
+
 Equipment.prototype.addThing = function (thing, index) {
   /*
    * Function Equipment.addThing
@@ -339,9 +429,31 @@ Equipment.prototype.getMaximumAddCount = function (player, thing, index) {
    * Returns the count of the item that can be added to a tile
    */
 
+  index = Number(index);
+
   // Check whether the item type matches that of the slot
   if (!this.__isRightType(thing, index)) {
     return 0;
+  }
+
+  // A two-handed weapon occupies both hands. It cannot be combined with a
+  // shield or another weapon, and nothing can be equipped opposite it.
+  if (index === CONST.EQUIPMENT.LEFT || index === CONST.EQUIPMENT.RIGHT) {
+    let otherIndex = index === CONST.EQUIPMENT.LEFT
+      ? CONST.EQUIPMENT.RIGHT
+      : CONST.EQUIPMENT.LEFT;
+    let otherItem = this.peekIndex(otherIndex);
+    let thingIsTwoHanded = thing.getAttribute("slotType") === "two-handed";
+    let otherIsTwoHanded = otherItem !== null
+      && otherItem.getAttribute("slotType") === "two-handed";
+
+    // Moving the very same item between hands must remain possible.
+    if (
+      otherItem !== thing
+      && ((thingIsTwoHanded && otherItem !== null) || otherIsTwoHanded)
+    ) {
+      return 0;
+    }
   }
 
   // Take a look at the item in the slot
@@ -367,23 +479,19 @@ Equipment.prototype.isAmmunitionEquipped = function () {
    * Returns true if the player has ammunition equipped
    */
 
-  // Take a look at the quiver
+  let weapon = this.getDistanceWeapon();
+  if (weapon === null) {
+    return false;
+  }
+
+  // Throwing weapons do not require a separate ammunition stack.
+  if (weapon.getAttribute("ammoType") === null) {
+    return true;
+  }
+
   let ammunition = this.peekIndex(CONST.EQUIPMENT.QUIVER);
 
-  // If nothing is equipped there is no ammunition
-  if (ammunition === null) {
-    return false;
-  }
-
-  // Confirm the ammunition of the right type
-  let weapon = this.peekIndex(CONST.EQUIPMENT.HAND_LEFT);
-
-  // Weapon does not match ammunition type
-  if (!weapon.isRightAmmunition(ammunition)) {
-    return false;
-  }
-
-  return true;
+  return ammunition !== null && weapon.isRightAmmunition(ammunition);
 };
 
 Equipment.prototype.isDistanceWeaponEquipped = function () {
@@ -392,15 +500,7 @@ Equipment.prototype.isDistanceWeaponEquipped = function () {
    * Returns true if distance weapon equipped
    */
 
-  // Take a look at the weapon in the left hand slot
-  let thing = this.peekIndex(CONST.EQUIPMENT.HAND_LEFT);
-
-  if (thing === null) {
-    return false;
-  }
-
-  // Check whether is thing is a distance weapon
-  return thing.isDistanceWeapon();
+  return this.getDistanceWeapon() !== null;
 };
 
 Equipment.prototype.isShieldEquipped = function () {
@@ -413,7 +513,7 @@ Equipment.prototype.isShieldEquipped = function () {
 
   for (let i = 0; i < slots.length; i++) {
     let item = this.peekIndex(slots[i]);
-    if (item && item.getPrototype().properties.weaponType === "shield") {
+    if (item && item.getAttribute("weaponType") === "shield") {
       return true;
     }
   }
@@ -764,7 +864,7 @@ Equipment.prototype.getAttributeState = function (attribute) {
       return;
     }
 
-    sum += value;
+    sum += Number(value) || 0;
   });
 
   return sum;

@@ -23,6 +23,12 @@ CombatHandler.prototype.handleCombat = function (source) {
     return;
   }
 
+  // Validate ranged ammunition before calculating damage or granting skill
+  // advances. Throwing weapons are accepted by isAmmunitionEquipped().
+  if (source.isDistanceWeaponEquipped() && !source.isAmmunitionEquipped()) {
+    return;
+  }
+
   // Calculate the damage
   let damage = source.calculateDamage();
   let defense = target.calculateDefense();
@@ -41,12 +47,6 @@ CombatHandler.prototype.handleCombat = function (source) {
 
   // If the attacker has a distance weapon equipped
   if (source.isDistanceWeaponEquipped()) {
-
-    // No ammunition?
-    if (!source.isAmmunitionEquipped()) {
-      return;
-    }
-
     this.handleDistanceCombat(source, target);
 
   }
@@ -78,9 +78,22 @@ CombatHandler.prototype.handleDistanceCombat = function (source, target) {
 
   // Consume the ammunition
   let ammo = source.consumeAmmunition();
+  let projectile = ammo;
+
+  // Throwing weapons carry their own projectile information and do not use a
+  // separate quiver stack.
+  if (projectile === null && source.containerManager && source.containerManager.equipment) {
+    projectile = source.containerManager.equipment.getDistanceWeapon();
+  }
 
   // Write a distance effect
-  gameServer.world.sendDistanceEffect(source.position, target.position, ammo.getShootType());
+  if (projectile !== null) {
+    gameServer.world.sendDistanceEffect(
+      source.position,
+      target.position,
+      projectile.getShootType()
+    );
+  }
 
 }
 

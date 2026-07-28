@@ -27,6 +27,10 @@ const Creature = function (properties) {
   // The properties of the creature
   this.properties = new CreatureProperties(this, properties);
 
+  // Armor is separate from active defense. Monsters receive it from their
+  // definitions; players override getArmor() with the sum of equipped pieces.
+  this.armor = Math.max(0, Number(properties.armor) || 0);
+
   // The conditions that are affecting the creature
   this.conditions = new ConditionManager(this);
 
@@ -267,8 +271,28 @@ Creature.prototype.calculateDefense = function () {
    * Calculates the random damage mitigated by a defense
    */
 
-  // Draw a random sample between 0 and the defense
-  return Number.prototype.random(0, this.getDefense());
+  let defense = Math.max(0, Number(this.getDefense()) || 0);
+  return Number.prototype.random(0, defense) + this.calculateArmor();
+};
+
+Creature.prototype.calculateArmor = function () {
+  /*
+   * Creature.calculateArmor
+   * Armor passively absorbs a bounded amount of every physical hit.
+   */
+
+  let armor = Math.max(0, Number(this.getArmor()) || 0);
+  if (armor === 0) {
+    return 0;
+  }
+
+  let minimum = Math.ceil(armor * 0.475);
+  let maximum = Math.max(minimum, Math.ceil(armor * 0.95) - 1);
+  return Number.prototype.random(minimum, maximum);
+};
+
+Creature.prototype.getArmor = function () {
+  return this.armor;
 };
 
 Creature.prototype.getDefense = function () {
