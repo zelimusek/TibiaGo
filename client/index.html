@@ -1247,7 +1247,10 @@
           <!-- Footer for sending chat messages etc.. -->
           <div class="chat-footer">
             <button id="chat-say-loudness" class="symbol-button-long">))</button>
-            <input id="chat-input" type="text" placeholder="Press Enter to unlock.">
+            <div id="chat-input-wrapper" class="chat-input-wrapper locked">
+              <span id="chat-lock-indicator" class="material-icons" aria-hidden="true">lock</span>
+              <input id="chat-input" type="text" placeholder="Press Enter to unlock." disabled>
+            </div>
             <button id="send-chat-message" class="symbol-button-text">Send</button>
           </div>
         </div>

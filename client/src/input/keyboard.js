@@ -383,6 +383,17 @@ Keyboard.prototype.__keyDown = function (event) {
    * Callback event fired when key is pressed
    */
 
+  // Give feedback when the player attempts to type while chat is locked.
+  // This is intentionally checked before configured game keys so every
+  // alphabetic key can trigger the hint without blocking movement/hotkeys.
+  if (
+    document.activeElement === document.body &&
+    gameClient.interface.channelManager.isDisabled() &&
+    this.__isUnmodifiedLetter(event)
+  ) {
+    gameClient.interface.channelManager.showInputLockedFeedback();
+  }
+
   // The key is not configured with an action: block the action
   if (!this.__isConfigured(event.keyCode)) {
     return;
@@ -475,6 +486,18 @@ Keyboard.prototype.__keyDown = function (event) {
 
   // Otherwise set the key activity to true
   this.__activeKeys.add(event.keyCode);
+};
+
+Keyboard.prototype.__isUnmodifiedLetter = function (event) {
+
+  return (
+    typeof event.key === "string" &&
+    /^[a-z]$/i.test(event.key) &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey
+  );
+
 };
 
 Keyboard.prototype.__handleKeyType = function (event) {

@@ -22,9 +22,12 @@ const ChannelManager = function() {
   this.__messageHistory = new Array();
   this.__messageHistoryIndex = 0;
   this.__messageHistoryDraft = "";
+  this.__lockFeedbackTimeout = null;
 
   // Element for the text input
   this.__inputElement = document.getElementById("chat-input");
+  this.__inputWrapperElement = document.getElementById("chat-input-wrapper");
+  this.__lockIndicatorElement = document.getElementById("chat-lock-indicator");
   this.__headerElement = document.getElementById("cheader");
 
   // Always add these two channels
@@ -101,11 +104,27 @@ ChannelManager.prototype.toggleInputLock = function() {
    * Handles toggling of the chat input box where messages can be written
    */
 
-  // Toggle disabled
-  this.__disabled = !this.__disabled;
+  this.setInputLocked(!this.__disabled);
 
-  // Update the DOM
+}
+
+ChannelManager.prototype.setInputLocked = function(locked) {
+
+  /*
+   * Function ChannelManager.setInputLocked
+   * Explicitly locks or unlocks the chat input.
+   */
+
+  this.__disabled = Boolean(locked);
   this.__inputElement.disabled = this.__disabled;
+
+  if(this.__inputWrapperElement) {
+    this.__inputWrapperElement.classList.toggle("locked", this.__disabled);
+  }
+
+  if(this.__lockIndicatorElement) {
+    this.__lockIndicatorElement.innerHTML = this.__disabled ? "lock" : "lock_open";
+  }
 
   if(this.__disabled) {
     this.__inputElement.placeholder = "Press Enter to unlock.";
@@ -114,6 +133,34 @@ ChannelManager.prototype.toggleInputLock = function() {
     this.__inputElement.placeholder = "Press Enter to lock.";
     this.__inputElement.focus();
   }
+
+}
+
+ChannelManager.prototype.showInputLockedFeedback = function() {
+
+  /*
+   * Function ChannelManager.showInputLockedFeedback
+   * Highlights the locked input when the player attempts to type.
+   */
+
+  if(!this.__disabled || !this.__inputWrapperElement) {
+    return;
+  }
+
+  this.__inputWrapperElement.classList.remove("lock-feedback");
+
+  // Force a reflow so repeated key presses can restart the animation.
+  void this.__inputWrapperElement.offsetWidth;
+  this.__inputWrapperElement.classList.add("lock-feedback");
+
+  if(this.__lockFeedbackTimeout !== null) {
+    clearTimeout(this.__lockFeedbackTimeout);
+  }
+
+  this.__lockFeedbackTimeout = setTimeout(function() {
+    this.__inputWrapperElement.classList.remove("lock-feedback");
+    this.__lockFeedbackTimeout = null;
+  }.bind(this), 450);
 
 }
 
@@ -576,12 +623,14 @@ ChannelManager.prototype.handleMessageSend = function() {
 
   // Writing in a private channel
   if(channel.constructor === PrivateChannel) {
-    return this.__handlePrivateMessageSend(channel, message);
+    this.__handlePrivateMessageSend(channel, message);
+    return this.setInputLocked(true);
   }
 
   let loudness = this.getLoudness();
 
   gameClient.send(new ChannelMessagePacket(channel.id, loudness, message));
+  this.setInputLocked(true);
 
 }
 

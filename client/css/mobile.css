@@ -587,6 +587,7 @@ screen and (max-width: 768px) {
         flex: 1;
         font-size: 14px;
         padding: 8px;
+        padding-left: 34px;
         border-radius: 4px;
     }
 }
