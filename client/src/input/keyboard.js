@@ -114,6 +114,11 @@ Keyboard.prototype.handleInput = function () {
 
     key = Number(key);
 
+    // WASD can be disabled independently while arrows and numpad remain active.
+    if (this.__isWASDMovementKey(key) && !this.__isWASDMovementEnabled()) {
+      return;
+    }
+
     // Block keyboard input when the character is moving or when the server has not confirmed movement
     if (gameClient.player.isMoving()) {
       return gameClient.player.extendMovementBuffer(key);
@@ -485,6 +490,13 @@ Keyboard.prototype.__keyDown = function (event) {
   }
 
   // Otherwise set the key activity to true
+  if (
+    this.__isWASDMovementKey(event.keyCode) &&
+    !this.__isWASDMovementEnabled()
+  ) {
+    return;
+  }
+
   this.__activeKeys.add(event.keyCode);
 };
 
@@ -528,6 +540,23 @@ Keyboard.prototype.__isConfigured = function (key) {
 
   // Check the object
   return Object.values(this.KEYS).includes(key);
+};
+
+Keyboard.prototype.__isWASDMovementKey = function (key) {
+
+  return [
+    this.KEYS.KEY_W,
+    this.KEYS.KEY_A,
+    this.KEYS.KEY_S,
+    this.KEYS.KEY_D
+  ].includes(key);
+
+};
+
+Keyboard.prototype.__isWASDMovementEnabled = function () {
+
+  return gameClient.interface.settings.isWASDMovementEnabled();
+
 };
 
 Keyboard.prototype.__keyUp = function (event) {
@@ -586,12 +615,17 @@ Keyboard.prototype.__getActiveMovementKey = function () {
     this.KEYS.LEFT_ARROW,
     this.KEYS.UP_ARROW,
     this.KEYS.RIGHT_ARROW,
-    this.KEYS.DOWN_ARROW,
-    this.KEYS.KEY_A,
-    this.KEYS.KEY_W,
-    this.KEYS.KEY_D,
-    this.KEYS.KEY_S
+    this.KEYS.DOWN_ARROW
   ];
+
+  if (this.__isWASDMovementEnabled()) {
+    movementKeys.push(
+      this.KEYS.KEY_A,
+      this.KEYS.KEY_W,
+      this.KEYS.KEY_D,
+      this.KEYS.KEY_S
+    );
+  }
 
   return movementKeys.find((key) => this.__activeKeys.has(key)) || null;
 };

@@ -11,6 +11,7 @@ const Settings = function (element) {
    * @Settings.isWeatherEnabled() - returns true when the weather is enabled
    * @Settings.isLightingEnabled() - returns true when the lighting is enabled
    * @Settings.isSoundEnabled() - returns true when sound is enabled
+   * @Settings.isWASDMovementEnabled() - returns true when WASD movement is enabled
    * @Settings.saveState() - Saves state to local storage
    * @Settings.clear() - Clears state from local storage
    * @Settings.showScreenText() - Enables whether to show text on the screen
@@ -115,6 +116,17 @@ Settings.prototype.isClassicControlEnabled = function () {
 
 }
 
+Settings.prototype.isWASDMovementEnabled = function () {
+
+  /*
+   * Function Settings.isWASDMovementEnabled
+   * Returns true when W, A, S and D can be used for movement.
+   */
+
+  return this.__state["enable-wasd-movement"];
+
+}
+
 Settings.prototype.isWeatherEnabled = function () {
 
   /*
@@ -163,12 +175,16 @@ Settings.prototype.__toggle = function (event) {
     case "show-performance":
     case "enable-resolution":
     case "anti-aliasing":
+    case "enable-wasd-movement":
       this.__state[event.target.id] = event.target.checked;
       if (event.target.id === "enable-sound") {
         gameClient.interface.soundManager.enableSound(event.target.checked);
       }
       if (event.target.id === "enable-resolution" && gameClient && gameClient.interface) {
         gameClient.interface.handleResize();
+      }
+      if (event.target.id === "enable-wasd-movement" && gameClient && gameClient.keyboard) {
+        gameClient.keyboard.setInactive();
       }
       break;
     case "fps-mode":
@@ -250,6 +266,7 @@ Settings.prototype.__getCleanState = function () {
     "enable-weather": document.getElementById("enable-weather").checked,
     "show-performance": document.getElementById("show-performance").checked,
     "anti-aliasing": document.getElementById("anti-aliasing").checked,
+    "enable-wasd-movement": document.getElementById("enable-wasd-movement").checked,
     "fps-mode": document.getElementById("fps-mode").value,
     "mouse-control-mode": document.getElementById("mouse-control-mode").value,
     "enable-resolution": document.getElementById("enable-resolution").checked,
@@ -277,6 +294,7 @@ Settings.prototype.__applyState = function (id) {
     case "show-performance":
     case "enable-resolution":
     case "anti-aliasing":
+    case "enable-wasd-movement":
       element.checked = Boolean(this.__state[id]);
       break;
     case "fps-mode":
