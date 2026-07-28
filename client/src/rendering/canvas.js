@@ -72,11 +72,15 @@ Canvas.prototype.getWorldCoordinates = function (event) {
   // The scaling that needs to be applied
   let scaling = gameClient.interface.getSpriteScalingVector();
   let position = gameClient.player.getPosition();
+  let moveOffset = gameClient.player.getMoveOffset();
 
-  // The chunk can easily be determined
+  // The renderer keeps the player visually centred by shifting the whole
+  // world with the remaining fraction of the current step. Apply the inverse
+  // shift here, otherwise clicks made while walking can resolve to the
+  // neighbouring (often previous) SQM.
   let projectedViewPosition = new Position(
-    Math.floor(x / scaling.x) + position.x - 7,
-    Math.floor(y / scaling.y) + position.y - 5,
+    Math.floor(x / scaling.x - moveOffset.x) + position.x - 7,
+    Math.floor(y / scaling.y - moveOffset.y) + position.y - 5,
     position.z
   );
 
