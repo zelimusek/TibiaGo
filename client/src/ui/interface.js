@@ -50,6 +50,10 @@ const Interface = function () {
   // Quest Tracker Overlay
   this.questTracker = new QuestTracker();
 
+  // A native browser warning can force the document out of fullscreen.
+  // Restoring it requires another explicit user gesture.
+  this.__fullScreenPreferred = false;
+
   // Enable all the listeners in the DOM
   this.__enableListeners();
 
@@ -629,6 +633,7 @@ Interface.prototype.hideGameInterface = function () {
   document.getElementById("login-wrapper").style.display = "flex";
   document.getElementById("game-wrapper").style.display = "none";
 
+  this.__updateFullScreenRestoreButton();
   window.onresize();
 };
 
@@ -643,6 +648,7 @@ Interface.prototype.showGameInterface = function () {
   document.getElementById("login-wrapper").style.display = "none";
   document.getElementById("game-wrapper").style.display = "flex";
 
+  this.__updateFullScreenRestoreButton();
   window.onresize();
 };
 
@@ -707,6 +713,7 @@ Interface.prototype.requestFullScreen = function () {
 
   // The document root fills the entire application window.
   let element = document.documentElement;
+  this.__fullScreenPreferred = true;
 
   // Supports current browsers and older browser prefixes.
   let requestMethod =
@@ -717,17 +724,49 @@ Interface.prototype.requestFullScreen = function () {
     element.mozRequestFullScreen ||
     element.msRequestFullScreen;
 
-  if (requestMethod && !document.fullscreenElement) {
+  if (requestMethod && !this.__isFullScreen()) {
     let request = requestMethod.call(element);
 
     // Fullscreen can be rejected by a browser policy; the login itself should
     // still continue normally in that case.
-    if (request && request.catch) {
-      return request.catch(function () { });
+    if (request && request.then) {
+      return request
+        .then(this.__updateFullScreenRestoreButton.bind(this))
+        .catch(this.__updateFullScreenRestoreButton.bind(this));
     }
 
+    this.__updateFullScreenRestoreButton();
     return request;
   }
+
+  this.__updateFullScreenRestoreButton();
+};
+
+Interface.prototype.__isFullScreen = function () {
+
+  return Boolean(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+
+};
+
+Interface.prototype.__updateFullScreenRestoreButton = function () {
+
+  let button = document.getElementById("restore-fullscreen");
+  if (!button) {
+    return;
+  }
+
+  let gameIsVisible = document.body.classList.contains("game-active");
+  button.hidden = !(
+    this.__fullScreenPreferred &&
+    gameIsVisible &&
+    !this.__isFullScreen()
+  );
+
 };
 
 Interface.prototype.isRaining = function () {
@@ -1029,9 +1068,15 @@ Interface.prototype.__enableListeners = function () {
   document
     .getElementById("enter-game")
     .addEventListener("click", this.enterGame.bind(this));
+  document
+    .getElementById("restore-fullscreen")
+    .addEventListener("click", this.requestFullScreen.bind(this));
 
   // Visibility change
   addEventListener("visibilitychange", this.__handleVisibiliyChange.bind(this));
+  document.addEventListener("fullscreenchange", this.__updateFullScreenRestoreButton.bind(this));
+  document.addEventListener("webkitfullscreenchange", this.__updateFullScreenRestoreButton.bind(this));
+  window.addEventListener("focus", this.__updateFullScreenRestoreButton.bind(this));
 
   // Callback before the window is unloaded to close the client and terminate the client gracefully
   window.onbeforeunload = this.__closeClientConfirm.bind(this);
