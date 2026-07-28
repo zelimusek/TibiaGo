@@ -99,8 +99,12 @@ Keyboard.prototype.handleInput = function () {
 
   // Go over the active keys
   this.__activeKeys.forEach(function (key) {
-    // Cancel pathfinding when any input is given
-    gameClient.world.pathfinder.setPathfindCache(null);
+    // Only manual movement cancels autowalk and its deferred item action.
+    // Keeping Ctrl/Shift pressed while clicking Use must not cancel the route.
+    if (this.__isMovementKey(Number(key))) {
+      gameClient.mouse.cancelPendingActions();
+      gameClient.world.pathfinder.setPathfindCache(null);
+    }
 
     // Block all input when player is dead
     if (gameClient.player && gameClient.player.isDead) {
@@ -364,6 +368,7 @@ Keyboard.prototype.__handleEscapeKey = function () {
   }
 
   // Delete the local pathfinding cache
+  gameClient.mouse.cancelPendingActions();
   gameClient.world.pathfinder.setPathfindCache(null);
 };
 

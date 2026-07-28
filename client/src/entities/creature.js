@@ -543,6 +543,10 @@ Creature.prototype.unlockMovement = function () {
     return;
   }
 
+  if (gameClient.player === this && gameClient.mouse.handlePendingItemUse()) {
+    return;
+  }
+
   if (gameClient.player === this && (gameClient.world.pathfinder.__pathfindCache.length > 0 || gameClient.world.pathfinder.__finalDestination !== null)) {
     return gameClient.world.pathfinder.handlePathfind();
   }

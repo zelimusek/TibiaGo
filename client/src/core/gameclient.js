@@ -186,6 +186,7 @@ GameClient.prototype.reset = function () {
 
   this.interface.settings.saveState();
   this.interface.soundManager.stopAll();
+  this.mouse.cancelPendingActions();
 
   // Abort the gameloop
   this.gameLoop.abort();

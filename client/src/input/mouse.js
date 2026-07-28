@@ -29,6 +29,7 @@ const Mouse = function () {
   this.__currentMouseTile = null;
   this.__multiUseObject = null;
   this.__pendingItemMove = null;
+  this.__pendingItemUse = null;
 
   // Track button states for both-buttons look shortcut
   this.__leftButtonDown = false;
@@ -64,11 +65,20 @@ Mouse.prototype.sendItemMove = function (fromObject, toObject, count) {
 
 }
 
+Mouse.prototype.cancelPendingActions = function () {
+
+  this.__pendingItemMove = null;
+  this.__pendingItemUse = null;
+
+}
+
 Mouse.prototype.__getClosestReachableTileBesides = function (targetTile) {
 
   let targetPosition = targetTile.getPosition();
   let playerPosition = gameClient.player.getPosition();
+  let playerTile = gameClient.world.getTileFromWorldPosition(playerPosition);
   let bestTile = null;
+  let bestPathLength = Infinity;
   let bestDistance = Infinity;
 
   [
@@ -88,8 +98,27 @@ Mouse.prototype.__getClosestReachableTileBesides = function (targetTile) {
     }
 
     let distance = Math.max(Math.abs(playerPosition.x - position.x), Math.abs(playerPosition.y - position.y));
+    let pathLength = distance;
 
-    if (distance < bestDistance) {
+    // Prefer a genuinely reachable adjacent SQM. The geometric fallback
+    // keeps this helper usable while the player's starting tile is loading.
+    if (
+      playerTile !== null &&
+      gameClient.world.pathfinder &&
+      typeof gameClient.world.pathfinder.search === "function"
+    ) {
+      let path = gameClient.world.pathfinder.search(playerTile, tile);
+      if (path.length === 0 && playerTile !== tile) {
+        return;
+      }
+      pathLength = path.length;
+    }
+
+    if (
+      pathLength < bestPathLength ||
+      (pathLength === bestPathLength && distance < bestDistance)
+    ) {
+      bestPathLength = pathLength;
       bestDistance = distance;
       bestTile = tile;
     }
@@ -119,6 +148,7 @@ Mouse.prototype.__moveItemWhenClose = function (fromObject, toObject, count) {
     toObject: toObject,
     count: count
   };
+  this.__pendingItemUse = null;
 
   gameClient.world.pathfinder.findPath(gameClient.player.getPosition(), destinationTile.getPosition());
 
@@ -135,6 +165,54 @@ Mouse.prototype.handlePendingItemMove = function () {
   if (pending.fromObject.which.getPosition().besides(gameClient.player.getPosition())) {
     this.__pendingItemMove = null;
     this.sendItemMove(pending.fromObject, pending.toObject, pending.count);
+    return true;
+  }
+
+  return false;
+
+}
+
+Mouse.prototype.__useItemWhenClose = function (object) {
+
+  let targetPosition = object.which.getPosition();
+
+  if (targetPosition.besides(gameClient.player.getPosition())) {
+    this.__pendingItemUse = null;
+    return gameClient.send(new ItemUsePacket(object));
+  }
+
+  let destinationTile = this.__getClosestReachableTileBesides(object.which);
+
+  if (destinationTile === null) {
+    this.__pendingItemUse = null;
+    return gameClient.interface.setCancelMessage("There is no way.");
+  }
+
+  this.__pendingItemMove = null;
+  this.__pendingItemUse = object;
+
+  gameClient.world.pathfinder.findPath(
+    gameClient.player.getPosition(),
+    destinationTile.getPosition()
+  );
+
+}
+
+Mouse.prototype.handlePendingItemUse = function () {
+
+  if (
+    this.__pendingItemUse === null ||
+    gameClient.player === null ||
+    !this.__pendingItemUse.which
+  ) {
+    return false;
+  }
+
+  let pending = this.__pendingItemUse;
+
+  if (pending.which.getPosition().besides(gameClient.player.getPosition())) {
+    this.__pendingItemUse = null;
+    gameClient.send(new ItemUsePacket(pending));
     return true;
   }
 
@@ -263,6 +341,16 @@ Mouse.prototype.use = function (object) {
     if (item.isMultiUse()) {
       return this.__setMultiUseItem(object);
     }
+  }
+
+  // Simple-use world objects (ladders, sewer grates, doors, etc.) require
+  // adjacency on the server. Walk beside a distant object first and execute
+  // the original Use action immediately after the final step.
+  if (
+    object.which instanceof Tile &&
+    !object.which.getPosition().besides(gameClient.player.getPosition())
+  ) {
+    return this.__useItemWhenClose(object);
   }
 
   gameClient.send(new ItemUsePacket(object));
@@ -621,6 +709,7 @@ Mouse.prototype.__handleMouseClick = function () {
     this.__mouseDownObject.which !== null &&
     this.__mouseDownObject.which.constructor.name === "Tile"
   ) {
+    this.cancelPendingActions();
     return gameClient.world.pathfinder.findPath(
       gameClient.player.getPosition(),
       this.__mouseDownObject.which.getPosition()
