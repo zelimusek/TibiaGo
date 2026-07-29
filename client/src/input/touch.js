@@ -23,7 +23,7 @@ const Touch = function () {
         animationFrame: null
     };
 
-    // Action mode (null, 'look', 'use')
+    // Action mode (null or 'look')
     this.actionMode = null;
 
     // Long press detection
@@ -33,6 +33,11 @@ const Touch = function () {
     // Tap detection for double tap
     this.lastTapTime = 0;
     this.lastTapTarget = null;
+
+    // Double-tap detection on the game world. Tile identity is used instead of
+    // raw pixels so both taps may land anywhere inside the same SQM.
+    this.lastCanvasTapTime = 0;
+    this.lastCanvasTapTile = null;
 
     // One-finger item drag state. A small movement threshold keeps ordinary
     // taps available for walking, looking and using objects.
@@ -67,7 +72,6 @@ Touch.prototype.__initialize = function () {
 
     // Action buttons
     this.lookBtn = document.getElementById('mobile-look-btn');
-    this.useBtn = document.getElementById('mobile-use-btn');
     this.attackBtn = document.getElementById('mobile-attack-btn');
     this.menuBtn = document.getElementById('mobile-menu-btn');
     this.inventoryBtn = document.getElementById('mobile-inventory-btn');
@@ -91,9 +95,6 @@ Touch.prototype.__initialize = function () {
     // Bind action button events
     if (this.lookBtn) {
         this.lookBtn.addEventListener('touchstart', this.__handleLookButton.bind(this), { passive: false });
-    }
-    if (this.useBtn) {
-        this.useBtn.addEventListener('touchstart', this.__handleUseButton.bind(this), { passive: false });
     }
     if (this.attackBtn) {
         this.attackBtn.addEventListener('touchstart', this.__handleAttackButton.bind(this), { passive: false });
@@ -265,8 +266,64 @@ Touch.prototype.__handleCanvasTouchEnd = function (event) {
 
     // Short tap - perform action based on mode
     if (touchDuration < 300) {
-        this.__performTapAction();
+        if (!this.__performCanvasDoubleTapAction()) {
+            this.__performTapAction();
+        }
     }
+
+}
+
+Touch.prototype.__performCanvasDoubleTapAction = function () {
+
+    let fakeEvent = {
+        clientX: this.touchStartX,
+        clientY: this.touchStartY
+    };
+    let tileObject = gameClient.mouse.getWorldObject(fakeEvent);
+
+    if (!tileObject || !tileObject.which) {
+        this.lastCanvasTapTime = 0;
+        this.lastCanvasTapTile = null;
+        return false;
+    }
+
+    // Explicit Look mode always owns this tap and must not accidentally become
+    // the first half of a later Use gesture.
+    if (this.actionMode !== null) {
+        this.lastCanvasTapTime = 0;
+        this.lastCanvasTapTile = null;
+        return false;
+    }
+
+    let now = Date.now();
+    let isDoubleTap = (
+        this.lastCanvasTapTile === tileObject.which &&
+        now - this.lastCanvasTapTime <= 350
+    );
+
+    this.lastCanvasTapTime = now;
+    this.lastCanvasTapTile = tileObject.which;
+
+    if (!isDoubleTap) {
+        return false;
+    }
+
+    this.lastCanvasTapTime = 0;
+    this.lastCanvasTapTile = null;
+
+    // Creature taps remain combat toggles: two quick taps should mean two
+    // toggles, never an attempt to use the floor underneath a monster.
+    let otherCreatures = gameClient.mouse.getOtherCreatures(tileObject.which);
+    if (otherCreatures.size > 0) {
+        return false;
+    }
+
+    // Replace the walk started by the first tap. Mouse.use() either executes
+    // immediately or walks beside a distant ladder/door and completes Use.
+    gameClient.mouse.cancelPendingActions();
+    gameClient.world.pathfinder.setPathfindCache(null);
+    gameClient.mouse.use(tileObject);
+    return true;
 
 }
 
@@ -299,11 +356,6 @@ Touch.prototype.__performTapAction = function () {
     switch (this.actionMode) {
         case 'look':
             gameClient.mouse.look(tileObject);
-            this.__clearActionMode();
-            break;
-
-        case 'use':
-            gameClient.mouse.use(tileObject);
             this.__clearActionMode();
             break;
 
@@ -609,27 +661,6 @@ Touch.prototype.__handleLookButton = function (event) {
 
 }
 
-Touch.prototype.__handleUseButton = function (event) {
-
-    /*
-     * Function Touch.__handleUseButton
-     * Toggle Use mode
-     */
-
-    event.preventDefault();
-
-    if (this.actionMode === 'use') {
-        this.__clearActionMode();
-    } else {
-        this.actionMode = 'use';
-        this.__updateActionButtonHighlights();
-    }
-
-    // Vibrate feedback
-    if (navigator.vibrate) navigator.vibrate(30);
-
-}
-
 Touch.prototype.__handleAttackButton = function (event) {
 
     /*
@@ -698,8 +729,6 @@ Touch.prototype.__updateActionButtonHighlights = function () {
 
     if (this.actionMode === 'look' && this.lookBtn) {
         this.lookBtn.style.boxShadow = '0 0 10px 3px #4444ff';
-    } else if (this.actionMode === 'use' && this.useBtn) {
-        this.useBtn.style.boxShadow = '0 0 10px 3px #44ff44';
     }
 
 }
@@ -707,7 +736,6 @@ Touch.prototype.__updateActionButtonHighlights = function () {
 Touch.prototype.__clearActionButtonHighlights = function () {
 
     if (this.lookBtn) this.lookBtn.style.boxShadow = '';
-    if (this.useBtn) this.useBtn.style.boxShadow = '';
 
 }
 
