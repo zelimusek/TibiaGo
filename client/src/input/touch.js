@@ -78,6 +78,10 @@ Touch.prototype.__initialize = function () {
     this.equipmentBtn = document.getElementById('mobile-equipment-btn');
     this.chatBtn = document.getElementById('mobile-chat-btn');
     this.chatExpandBtn = document.getElementById('mobile-chat-expand');
+    this.chatHeader = document.getElementById('cheader');
+    this.leftChannelBtn = document.getElementById('left-channel');
+    this.rightChannelBtn = document.getElementById('right-channel');
+    this.openChatBtn = document.getElementById('open-chat-modal');
 
     // Status bars
     this.healthBar = document.getElementById('mobile-health-bar');
@@ -114,6 +118,26 @@ Touch.prototype.__initialize = function () {
     }
     if (this.chatExpandBtn) {
         this.chatExpandBtn.addEventListener('touchstart', this.__handleChatExpandButton.bind(this), { passive: false });
+    }
+    if (this.leftChannelBtn) {
+        this.leftChannelBtn.addEventListener(
+            'touchstart',
+            this.__handleMobileChannelIncrement.bind(this, -1),
+            { passive: false }
+        );
+    }
+    if (this.rightChannelBtn) {
+        this.rightChannelBtn.addEventListener(
+            'touchstart',
+            this.__handleMobileChannelIncrement.bind(this, 1),
+            { passive: false }
+        );
+    }
+    if (this.chatHeader) {
+        this.chatHeader.addEventListener('touchstart', this.__handleMobileChannelTab.bind(this), { passive: false });
+    }
+    if (this.openChatBtn) {
+        this.openChatBtn.addEventListener('touchstart', this.__handleMobileOpenChat.bind(this), { passive: false });
     }
 
     // Bind hotbar slot events
@@ -893,9 +917,43 @@ Touch.prototype.__updateChatExpandButton = function (expanded) {
         return;
     }
 
-    this.chatExpandBtn.innerHTML = expanded ? 'close_fullscreen' : 'open_in_full';
+    this.chatExpandBtn.innerHTML = expanded ? 'unfold_less' : 'unfold_more';
     this.chatExpandBtn.title = expanded ? 'Collapse chat' : 'Expand chat';
     this.chatExpandBtn.setAttribute('aria-label', this.chatExpandBtn.title);
+
+}
+
+Touch.prototype.__handleMobileChannelIncrement = function (increment, event) {
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (gameClient.interface && gameClient.interface.channelManager) {
+        gameClient.interface.channelManager.handleChannelIncrement(increment);
+    }
+
+    if (navigator.vibrate) navigator.vibrate(12);
+
+}
+
+Touch.prototype.__handleMobileChannelTab = function (event) {
+
+    let tab = event.target.closest('.chat-title');
+    if (!tab) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    tab.click();
+
+}
+
+Touch.prototype.__handleMobileOpenChat = function (event) {
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.openChatBtn.click();
 
 }
 
