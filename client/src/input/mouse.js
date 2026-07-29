@@ -220,6 +220,27 @@ Mouse.prototype.handlePendingItemUse = function () {
 
 }
 
+Mouse.prototype.handlePendingActions = function () {
+
+  // A local pre-walk updates the visible position before the server confirms
+  // that step. Sending Use in that short window makes the server evaluate the
+  // action from the previous SQM and reject it as too far away.
+  if (
+    gameClient.player === null ||
+    gameClient.player.isMoving() ||
+    gameClient.player.__serverWalkConfirmation === false
+  ) {
+    return false;
+  }
+
+  if (this.handlePendingItemMove()) {
+    return true;
+  }
+
+  return this.handlePendingItemUse();
+
+}
+
 Mouse.prototype.setCursor = function (which) {
 
   /*

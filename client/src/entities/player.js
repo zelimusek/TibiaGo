@@ -356,6 +356,24 @@ Player.prototype.confirmClientWalk = function () {
   }
 
   this.__serverWalkConfirmation = true;
+
+  // Depending on latency, the walking animation can finish either before or
+  // after this confirmation. Resume the deferred action/path from whichever
+  // event happens last, but never send another step while this one animates.
+  if (this.isMoving()) {
+    return;
+  }
+
+  if (gameClient.mouse.handlePendingActions()) {
+    return;
+  }
+
+  if (
+    gameClient.world.pathfinder.__pathfindCache.length > 0 ||
+    gameClient.world.pathfinder.__finalDestination !== null
+  ) {
+    gameClient.world.pathfinder.handlePathfind();
+  }
 };
 
 Player.prototype.isCreatureTarget = function (creature) {

@@ -241,6 +241,15 @@ Pathfinder.prototype.findPath = function (begin, stop, isFinalDestination = true
     this.__waypoints = null;
     this.__usingWaypoints = false;
     this.__finalDestination = stop;
+
+    // A manual key buffered during the previous animation must not be played
+    // after click-to-walk takes ownership of movement.
+    if (
+      gameClient.player &&
+      typeof gameClient.player.setMovementBuffer === "function"
+    ) {
+      gameClient.player.setMovementBuffer(null);
+    }
   }
 
   let start = gameClient.world.getTileFromWorldPosition(begin);
@@ -526,8 +535,16 @@ Pathfinder.prototype.handlePathfind = function () {
    * Handles the next pathfinding action
    */
 
-  // Check if the player is already moving - if so, wait for movement to complete
-  if (gameClient.player && gameClient.player.isMoving()) {
+  // Wait for both the local animation and the authoritative server
+  // confirmation. Sending the next cached step early makes the server correct
+  // the predicted position, which appears as a brief backwards step/turn.
+  if (
+    gameClient.player &&
+    (
+      gameClient.player.isMoving() ||
+      gameClient.player.__serverWalkConfirmation === false
+    )
+  ) {
     return;
   }
 

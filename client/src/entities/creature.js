@@ -539,11 +539,7 @@ Creature.prototype.unlockMovement = function () {
   this.__movementEvent = null;
   this.__teleported = false;
 
-  if (gameClient.player === this && gameClient.mouse.handlePendingItemMove()) {
-    return;
-  }
-
-  if (gameClient.player === this && gameClient.mouse.handlePendingItemUse()) {
+  if (gameClient.player === this && gameClient.mouse.handlePendingActions()) {
     return;
   }
 

@@ -90,6 +90,7 @@ const southTile = makeTile(southPosition);
 const tiles = [startTile, eastTile, southTile];
 
 let playerMoving = true;
+let serverWalkConfirmed = true;
 let playerPositionReads = 0;
 const movementKeys = [];
 const pathfinder = new context.Pathfinder();
@@ -98,6 +99,10 @@ pathfinder.search = (start, end) => [end];
 context.gameClient = {
   player: {
     isMoving: () => playerMoving,
+    get __serverWalkConfirmation() {
+      return serverWalkConfirmed;
+    },
+    setMovementBuffer() {},
     getPosition() {
       playerPositionReads++;
       return startPosition;
@@ -162,6 +167,22 @@ assert.strictEqual(
   eastPosition,
   "A stale timer must not restore its captured destination."
 );
+
+// Finishing the visual step before the server acknowledgement must not consume
+// and dispatch the next cached direction. It is resumed by confirmation.
+playerMoving = false;
+serverWalkConfirmed = false;
+pathfinder.__pathfindCache = [context.CONST.DIRECTION.WEST];
+pathfinder.handlePathfind();
+assert.deepStrictEqual(movementKeys, []);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(pathfinder.__pathfindCache)),
+  [context.CONST.DIRECTION.WEST]
+);
+
+serverWalkConfirmed = true;
+pathfinder.handlePathfind();
+assert.deepStrictEqual(movementKeys, [context.Keyboard.prototype.KEYS.LEFT_ARROW]);
 
 // A delayed continuation must also be harmless after logout.
 playerMoving = false;

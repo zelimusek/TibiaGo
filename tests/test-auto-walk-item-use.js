@@ -103,6 +103,7 @@ const ladderItem = {
 const ladderTile = new Tile(ladderPosition, ladderItem);
 const approachTile = new Tile(ladderPosition.north());
 let playerPosition = new Position(100, 100);
+let playerMoving = false;
 let pathRequest = null;
 const sentPackets = [];
 
@@ -111,8 +112,12 @@ context.gameClient = {
     return false;
   },
   player: {
+    __serverWalkConfirmation: true,
     getPosition() {
       return playerPosition;
+    },
+    isMoving() {
+      return playerMoving;
     },
     isInProtectionZone() {
       return false;
@@ -170,7 +175,26 @@ assert.deepStrictEqual(
 );
 
 playerPosition = approachTile.position;
-assert.strictEqual(mouse.handlePendingItemUse(), true);
+context.gameClient.player.__serverWalkConfirmation = false;
+assert.strictEqual(
+  mouse.handlePendingActions(),
+  false,
+  "Use must wait for the server to confirm the final pre-walked step."
+);
+assert.strictEqual(sentPackets.length, 0);
+assert.strictEqual(mouse.__pendingItemUse, ladderObject);
+
+context.gameClient.player.__serverWalkConfirmation = true;
+playerMoving = true;
+assert.strictEqual(
+  mouse.handlePendingActions(),
+  false,
+  "Use must also wait until the final walking animation is finished."
+);
+assert.strictEqual(sentPackets.length, 0);
+
+playerMoving = false;
+assert.strictEqual(mouse.handlePendingActions(), true);
 assert.strictEqual(mouse.__pendingItemUse, null);
 assert.strictEqual(sentPackets.length, 1);
 assert.strictEqual(sentPackets[0].object, ladderObject);
