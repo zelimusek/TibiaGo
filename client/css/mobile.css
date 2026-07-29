@@ -25,10 +25,6 @@
     display: none !important;
 }
 
-.mobile-chat-header {
-    display: none;
-}
-
 .mobile-item-drag-indicator {
     position: fixed;
     z-index: 100000;
@@ -697,10 +693,6 @@ screen and (max-width: 768px) {
     }
 
     .mobile-chat-active .wrapper-header {
-        display: none !important;
-    }
-
-    .mobile-chat-active .mobile-chat-header {
         display: flex !important;
         flex: 0 0 48px;
         width: 100%;
@@ -713,7 +705,7 @@ screen and (max-width: 768px) {
         border-bottom: 1px solid #111;
     }
 
-    .mobile-chat-active .mobile-chat-header > .symbol-button-long {
+    .mobile-chat-active .wrapper-header > .symbol-button-long {
         display: flex !important;
         flex: 0 0 40px !important;
         width: 40px !important;
@@ -728,19 +720,22 @@ screen and (max-width: 768px) {
         background: rgba(15, 15, 17, 0.92);
     }
 
-    .mobile-chat-current {
+    .mobile-chat-active .chat-header {
         flex: 1 1 auto;
         min-width: 0;
         height: 40px;
-        padding: 0 8px;
-        overflow: hidden;
-        color: #ffe36b;
-        font: bold 16px Arial, sans-serif;
-        text-overflow: ellipsis;
+        overflow-x: hidden;
+    }
+
+    .mobile-chat-active .channel-header,
+    .mobile-chat-active .chat-title {
+        min-width: 0;
+        height: 40px;
+    }
+
+    .mobile-chat-active .chat-title span {
+        margin: 0 12px;
         white-space: nowrap;
-        border: 1px solid #8d7425;
-        border-radius: 5px;
-        background: rgba(42, 36, 18, 0.96);
     }
 
     .mobile-chat-active #chat-text {
@@ -771,7 +766,7 @@ screen and (max-width: 768px) {
         cursor: text;
     }
 
-    .mobile-chat-expand {
+    .mobile-chat-active #chat-lock-resize {
         color: #7fffff !important;
         border-color: #44dddd !important;
         background: rgba(20, 90, 95, 0.75) !important;

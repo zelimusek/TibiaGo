@@ -55,7 +55,7 @@ const context = vm.createContext({
   },
   document: {
     getElementById(id) {
-      return id === "mobile-chat-expand" ? expandButton : null;
+      return id === "chat-lock-resize" ? expandButton : null;
     },
     querySelector(selector) {
       assert.strictEqual(selector, "#game-wrapper .main .lower");
@@ -102,43 +102,6 @@ const touchEvent = {
   stopPropagation() {},
 };
 
-let insertedFallbackHeader = null;
-const fallbackDesktopHeader = {};
-const fallbackWrapper = {
-  querySelector(selector) {
-    assert.strictEqual(selector, ".wrapper-header");
-    return fallbackDesktopHeader;
-  },
-  insertBefore(node, reference) {
-    assert.strictEqual(reference, fallbackDesktopHeader);
-    insertedFallbackHeader = node;
-  },
-};
-const originalGetElementById = context.document.getElementById;
-const originalQuerySelector = context.document.querySelector;
-context.document.getElementById = () => null;
-context.document.querySelector = (selector) => {
-  assert.strictEqual(
-    selector,
-    "#game-wrapper .main .lower .chatbox-wrapper"
-  );
-  return fallbackWrapper;
-};
-context.document.createElement = () => ({
-  id: "",
-  className: "",
-  innerHTML: "",
-});
-
-const ensuredHeader = touch.__ensureMobileChatHeader();
-assert.strictEqual(ensuredHeader, insertedFallbackHeader);
-assert.strictEqual(ensuredHeader.id, "mobile-chat-header");
-assert.strictEqual(ensuredHeader.className, "mobile-chat-header");
-assert.match(ensuredHeader.innerHTML, /id="mobile-chat-expand"/);
-
-context.document.getElementById = originalGetElementById;
-context.document.querySelector = originalQuerySelector;
-
 touch.__handleChatButton(touchEvent);
 assert.strictEqual(
   chatContainer.classList.contains("mobile-chat-active"),
@@ -184,15 +147,11 @@ const html = fs.readFileSync(
   path.join(__dirname, "..", "client", "index.html"),
   "utf8"
 );
-assert.match(html, /id="mobile-chat-expand"/);
-assert.match(html, /id="mobile-current-channel"/);
-assert.match(html, /id="mobile-left-channel"/);
-assert.match(html, /id="mobile-right-channel"/);
-assert.doesNotMatch(
-  html.match(/<div id="mobile-chat-header"[^>]*>/)[0],
-  /mobile-only/,
-  "The dedicated chat header must not inherit the generic mobile-only hide rule."
-);
+assert.match(html, /id="chat-lock-resize"/);
+assert.match(html, /id="left-channel"/);
+assert.match(html, /id="right-channel"/);
+assert.match(html, /id="cheader"/);
+assert.doesNotMatch(html, /id="mobile-chat-header"/);
 
 const css = fs.readFileSync(
   path.join(__dirname, "..", "client", "css", "mobile.css"),
@@ -200,19 +159,21 @@ const css = fs.readFileSync(
 );
 assert.match(css, /\.mobile-chat-active\.mobile-chat-expanded/);
 assert.match(css, /min-height:\s*92px/);
-assert.match(css, /\.mobile-chat-active\s+\.wrapper-header\s*\{\s*display:\s*none/);
-assert.match(css, /\.mobile-chat-current/);
+assert.match(css, /\.mobile-chat-active\s+\.wrapper-header\s*\{\s*display:\s*flex/);
+assert.match(css, /\.mobile-chat-active\s+\.chat-header/);
+assert.match(css, /\.mobile-chat-active\s+#chat-lock-resize/);
 
 const channelManagerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "utils", "channel-manager.js"),
   "utf8"
 );
-assert.match(channelManagerSource, /__updateMobileChannelLabel/);
-assert.match(channelManagerSource, /label\.textContent\s*=\s*channel\.name/);
+assert.doesNotMatch(channelManagerSource, /__updateMobileChannelLabel/);
 
 const touchSource = fs.readFileSync(touchFile, "utf8");
-assert.match(touchSource, /__ensureMobileChatHeader/);
-assert.match(touchSource, /wrapper\.insertBefore\(header/);
+assert.match(touchSource, /document\.getElementById\('chat-lock-resize'\)/);
+assert.match(touchSource, /document\.getElementById\('left-channel'\)/);
+assert.match(touchSource, /document\.getElementById\('right-channel'\)/);
+assert.doesNotMatch(touchSource, /__ensureMobileChatHeader/);
 
 const serviceWorkerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "service-worker.js"),

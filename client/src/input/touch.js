@@ -65,10 +65,6 @@ Touch.prototype.__initialize = function () {
 
     this.isMobileMode = true;
 
-    // Older PWA documents can remain alive while fresh CSS and JS are loaded.
-    // Recreate the mobile header when such a mixed-version page lacks its HTML.
-    this.__ensureMobileChatHeader();
-
     // Get DOM elements
     this.joystickZone = document.getElementById('mobile-joystick-zone');
     this.joystickKnob = document.getElementById('joystick-knob');
@@ -81,11 +77,14 @@ Touch.prototype.__initialize = function () {
     this.inventoryBtn = document.getElementById('mobile-inventory-btn');
     this.equipmentBtn = document.getElementById('mobile-equipment-btn');
     this.chatBtn = document.getElementById('mobile-chat-btn');
-    this.chatExpandBtn = document.getElementById('mobile-chat-expand');
-    this.mobileChannelNameBtn = document.getElementById('mobile-current-channel');
-    this.leftChannelBtn = document.getElementById('mobile-left-channel');
-    this.rightChannelBtn = document.getElementById('mobile-right-channel');
-    this.openChatBtn = document.getElementById('mobile-open-chat');
+    // Reuse the original chat header on touch devices. These controls have
+    // existed since the first client version, so an installed PWA cannot end
+    // up with fresh CSS hiding them while waiting for a newer HTML document.
+    this.chatExpandBtn = document.getElementById('chat-lock-resize');
+    this.leftChannelBtn = document.getElementById('left-channel');
+    this.rightChannelBtn = document.getElementById('right-channel');
+    this.openChatBtn = document.getElementById('open-chat-modal');
+    this.__updateChatExpandButton(false);
 
     // Status bars
     this.healthBar = document.getElementById('mobile-health-bar');
@@ -132,13 +131,6 @@ Touch.prototype.__initialize = function () {
     }
     if (this.rightChannelBtn) {
         this.rightChannelBtn.addEventListener(
-            'touchstart',
-            this.__handleMobileChannelIncrement.bind(this, 1),
-            { passive: false }
-        );
-    }
-    if (this.mobileChannelNameBtn) {
-        this.mobileChannelNameBtn.addEventListener(
             'touchstart',
             this.__handleMobileChannelIncrement.bind(this, 1),
             { passive: false }
@@ -455,35 +447,6 @@ Touch.prototype.__performLookAtTouch = function (touch) {
     if (navigator.vibrate) {
         navigator.vibrate(50);
     }
-
-}
-
-Touch.prototype.__ensureMobileChatHeader = function () {
-
-    let existing = document.getElementById('mobile-chat-header');
-    if (existing) {
-        existing.classList.remove('mobile-only');
-        return existing;
-    }
-
-    let wrapper = document.querySelector('#game-wrapper .main .lower .chatbox-wrapper');
-    if (!wrapper) {
-        return null;
-    }
-
-    let header = document.createElement('div');
-    header.id = 'mobile-chat-header';
-    header.className = 'mobile-chat-header';
-    header.innerHTML = [
-        '<button id="mobile-left-channel" title="Previous channel" aria-label="Previous channel" class="symbol-button-long material-icons">chevron_left</button>',
-        '<button id="mobile-current-channel" title="Next channel" aria-label="Current channel: Default" class="mobile-chat-current">Default</button>',
-        '<button id="mobile-right-channel" title="Next channel" aria-label="Next channel" class="symbol-button-long material-icons">chevron_right</button>',
-        '<button id="mobile-open-chat" title="Open private chat" aria-label="Open private chat" class="symbol-button-long material-icons">chat</button>',
-        '<button id="mobile-chat-expand" title="Expand chat" aria-label="Expand chat" class="symbol-button-long material-icons mobile-chat-expand">unfold_more</button>'
-    ].join('');
-
-    wrapper.insertBefore(header, wrapper.querySelector('.wrapper-header'));
-    return header;
 
 }
 
@@ -977,7 +940,9 @@ Touch.prototype.__handleMobileOpenChat = function (event) {
 
     event.preventDefault();
     event.stopPropagation();
-    document.getElementById('open-chat-modal').click();
+    if (this.openChatBtn) {
+        this.openChatBtn.click();
+    }
 
 }
 
