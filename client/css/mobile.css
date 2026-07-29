@@ -25,6 +25,40 @@
     display: none !important;
 }
 
+.mobile-item-drag-indicator {
+    position: fixed;
+    z-index: 100000;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    pointer-events: none;
+    transform: translate(-50%, -120%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 210, 70, 0.95);
+    border-radius: 8px;
+    background: rgba(10, 10, 12, 0.78);
+    box-shadow:
+        0 3px 12px rgba(0, 0, 0, 0.75),
+        0 0 12px rgba(255, 205, 50, 0.65);
+}
+
+.mobile-item-drag-indicator canvas {
+    width: 36px;
+    height: 36px;
+    image-rendering: pixelated;
+}
+
+.mobile-item-drag-source {
+    opacity: 0.42;
+}
+
+.mobile-item-drop-target {
+    outline: 2px solid #ffd447 !important;
+    box-shadow: 0 0 10px rgba(255, 212, 71, 0.9) !important;
+}
+
 /* ======================================
    Touch Device Detection
    Use max-height for landscape detection

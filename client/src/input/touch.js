@@ -34,6 +34,10 @@ const Touch = function () {
     this.lastTapTime = 0;
     this.lastTapTarget = null;
 
+    // One-finger item drag state. A small movement threshold keeps ordinary
+    // taps available for walking, looking and using objects.
+    this.itemDrag = null;
+
     // Initialize if on mobile or landscape
     if (this.isTouchDevice || window.innerWidth <= 768 || window.innerHeight <= 500) {
         this.__initialize();
@@ -167,6 +171,7 @@ Touch.prototype.__cleanup = function () {
 
     this.actionMode = null;
     this.__clearActionButtonHighlights();
+    this.__clearItemDrag();
 
 }
 
@@ -242,6 +247,13 @@ Touch.prototype.__handleCanvasTouchEnd = function (event) {
     event.preventDefault();
 
     this.__cancelLongPress();
+
+    // The delegated body handler completes an active item drop. Do not turn
+    // the same gesture into a walk/use tap first.
+    if (this.itemDrag !== null && this.itemDrag.active) {
+        this.longPressTriggered = false;
+        return;
+    }
 
     // If long press was triggered, don't do tap action
     if (this.longPressTriggered) {
@@ -911,6 +923,9 @@ Touch.prototype.__bindGlobalEvents = function () {
      */
 
     document.body.addEventListener('touchstart', this.__handleGlobalTouchStart.bind(this), { passive: false });
+    document.body.addEventListener('touchmove', this.__handleGlobalTouchMove.bind(this), { passive: false });
+    document.body.addEventListener('touchend', this.__handleGlobalTouchEnd.bind(this), { passive: false });
+    document.body.addEventListener('touchcancel', this.__handleGlobalTouchCancel.bind(this), { passive: false });
 
 }
 
@@ -933,6 +948,8 @@ Touch.prototype.__handleGlobalTouchStart = function (event) {
 
     // Check if we touched a slot or inside a slot
     let slotElement = element.closest('.slot');
+
+    this.__prepareItemDrag(touch, element, slotElement);
 
     if (slotElement) {
 
@@ -962,6 +979,247 @@ Touch.prototype.__handleGlobalTouchStart = function (event) {
         this.lastTapTime = 0;
         this.lastTapTarget = null;
     }
+
+}
+
+Touch.prototype.__prepareItemDrag = function (touch, element, slotElement) {
+
+    if (
+        this.actionMode !== null ||
+        !gameClient ||
+        !gameClient.player ||
+        !gameClient.networkManager.isConnected() ||
+        (gameClient.mouse && gameClient.mouse.__multiUseObject !== null)
+    ) {
+        this.itemDrag = null;
+        return;
+    }
+
+    let fromObject = null;
+    let sourceElement = null;
+    let screen = gameClient.renderer && gameClient.renderer.screen
+        ? gameClient.renderer.screen.canvas
+        : null;
+
+    if (slotElement !== null) {
+        fromObject = this.__getSlotObject(slotElement);
+        sourceElement = slotElement;
+    } else if (element === screen) {
+        fromObject = gameClient.mouse.getWorldObject({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+
+    if (fromObject === null || fromObject.which === null) {
+        this.itemDrag = null;
+        return;
+    }
+
+    let item = fromObject.which.peekItem(fromObject.index);
+
+    if (item === null || !item.isMoveable()) {
+        this.itemDrag = null;
+        return;
+    }
+
+    this.itemDrag = {
+        active: false,
+        identifier: touch.identifier,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        fromObject: fromObject,
+        item: item,
+        sourceElement: sourceElement,
+        indicator: null,
+        dropElement: null
+    };
+
+}
+
+Touch.prototype.__getTrackedTouch = function (touchList) {
+
+    if (this.itemDrag === null || !touchList) return null;
+
+    for (let index = 0; index < touchList.length; index++) {
+        if (touchList[index].identifier === this.itemDrag.identifier) {
+            return touchList[index];
+        }
+    }
+
+    return null;
+
+}
+
+Touch.prototype.__handleGlobalTouchMove = function (event) {
+
+    if (!this.isMobileMode || this.itemDrag === null) return;
+
+    let touch = this.__getTrackedTouch(event.touches);
+    if (touch === null) return;
+
+    let dx = touch.clientX - this.itemDrag.startX;
+    let dy = touch.clientY - this.itemDrag.startY;
+
+    if (!this.itemDrag.active && Math.hypot(dx, dy) < 8) {
+        return;
+    }
+
+    if (!this.itemDrag.active) {
+        this.__beginItemDrag(touch);
+    }
+
+    event.preventDefault();
+    this.__cancelLongPress();
+    this.__positionItemDragIndicator(touch);
+    this.__updateItemDropHighlight(touch);
+
+}
+
+Touch.prototype.__beginItemDrag = function (touch) {
+
+    this.itemDrag.active = true;
+
+    let indicator = document.createElement('div');
+    indicator.className = 'mobile-item-drag-indicator';
+
+    let canvasElement = document.createElement('canvas');
+    indicator.appendChild(canvasElement);
+    document.body.appendChild(indicator);
+
+    let sourceCanvas = this.itemDrag.sourceElement
+        ? this.itemDrag.sourceElement.querySelector('canvas')
+        : null;
+
+    if (sourceCanvas !== null) {
+        canvasElement.width = 32;
+        canvasElement.height = 32;
+        canvasElement.getContext('2d').drawImage(sourceCanvas, 0, 0, 32, 32);
+    } else {
+        let canvas = new Canvas(canvasElement, 32, 32);
+        canvas.drawSprite(this.itemDrag.item, new Position(0, 0), 32);
+    }
+
+    this.itemDrag.indicator = indicator;
+
+    if (this.itemDrag.sourceElement !== null) {
+        this.itemDrag.sourceElement.classList.add('mobile-item-drag-source');
+    }
+
+    this.__positionItemDragIndicator(touch);
+
+    if (navigator.vibrate) navigator.vibrate(15);
+
+}
+
+Touch.prototype.__positionItemDragIndicator = function (touch) {
+
+    if (this.itemDrag === null || this.itemDrag.indicator === null) return;
+
+    this.itemDrag.indicator.style.left = touch.clientX + 'px';
+    this.itemDrag.indicator.style.top = touch.clientY + 'px';
+
+}
+
+Touch.prototype.__getDropObjectAt = function (touch) {
+
+    let element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (element === null) return null;
+
+    let slotElement = element.closest('.slot');
+    if (slotElement !== null) {
+        return this.__getSlotObject(slotElement);
+    }
+
+    let screen = gameClient.renderer && gameClient.renderer.screen
+        ? gameClient.renderer.screen.canvas
+        : null;
+
+    if (element === screen) {
+        return gameClient.mouse.getWorldObject({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+
+    return null;
+
+}
+
+Touch.prototype.__updateItemDropHighlight = function (touch) {
+
+    if (this.itemDrag === null) return;
+
+    if (this.itemDrag.dropElement !== null) {
+        this.itemDrag.dropElement.classList.remove('mobile-item-drop-target');
+        this.itemDrag.dropElement = null;
+    }
+
+    let element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (element === null) return;
+
+    let slotElement = element.closest('.slot');
+    if (slotElement !== null) {
+        slotElement.classList.add('mobile-item-drop-target');
+        this.itemDrag.dropElement = slotElement;
+    }
+
+}
+
+Touch.prototype.__handleGlobalTouchEnd = function (event) {
+
+    if (!this.isMobileMode || this.itemDrag === null) return;
+
+    let touch = this.__getTrackedTouch(event.changedTouches);
+    if (touch === null) return;
+
+    let drag = this.itemDrag;
+
+    if (!drag.active) {
+        this.itemDrag = null;
+        return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    let toObject = this.__getDropObjectAt(touch);
+    this.__clearItemDrag();
+
+    if (toObject !== null) {
+        gameClient.mouse.moveItem(drag.fromObject, toObject);
+    }
+
+}
+
+Touch.prototype.__handleGlobalTouchCancel = function (event) {
+
+    if (this.itemDrag === null) return;
+
+    let touch = this.__getTrackedTouch(event.changedTouches);
+    if (touch !== null) {
+        this.__clearItemDrag();
+    }
+
+}
+
+Touch.prototype.__clearItemDrag = function () {
+
+    if (this.itemDrag === null) return;
+
+    if (this.itemDrag.sourceElement !== null) {
+        this.itemDrag.sourceElement.classList.remove('mobile-item-drag-source');
+    }
+
+    if (this.itemDrag.dropElement !== null) {
+        this.itemDrag.dropElement.classList.remove('mobile-item-drop-target');
+    }
+
+    if (this.itemDrag.indicator !== null) {
+        this.itemDrag.indicator.remove();
+    }
+
+    this.itemDrag = null;
 
 }
 
@@ -997,27 +1255,11 @@ Touch.prototype.__getSlotObject = function (element) {
 
     if (!element) return null;
 
-    let slotIndex, containerIndex;
-
-    // Check if body-style (equipment usually has specific structure)
-    if (element.className === "body") {
-        slotIndex = 0;
-        containerIndex = Number(element.parentElement.getAttribute("containerIndex"));
-    } else {
-        // Regular slot
-        if (element.getAttribute("slotIndex")) {
-            slotIndex = Number(element.getAttribute("slotIndex"));
-        } else {
-            return null;
-        }
-
-        // Find container index (parent of parent usually)
-        if (element.parentElement && element.parentElement.parentElement) {
-            containerIndex = Number(element.parentElement.parentElement.getAttribute("containerIndex"));
-        } else {
-            containerIndex = Number(element.parentElement.getAttribute("containerIndex"));
-        }
-    }
+    let slotIndex = Number(element.getAttribute("slotIndex"));
+    let containerElement = element.closest("[containerIndex]");
+    let containerIndex = containerElement === null
+        ? NaN
+        : Number(containerElement.getAttribute("containerIndex"));
 
     if (isNaN(slotIndex) || isNaN(containerIndex)) return null;
 

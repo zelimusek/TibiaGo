@@ -65,6 +65,51 @@ Mouse.prototype.sendItemMove = function (fromObject, toObject, count) {
 
 }
 
+Mouse.prototype.moveItem = function (fromObject, toObject) {
+
+  /*
+   * Function Mouse.moveItem
+   * Shared item drag entry point for mouse and touch input.
+   */
+
+  if (
+    fromObject === null ||
+    fromObject.which === null ||
+    toObject === null ||
+    toObject.which === null
+  ) {
+    return false;
+  }
+
+  // Dropping back onto the exact same place is not a move.
+  if (fromObject.which === toObject.which && fromObject.index === toObject.index) {
+    return false;
+  }
+
+  let item = fromObject.which.peekItem(fromObject.index);
+
+  if (item === null || !item.isMoveable()) {
+    return false;
+  }
+
+  let count = item.count || 1;
+
+  // Ground items can only be moved while the player is close enough. Preserve
+  // the normal client behaviour by walking beside the item and completing the
+  // original drop automatically after the final step.
+  if (
+    fromObject.which.constructor.name === "Tile" &&
+    !fromObject.which.getPosition().besides(gameClient.player.getPosition())
+  ) {
+    this.__moveItemWhenClose(fromObject, toObject, count);
+    return true;
+  }
+
+  this.__bindMoveCallback(fromObject, toObject);
+  return true;
+
+}
+
 Mouse.prototype.cancelPendingActions = function () {
 
   this.__pendingItemMove = null;
