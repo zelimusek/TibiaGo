@@ -116,7 +116,11 @@ screen and (max-width: 768px) {
         display: none !important;
     }
 
-    /* Canvas takes full space */
+    /*
+     * Keep the native 15x11 tile viewport ratio on phones. Stretching both
+     * dimensions to 100% turns square SQMs into rectangles: movement then
+     * appears faster vertically in portrait and horizontally in landscape.
+     */
     #game-wrapper .main .upper {
         flex: 1 1 auto;
         min-height: 0;
@@ -127,8 +131,13 @@ screen and (max-width: 768px) {
     }
 
     .canvas-wrapper {
-        width: 100% !important;
-        height: 100% !important;
+        width: min(100%, 136.363636dvh) !important;
+        height: auto !important;
+        aspect-ratio: 480 / 352;
+        min-width: 0;
+        min-height: 0;
+        max-height: 100%;
+        flex: 0 0 auto;
         position: relative;
     }
 
