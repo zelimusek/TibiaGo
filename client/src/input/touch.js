@@ -77,6 +77,7 @@ Touch.prototype.__initialize = function () {
     this.inventoryBtn = document.getElementById('mobile-inventory-btn');
     this.equipmentBtn = document.getElementById('mobile-equipment-btn');
     this.chatBtn = document.getElementById('mobile-chat-btn');
+    this.chatExpandBtn = document.getElementById('mobile-chat-expand');
 
     // Status bars
     this.healthBar = document.getElementById('mobile-health-bar');
@@ -110,6 +111,9 @@ Touch.prototype.__initialize = function () {
     }
     if (this.chatBtn) {
         this.chatBtn.addEventListener('touchstart', this.__handleChatButton.bind(this), { passive: false });
+    }
+    if (this.chatExpandBtn) {
+        this.chatExpandBtn.addEventListener('touchstart', this.__handleChatExpandButton.bind(this), { passive: false });
     }
 
     // Bind hotbar slot events
@@ -840,18 +844,58 @@ Touch.prototype.__handleChatButton = function (event) {
         // Toggle the mobile-chat-active class
         chatContainer.classList.toggle('mobile-chat-active');
 
-        // If chat is now active, focus the input
+        // Unlock and focus synchronously while handling the touch gesture. Mobile
+        // browsers will not open the virtual keyboard for a delayed focus call.
         if (chatContainer.classList.contains('mobile-chat-active')) {
-            let chatInput = document.getElementById('chat-input');
-            if (chatInput) {
-                // Small delay to ensure DOM is ready
-                setTimeout(() => chatInput.focus(), 100);
+            if (gameClient.interface && gameClient.interface.channelManager) {
+                gameClient.interface.channelManager.unlockInputForTouch();
+            }
+        } else {
+            chatContainer.classList.remove('mobile-chat-expanded');
+            this.__updateChatExpandButton(false);
+
+            if (gameClient.interface && gameClient.interface.channelManager) {
+                gameClient.interface.channelManager.setInputLocked(true);
             }
         }
     }
 
     // Vibrate feedback
     if (navigator.vibrate) navigator.vibrate(30);
+
+}
+
+Touch.prototype.__handleChatExpandButton = function (event) {
+
+    /*
+     * Function Touch.__handleChatExpandButton
+     * Switch between compact and expanded mobile chat sizes.
+     */
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    let chatContainer = document.querySelector('#game-wrapper .main .lower');
+    if (!chatContainer || !chatContainer.classList.contains('mobile-chat-active')) {
+        return;
+    }
+
+    chatContainer.classList.toggle('mobile-chat-expanded');
+    this.__updateChatExpandButton(chatContainer.classList.contains('mobile-chat-expanded'));
+
+    if (navigator.vibrate) navigator.vibrate(20);
+
+}
+
+Touch.prototype.__updateChatExpandButton = function (expanded) {
+
+    if (!this.chatExpandBtn) {
+        return;
+    }
+
+    this.chatExpandBtn.innerHTML = expanded ? 'close_fullscreen' : 'open_in_full';
+    this.chatExpandBtn.title = expanded ? 'Collapse chat' : 'Expand chat';
+    this.chatExpandBtn.setAttribute('aria-label', this.chatExpandBtn.title);
 
 }
 

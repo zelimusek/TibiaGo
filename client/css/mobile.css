@@ -671,13 +671,17 @@ screen and (max-width: 768px) {
         transform: translateX(-50%) !important;
         width: 90vw !important;
         max-width: 500px !important;
-        height: 35vh !important;
+        height: clamp(220px, 44vh, 300px) !important;
         background: rgba(20, 20, 20, 0.95) !important;
         border: 2px solid #44dddd !important;
         border-radius: 8px !important;
         z-index: 10000 !important;
         flex-direction: column !important;
         overflow: hidden !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-active.mobile-chat-expanded {
+        height: min(68vh, 430px) !important;
     }
 
     .mobile-chat-active .chatbox-wrapper {
@@ -690,10 +694,12 @@ screen and (max-width: 768px) {
     .mobile-chat-active .wrapper-header {
         padding: 4px;
         background: rgba(40, 40, 40, 0.9);
+        flex: 0 0 46px;
     }
 
     .mobile-chat-active #chat-text {
         flex: 1;
+        min-height: 92px;
         overflow-y: auto;
     }
 
@@ -709,6 +715,31 @@ screen and (max-width: 768px) {
         padding: 8px;
         padding-left: 34px;
         border-radius: 4px;
+    }
+
+    .mobile-chat-active #chat-input:disabled {
+        pointer-events: none;
+    }
+
+    .mobile-chat-active .chat-input-wrapper.locked {
+        cursor: text;
+    }
+
+    .mobile-chat-expand {
+        flex: 0 0 46px;
+    }
+}
+
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    #game-wrapper .main .lower.mobile-chat-active {
+        height: min(220px, calc(100dvh - 76px)) !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-active.mobile-chat-expanded {
+        top: 8px !important;
+        bottom: 8px !important;
+        height: auto !important;
+        max-height: none !important;
     }
 }
 

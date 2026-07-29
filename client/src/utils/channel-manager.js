@@ -42,6 +42,12 @@ const ChannelManager = function() {
   // Add listener to send button
   document.getElementById("send-chat-message").addEventListener("click", this.handleMessageSend.bind(this));
 
+  // A phone has no physical Enter key before the virtual keyboard opens. Touching
+  // the locked field therefore unlocks it and focuses it in the same user gesture.
+  if(this.__inputWrapperElement) {
+    this.__inputWrapperElement.addEventListener("touchstart", this.__handleInputTouch.bind(this), { passive: false });
+  }
+
   // Attach a listener to the header for dragged channels
   document.getElementById("cheader").addEventListener("dragover", this.__handleChannelDrop.bind(this));
   
@@ -127,12 +133,47 @@ ChannelManager.prototype.setInputLocked = function(locked) {
   }
 
   if(this.__disabled) {
-    this.__inputElement.placeholder = "Press Enter to unlock.";
+    this.__inputElement.placeholder = this.__isMobileTouchMode()
+      ? "Tap here to type."
+      : "Press Enter to unlock.";
     document.activeElement.blur();
   } else {
-    this.__inputElement.placeholder = "Press Enter to lock.";
+    this.__inputElement.placeholder = this.__isMobileTouchMode()
+      ? "Type a message..."
+      : "Press Enter to lock.";
     this.__inputElement.focus();
   }
+
+}
+
+ChannelManager.prototype.__isMobileTouchMode = function() {
+
+  return typeof gameClient !== "undefined"
+    && gameClient.touch
+    && gameClient.touch.isMobileMode;
+
+}
+
+ChannelManager.prototype.unlockInputForTouch = function() {
+
+  /*
+   * Function ChannelManager.unlockInputForTouch
+   * Unlocks the chat and focuses the input while a touch gesture is active.
+   */
+
+  this.setInputLocked(false);
+  this.__inputElement.focus();
+
+}
+
+ChannelManager.prototype.__handleInputTouch = function(event) {
+
+  if(!this.__disabled || !this.__isMobileTouchMode()) {
+    return;
+  }
+
+  event.preventDefault();
+  this.unlockInputForTouch();
 
 }
 
