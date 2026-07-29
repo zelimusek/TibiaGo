@@ -25,6 +25,10 @@
     display: none !important;
 }
 
+.mobile-chat-header {
+    display: none;
+}
+
 .mobile-item-drag-indicator {
     position: fixed;
     z-index: 100000;
