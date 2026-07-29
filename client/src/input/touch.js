@@ -308,6 +308,14 @@ Touch.prototype.__performTapAction = function () {
             break;
 
         default:
+            // A regular tap on a creature toggles combat instead of starting
+            // autowalk to the occupied SQM.
+            let otherCreatures = gameClient.mouse.getOtherCreatures(tileObject.which);
+            if (otherCreatures.size > 0) {
+                gameClient.world.targetMonster(otherCreatures);
+                return;
+            }
+
             // Default: walk to tile
             let targetTile = gameClient.renderer.screen.getWorldCoordinates(fakeEvent);
             if (targetTile) {

@@ -431,8 +431,36 @@ World.prototype.targetMonster = function (monsters) {
     return gameClient.interface.notificationManager.setCancelMessage("You cannot attack this creature.");
   }
 
-  gameClient.player.setTarget(monster);
-  gameClient.send(new TargetPacket(monster.id));
+  return this.toggleCreatureTarget(monster);
+
+}
+
+World.prototype.toggleCreatureTarget = function (creature) {
+
+  /*
+   * Function World.toggleCreatureTarget
+   * Selects a creature, or stops attacking when it is already selected.
+   */
+
+  if (creature === null || creature === gameClient.player) {
+    return false;
+  }
+
+  // Tapping/clicking the currently attacked creature is an explicit cancel.
+  if (gameClient.player.isCreatureTarget(creature)) {
+    gameClient.player.setTarget(null);
+    gameClient.send(new TargetPacket(0));
+    return false;
+  }
+
+  if (creature.constructor.name !== "Creature") {
+    gameClient.interface.notificationManager.setCancelMessage("You cannot attack this creature.");
+    return false;
+  }
+
+  gameClient.player.setTarget(creature);
+  gameClient.send(new TargetPacket(creature.id));
+  return true;
 
 }
 

@@ -193,10 +193,9 @@ BattleWindow.prototype.addCreature = function (creature) {
       return;
     }
 
-    // Desktop behavior - normal targeting
+    // Desktop behavior - clicking the selected entry again stops attacking.
     let creature = gameClient.world.getCreature(this.id);
-    gameClient.player.setTarget(creature);
-    gameClient.send(new TargetPacket(this.id));
+    gameClient.world.toggleCreatureTarget(creature);
   });
 
   // Mobile support: Custom Tap Handling
@@ -235,8 +234,7 @@ BattleWindow.prototype.addCreature = function (creature) {
         let creature = gameClient.world.getCreature(id);
 
         if (creature) {
-          gameClient.player.setTarget(creature);
-          gameClient.send(new TargetPacket(id));
+          gameClient.world.toggleCreatureTarget(creature);
         }
       }
     }

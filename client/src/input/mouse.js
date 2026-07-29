@@ -361,6 +361,14 @@ Mouse.prototype.__getOtherCreatures = function (tile) {
   return new Set(Array.from(tile.monsters).filter(creature => !gameClient.isSelf(creature)));
 }
 
+Mouse.prototype.getOtherCreatures = function (tile) {
+
+  // Public read-only wrapper used by touch input so both input systems resolve
+  // creatures on a tile in exactly the same way.
+  return this.__getOtherCreatures(tile);
+
+}
+
 Mouse.prototype.look = function (object) {
 
   /*
