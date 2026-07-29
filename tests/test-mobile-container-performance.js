@@ -19,12 +19,18 @@ const mobileContainerRule = mobileCss.match(
 );
 
 assert(mobileContainerRule, "Mobile container positioning rule must exist.");
-assert.match(mobileContainerRule[0], /width:\s*150px\s*!important/);
+assert.match(mobileContainerRule[0], /width:\s*158px\s*!important/);
 
 assert.match(
   mobileCss,
-  /grid-template-columns:\s*repeat\(4,\s*32px\)/,
+  /grid-template-columns:\s*repeat\(4,\s*36px\)/,
   "Mobile containers must keep exactly four slots per row."
+);
+
+assert.match(
+  mobileCss,
+  /\.slot canvas\s*\{[\s\S]*?width:\s*32px\s*!important[\s\S]*?height:\s*32px\s*!important/,
+  "A 32px item sprite must stay inside its 36px mobile slot."
 );
 
 assert.match(

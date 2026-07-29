@@ -193,7 +193,7 @@ screen and (max-width: 768px) {
         transform-origin: top left;
         /* Four inventory slots fit exactly in one row. Keeping the panel
            narrow also leaves the game canvas unobstructed on phones. */
-        width: 150px !important;
+        width: 158px !important;
         max-width: calc(100vw - 10px) !important;
     }
 
@@ -207,16 +207,20 @@ screen and (max-width: 768px) {
         max-height: 40vh !important;
         overflow-y: auto !important;
         display: grid;
-        grid-template-columns: repeat(4, 32px);
-        grid-auto-rows: 32px;
+        grid-template-columns: repeat(4, 36px);
+        grid-auto-rows: 36px;
         gap: 2px;
         justify-content: start;
         padding: 2px !important;
     }
 
     .window .slot {
-        width: 32px !important;
-        height: 32px !important;
+        width: 36px !important;
+        height: 36px !important;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin: 0 !important;
         border: 1px solid #444;
         /* Add border to see slots better */
@@ -229,8 +233,8 @@ screen and (max-width: 768px) {
     }
 
     .slot canvas {
-        width: 36px !important;
-        height: 36px !important;
+        width: 32px !important;
+        height: 32px !important;
     }
 
     /* Equipment panel - show in top right on mobile */
@@ -257,8 +261,12 @@ screen and (max-width: 768px) {
     }
 
     .equipment.wrapper .slot {
-        width: 32px !important;
-        height: 32px !important;
+        width: 36px !important;
+        height: 36px !important;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .equipment.wrapper .slot canvas {
