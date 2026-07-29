@@ -15,8 +15,10 @@ const ScreenElement = function (id) {
   // Specific classes implement and create the element
   this.element = document.getElementById(id).cloneNode(true);
 
-  // Show the element when it is spawned
-  this.show();
+  // Keep clones hidden until their first valid position is known. Showing a
+  // newly appended creature label at the browser default (0, 0) produces a
+  // one-frame dot/ghost in the top-left corner of the game screen.
+  this.hide();
 
 }
 
@@ -53,7 +55,7 @@ ScreenElement.prototype.show = function () {
 
 }
 
-ScreenElement.prototype.__updateTextPosition = function (offset) {
+ScreenElement.prototype.__updateTextPosition = function (offset, clampToScreen) {
 
   /*
    * Function ScreenElement.__updateTextPosition
@@ -62,15 +64,23 @@ ScreenElement.prototype.__updateTextPosition = function (offset) {
 
   let rect = gameClient.renderer.screen.canvas.getBoundingClientRect();
 
-  // Clamp the position of the text box to within the game screen
-  let left = offset.left.clamp(0, rect.width - this.element.offsetWidth);
-  let top = offset.top.clamp(0, rect.height - this.element.offsetHeight);
+  let left = offset.left;
+  let top = offset.top;
+
+  // Messages and floating numbers may remain readable at an edge. Creature
+  // nameplates opt out so an off-screen NPC is clipped instead of being
+  // attached to the top-left corner.
+  if (clampToScreen !== false) {
+    left = left.clamp(0, rect.width - this.element.offsetWidth);
+    top = top.clamp(0, rect.height - this.element.offsetHeight);
+  }
 
   // Set the style to transform
   this.element.style.transform = "translate(" + left + "px, " + top + "px)";
 
-  // Defer showing the element to prevent glitchy behavior
-  setTimeout(() => this.show());
+  // Show synchronously after positioning. A queued show could run after the
+  // visibility manager had already hidden an off-screen creature.
+  this.show();
 
 }
 

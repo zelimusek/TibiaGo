@@ -179,18 +179,28 @@ World.prototype.createCreature = function (id, creature) {
    * Creates a creature by adding it to cache
    */
 
-  // Prevent duplication
+  // Guard every caller against duplication. PacketHandler normally detects an
+  // existing ID before constructing, but a defensive cleanup here prevents a
+  // freshly-created DOM nameplate from becoming an orphan if another caller
+  // races with it.
   if (this.activeCreatures.hasOwnProperty(id)) {
-    this.activeCreatures[id] = creature;
-    this.addCreature(creature);
-    return gameClient.interface.windowManager.getWindow("battle-window").addCreature(creature);
+    let existing = this.activeCreatures[id];
+
+    if (creature !== existing && creature && typeof creature.remove === "function") {
+      creature.remove();
+    }
+
+    this.addCreature(existing);
+    gameClient.interface.windowManager.getWindow("battle-window").addCreature(existing);
+    return existing;
   }
 
   // Set and add
   this.activeCreatures[id] = creature;
   this.addCreature(creature);
 
-  return gameClient.interface.windowManager.getWindow("battle-window").addCreature(creature);
+  gameClient.interface.windowManager.getWindow("battle-window").addCreature(creature);
+  return creature;
 
 }
 

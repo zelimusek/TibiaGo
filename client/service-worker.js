@@ -1,4 +1,5 @@
-const CACHE_NAME = "tibiago-static-v10";
+const CACHE_NAME = "tibiago-static-v11";
+const CLIENT_BUILD = "20260729.4";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
@@ -12,11 +13,28 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
+
+      // An installed PWA may keep an already-open document and its old module
+      // graph alive after deployment. Navigate every open game window once to
+      // a versioned URL so HTML, CSS and all source scripts come from the same
+      // build. Preserve existing parameters such as ?assets=760.
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true
+      });
+
+      await Promise.all(windows.map((client) => {
+        const target = new URL(client.url);
+        target.searchParams.set("build", CLIENT_BUILD);
+        // A window may close between matchAll() and navigate(). Do not let one
+        // disappearing client abort activation for every other installed PWA.
+        return client.navigate(target.href).catch(() => null);
+      }));
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {

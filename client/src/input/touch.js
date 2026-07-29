@@ -84,6 +84,7 @@ Touch.prototype.__initialize = function () {
     this.leftChannelBtn = document.getElementById('left-channel');
     this.rightChannelBtn = document.getElementById('right-channel');
     this.openChatBtn = document.getElementById('open-chat-modal');
+    this.__prepareMobileChat();
     this.__updateChatExpandButton(false);
 
     // Status bars
@@ -182,7 +183,32 @@ Touch.prototype.__handleResize = function () {
     } else if (!shouldBeMobile && this.isMobileMode) {
         this.isMobileMode = false;
         this.__cleanup();
+    } else if (shouldBeMobile) {
+        this.__prepareMobileChat();
     }
+
+}
+
+Touch.prototype.__prepareMobileChat = function () {
+
+    /*
+     * Function Touch.__prepareMobileChat
+     * Keep the original, proven channel toolbar visible on touch clients.
+     *
+     * The inline important fallback is intentional. Installed PWAs can briefly
+     * mix an older stylesheet with newer JavaScript while a service worker is
+     * activating; the toolbar must remain usable in either combination.
+     */
+
+    let header = document.querySelector('#game-wrapper .main .lower .wrapper-header');
+    if (!header) {
+        return;
+    }
+
+    header.classList.add('mobile-chat-toolbar');
+    header.setAttribute('data-mobile-chat-ready', 'true');
+    header.style.setProperty('display', 'flex', 'important');
+    header.style.setProperty('visibility', 'visible', 'important');
 
 }
 
@@ -865,6 +891,8 @@ Touch.prototype.__handleChatButton = function (event) {
     let chatContainer = document.querySelector('#game-wrapper .main .lower');
 
     if (chatContainer) {
+        this.__prepareMobileChat();
+
         // Toggle the mobile-chat-active class
         chatContainer.classList.toggle('mobile-chat-active');
 

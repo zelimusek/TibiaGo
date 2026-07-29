@@ -123,11 +123,12 @@ async function build() {
     let cssContent = '';
 
     // Extract CSS files from index.html to ensure correct order
-    // Matches <link rel="stylesheet" type="text/css" href="./css/filename.css">
+    // Matches versioned and unversioned CSS links. Query parameters are for
+    // browser cache busting and are not part of the local file name.
     const linkRegEx = /<link rel="stylesheet" type="text\/css" href="\.\/css\/([^"]+)">/g;
     let match;
     while ((match = linkRegEx.exec(indexHtml)) !== null) {
-        const cssFile = match[1];
+        const cssFile = match[1].split(/[?#]/, 1)[0];
         const cssPath = path.join(CLIENT_DIR, 'css', cssFile);
         if (await fs.pathExists(cssPath)) {
             console.log(`Adding CSS: ${cssFile}`);
@@ -147,7 +148,7 @@ async function build() {
 
     // 8. Create index.html
     indexHtml = indexHtml.replace(
-        '<script src="src/launcher.js"></script>',
+        /<script src="src\/launcher\.js(?:\?[^"]*)?"><\/script>/,
         '<script src="game.js"></script>\n  <script src="launcher.js"></script>'
     );
 

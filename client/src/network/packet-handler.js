@@ -1363,8 +1363,20 @@ PacketHandler.prototype.handleEntityReference = function (packet) {
     return gameClient.world.addCreature(gameClient.player);
   }
 
-  gameClient.world.createCreature(packet.id, new Creature(packet));
+  // Entity references may be repeated while chunks are refreshed. Reuse the
+  // existing object before constructing a Creature: its constructor creates a
+  // DOM nameplate immediately, and replacing the cache entry used to leave the
+  // old creature behind in tile.monsters. That orphan was rendered as a dark
+  // dot and occasionally flashed an NPC at the top-left edge of the screen.
+  let existing = gameClient.world.getCreature(packet.id);
+  if (existing !== null) {
+    gameClient.world.addCreature(existing);
+    return gameClient.interface.windowManager
+      .getWindow("battle-window")
+      .addCreature(existing);
+  }
 
+  return gameClient.world.createCreature(packet.id, new Creature(packet));
 
 }
 

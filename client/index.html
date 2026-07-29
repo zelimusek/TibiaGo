@@ -21,7 +21,7 @@
 
 <!-- Stylesheets -->
 <link rel="stylesheet" type="text/css" href="./css/hotbar.css">
-<link rel="stylesheet" type="text/css" href="./css/screen-element.css">
+<link rel="stylesheet" type="text/css" href="./css/screen-element.css?v=20260729.4">
 <link rel="stylesheet" type="text/css" href="./css/canvas.css">
 <link rel="stylesheet" type="text/css" href="./css/chatbox.css">
 <link rel="stylesheet" type="text/css" href="./css/login.css">
@@ -37,7 +37,7 @@
 <link rel="stylesheet" type="text/css" href="./css/change-outfit-modal.css">
 <link rel="stylesheet" type="text/css" href="./css/context-menu.css">
 <link rel="stylesheet" type="text/css" href="./css/achievement.css">
-<link rel="stylesheet" type="text/css" href="./css/mobile.css">
+<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260729.4">
 <link rel="stylesheet" type="text/css" href="./css/fight-mode.css">
 <link rel="stylesheet" type="text/css" href="./css/tooltip.css">
 <link rel="stylesheet" type="text/css" href="./css/questlog.css">
@@ -1437,7 +1437,7 @@
 
   <!-- Protocol to speak to the NodeJS Server -->
   <!-- Launcher script to handle loading with progress screen -->
-  <script src="src/launcher.js"></script>
+  <script src="src/launcher.js?v=20260729.4"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
@@ -1452,7 +1452,7 @@
           window.location.reload();
         });
 
-        navigator.serviceWorker.register("/service-worker.js", {
+        navigator.serviceWorker.register("/service-worker.js?v=11", {
           updateViaCache: "none"
         }).then(function (registration) {
           registration.update();

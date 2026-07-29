@@ -2,6 +2,8 @@
 
 (function () {
 
+  const CLIENT_BUILD = "20260729.4";
+
   // List of all scripts to load in order
   const SCRIPTS = [
     "src/utils/error.js",
@@ -393,7 +395,7 @@
     ui.statusText.innerText = `Loading: ${filename}`;
 
     let script = document.createElement("script");
-    script.src = src;
+    script.src = src + "?v=" + encodeURIComponent(CLIENT_BUILD);
     script.onload = () => loadNextScript(index + 1);
     script.onerror = () => {
       console.error(`Failed: ${src}`);

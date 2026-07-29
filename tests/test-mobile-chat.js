@@ -36,6 +36,19 @@ function createClassList(initial = []) {
 }
 
 const chatContainer = { classList: createClassList() };
+const mobileToolbar = {
+  classList: createClassList(),
+  attributes: {},
+  styles: {},
+  setAttribute(name, value) {
+    this.attributes[name] = value;
+  },
+  style: {
+    setProperty(name, value, priority) {
+      mobileToolbar.styles[name] = { value, priority };
+    },
+  },
+};
 const expandButton = {
   innerHTML: "",
   title: "",
@@ -58,8 +71,13 @@ const context = vm.createContext({
       return id === "chat-lock-resize" ? expandButton : null;
     },
     querySelector(selector) {
-      assert.strictEqual(selector, "#game-wrapper .main .lower");
-      return chatContainer;
+      if (selector === "#game-wrapper .main .lower") {
+        return chatContainer;
+      }
+      if (selector === "#game-wrapper .main .lower .wrapper-header") {
+        return mobileToolbar;
+      }
+      assert.fail("Unexpected selector: " + selector);
     },
   },
   window: {
@@ -103,6 +121,15 @@ const touchEvent = {
 };
 
 touch.__handleChatButton(touchEvent);
+assert.strictEqual(
+  mobileToolbar.attributes["data-mobile-chat-ready"],
+  "true",
+  "Opening chat must prepare the proven desktop channel toolbar for mobile."
+);
+assert.deepStrictEqual(mobileToolbar.styles.display, {
+  value: "flex",
+  priority: "important",
+});
 assert.strictEqual(
   chatContainer.classList.contains("mobile-chat-active"),
   true,
@@ -159,9 +186,10 @@ const css = fs.readFileSync(
 );
 assert.match(css, /\.mobile-chat-active\.mobile-chat-expanded/);
 assert.match(css, /min-height:\s*92px/);
-assert.match(css, /\.mobile-chat-active\s+\.wrapper-header\s*\{\s*display:\s*flex/);
-assert.match(css, /\.mobile-chat-active\s+\.chat-header/);
-assert.match(css, /\.mobile-chat-active\s+#chat-lock-resize/);
+assert.match(css, /#game-wrapper\s+\.main\s+\.lower\.mobile-chat-active[\s\S]*?max-height:\s*none\s*!important/);
+assert.match(css, /#game-wrapper\s+\.main\s+\.lower\s+\.wrapper-header\s*\{\s*display:\s*flex/);
+assert.match(css, /#game-wrapper\s+\.main\s+\.lower\s+\.chat-header/);
+assert.match(css, /#game-wrapper\s+\.main\s+\.lower\s+#chat-lock-resize/);
 
 const channelManagerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "utils", "channel-manager.js"),
@@ -173,12 +201,26 @@ const touchSource = fs.readFileSync(touchFile, "utf8");
 assert.match(touchSource, /document\.getElementById\('chat-lock-resize'\)/);
 assert.match(touchSource, /document\.getElementById\('left-channel'\)/);
 assert.match(touchSource, /document\.getElementById\('right-channel'\)/);
+assert.match(touchSource, /__prepareMobileChat/);
+assert.match(touchSource, /style\.setProperty\('display', 'flex', 'important'\)/);
 assert.doesNotMatch(touchSource, /__ensureMobileChatHeader/);
 
 const serviceWorkerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "service-worker.js"),
   "utf8"
 );
-assert.match(serviceWorkerSource, /tibiago-static-v10/);
+assert.match(serviceWorkerSource, /tibiago-static-v11/);
+assert.match(serviceWorkerSource, /client\.navigate\(target\.href\)/);
+assert.match(html, /mobile\.css\?v=20260729\.4/);
+assert.match(html, /screen-element\.css\?v=20260729\.4/);
+assert.match(html, /launcher\.js\?v=20260729\.4/);
+assert.match(html, /service-worker\.js\?v=11/);
+
+const launcherSource = fs.readFileSync(
+  path.join(__dirname, "..", "client", "src", "launcher.js"),
+  "utf8"
+);
+assert.match(launcherSource, /CLIENT_BUILD\s*=\s*"20260729\.4"/);
+assert.match(launcherSource, /encodeURIComponent\(CLIENT_BUILD\)/);
 
 console.log("PASS: mobile chat input, sizing and channel controls work by touch.");

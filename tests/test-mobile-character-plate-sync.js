@@ -8,6 +8,14 @@ const source = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "ui", "screen-element-character.js"),
   "utf8"
 );
+const baseSource = fs.readFileSync(
+  path.join(__dirname, "..", "client", "src", "ui", "screen-element.js"),
+  "utf8"
+);
+const css = fs.readFileSync(
+  path.join(__dirname, "..", "client", "css", "screen-element.css"),
+  "utf8"
+);
 
 assert.match(
   source,
@@ -19,5 +27,30 @@ assert.doesNotMatch(
   /transition\s*=\s*"transform 0\.05s linear"/,
   "Mobile nameplates must not trail behind the canvas with a CSS transition."
 );
+assert.match(
+  source,
+  /this\.__updateTextPosition\(offset,\s*false\)/,
+  "Creature nameplates must not be clamped onto a screen edge."
+);
+assert.match(
+  baseSource,
+  /this\.hide\(\)/,
+  "A cloned screen element must remain hidden until it has a valid position."
+);
+assert.doesNotMatch(
+  baseSource,
+  /setTimeout\(\(\)\s*=>\s*this\.show\(\)\)/,
+  "A delayed show must not resurrect an NPC label after it was hidden."
+);
+assert.match(
+  baseSource,
+  /if\s*\(clampToScreen\s*!==\s*false\)/,
+  "Only screen elements that opt in should be clamped to the viewport."
+);
+assert.match(
+  css,
+  /#text-wrapper[\s\S]*?overflow:\s*hidden/,
+  "Off-screen nameplates must be clipped by the game overlay."
+);
 
-console.log("PASS: mobile character nameplates stay synchronized with creature sprites.");
+console.log("PASS: mobile character plates stay synchronized and cannot ghost at the screen edge.");

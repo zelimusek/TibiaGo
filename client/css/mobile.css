@@ -672,6 +672,7 @@ screen and (max-width: 768px) {
         width: 90vw !important;
         max-width: 500px !important;
         height: clamp(220px, 44vh, 300px) !important;
+        max-height: none !important;
         background: rgba(20, 20, 20, 0.95) !important;
         border: 2px solid #44dddd !important;
         border-radius: 8px !important;
@@ -692,8 +693,9 @@ screen and (max-width: 768px) {
         min-width: 0;
     }
 
-    .mobile-chat-active .wrapper-header {
+    #game-wrapper .main .lower .wrapper-header {
         display: flex !important;
+        visibility: visible !important;
         flex: 0 0 48px;
         width: 100%;
         min-width: 0;
@@ -705,7 +707,7 @@ screen and (max-width: 768px) {
         border-bottom: 1px solid #111;
     }
 
-    .mobile-chat-active .wrapper-header > .symbol-button-long {
+    #game-wrapper .main .lower .wrapper-header > .symbol-button-long {
         display: flex !important;
         flex: 0 0 40px !important;
         width: 40px !important;
@@ -720,20 +722,20 @@ screen and (max-width: 768px) {
         background: rgba(15, 15, 17, 0.92);
     }
 
-    .mobile-chat-active .chat-header {
+    #game-wrapper .main .lower .chat-header {
         flex: 1 1 auto;
         min-width: 0;
         height: 40px;
         overflow-x: hidden;
     }
 
-    .mobile-chat-active .channel-header,
-    .mobile-chat-active .chat-title {
+    #game-wrapper .main .lower .channel-header,
+    #game-wrapper .main .lower .chat-title {
         min-width: 0;
         height: 40px;
     }
 
-    .mobile-chat-active .chat-title span {
+    #game-wrapper .main .lower .chat-title span {
         margin: 0 12px;
         white-space: nowrap;
     }
@@ -766,7 +768,7 @@ screen and (max-width: 768px) {
         cursor: text;
     }
 
-    .mobile-chat-active #chat-lock-resize {
+    #game-wrapper .main .lower #chat-lock-resize {
         color: #7fffff !important;
         border-color: #44dddd !important;
         background: rgba(20, 90, 95, 0.75) !important;

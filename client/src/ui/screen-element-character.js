@@ -160,7 +160,7 @@ CharacterElement.prototype.setTextPosition = function () {
   this.element.style.transition = "";
 
   // Delegate to the generic move function
-  this.__updateTextPosition(offset);
+  this.__updateTextPosition(offset, false);
 };
 
 CharacterElement.prototype.__setupNpcIcon = function () {
