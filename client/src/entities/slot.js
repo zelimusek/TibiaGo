@@ -101,8 +101,10 @@ Slot.prototype.__renderAnimated = function () {
    * Renders the slot when it is animated
    */
 
-  // Skip when empty or not animated
-  if (this.isEmpty()) {
+  // The renderer calls this method every frame for every open container.
+  // Static inventory icons do not need to be redrawn: they are already drawn
+  // when the slot contents change. Repaint only genuine DAT animations.
+  if (this.isEmpty() || !this.item.isAnimated()) {
     return;
   }
 

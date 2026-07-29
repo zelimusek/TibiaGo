@@ -191,6 +191,10 @@ screen and (max-width: 768px) {
         right: auto !important;
         top: 50px !important;
         transform-origin: top left;
+        /* Four inventory slots fit exactly in one row. Keeping the panel
+           narrow also leaves the game canvas unobstructed on phones. */
+        width: 150px !important;
+        max-width: calc(100vw - 10px) !important;
     }
 
     .window .header {
@@ -202,16 +206,18 @@ screen and (max-width: 768px) {
     .window .body {
         max-height: 40vh !important;
         overflow-y: auto !important;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
+        display: grid;
+        grid-template-columns: repeat(4, 32px);
+        grid-auto-rows: 32px;
+        gap: 2px;
+        justify-content: start;
         padding: 2px !important;
     }
 
     .window .slot {
         width: 32px !important;
         height: 32px !important;
-        margin: 1px !important;
+        margin: 0 !important;
         border: 1px solid #444;
         /* Add border to see slots better */
     }
