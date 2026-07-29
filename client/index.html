@@ -1237,6 +1237,20 @@
 
         <div class="chatbox-wrapper">
 
+          <!-- Dedicated compact header for touch devices -->
+          <div id="mobile-chat-header" class="mobile-chat-header mobile-only">
+            <button id="mobile-left-channel" title="Previous channel" aria-label="Previous channel"
+              class="symbol-button-long material-icons">chevron_left</button>
+            <button id="mobile-current-channel" title="Next channel" aria-label="Current channel: Default"
+              class="mobile-chat-current">Default</button>
+            <button id="mobile-right-channel" title="Next channel" aria-label="Next channel"
+              class="symbol-button-long material-icons">chevron_right</button>
+            <button id="mobile-open-chat" title="Open private chat" aria-label="Open private chat"
+              class="symbol-button-long material-icons">chat</button>
+            <button id="mobile-chat-expand" title="Expand chat" aria-label="Expand chat"
+              class="symbol-button-long material-icons mobile-chat-expand">unfold_more</button>
+          </div>
+
           <!-- Header for all channels -->
           <div class="wrapper-header">
             <button id="chat-lock-resize" title="Lock/Unlock Chat Resize" class="symbol-button-long material-icons"
@@ -1248,9 +1262,6 @@
               style="font-size: 18px;">chevron_right</button>
             <button id="open-chat-modal" title="Open a new chat window" class="symbol-button-long material-icons"
               style="font-size: 16px;">chat</button>
-            <button id="mobile-chat-expand" title="Expand chat" aria-label="Expand chat"
-              class="symbol-button-long material-icons mobile-only mobile-chat-expand"
-              style="font-size: 18px;">unfold_more</button>
           </div>
 
           <!-- Chatbox area itself -->

@@ -717,4 +717,23 @@ ChannelManager.prototype.setActiveChannel = function(index) {
   // Proper scroll
   this.setHeaderOffset(this.getActiveChannel().element);
 
+  // The mobile layout shows one large active-channel label instead of trying
+  // to squeeze every desktop tab into a narrow phone viewport.
+  this.__updateMobileChannelLabel();
+
+}
+
+ChannelManager.prototype.__updateMobileChannelLabel = function() {
+
+  let label = document.getElementById("mobile-current-channel");
+  let channel = this.getActiveChannel();
+
+  if(!label || !channel) {
+    return;
+  }
+
+  label.textContent = channel.name;
+  label.title = "Current channel: " + channel.name + " (tap for next)";
+  label.setAttribute("aria-label", label.title);
+
 }

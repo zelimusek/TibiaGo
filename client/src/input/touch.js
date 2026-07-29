@@ -78,10 +78,10 @@ Touch.prototype.__initialize = function () {
     this.equipmentBtn = document.getElementById('mobile-equipment-btn');
     this.chatBtn = document.getElementById('mobile-chat-btn');
     this.chatExpandBtn = document.getElementById('mobile-chat-expand');
-    this.chatHeader = document.getElementById('cheader');
-    this.leftChannelBtn = document.getElementById('left-channel');
-    this.rightChannelBtn = document.getElementById('right-channel');
-    this.openChatBtn = document.getElementById('open-chat-modal');
+    this.mobileChannelNameBtn = document.getElementById('mobile-current-channel');
+    this.leftChannelBtn = document.getElementById('mobile-left-channel');
+    this.rightChannelBtn = document.getElementById('mobile-right-channel');
+    this.openChatBtn = document.getElementById('mobile-open-chat');
 
     // Status bars
     this.healthBar = document.getElementById('mobile-health-bar');
@@ -133,8 +133,12 @@ Touch.prototype.__initialize = function () {
             { passive: false }
         );
     }
-    if (this.chatHeader) {
-        this.chatHeader.addEventListener('touchstart', this.__handleMobileChannelTab.bind(this), { passive: false });
+    if (this.mobileChannelNameBtn) {
+        this.mobileChannelNameBtn.addEventListener(
+            'touchstart',
+            this.__handleMobileChannelIncrement.bind(this, 1),
+            { passive: false }
+        );
     }
     if (this.openChatBtn) {
         this.openChatBtn.addEventListener('touchstart', this.__handleMobileOpenChat.bind(this), { passive: false });
@@ -936,24 +940,11 @@ Touch.prototype.__handleMobileChannelIncrement = function (increment, event) {
 
 }
 
-Touch.prototype.__handleMobileChannelTab = function (event) {
-
-    let tab = event.target.closest('.chat-title');
-    if (!tab) {
-        return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    tab.click();
-
-}
-
 Touch.prototype.__handleMobileOpenChat = function (event) {
 
     event.preventDefault();
     event.stopPropagation();
-    this.openChatBtn.click();
+    document.getElementById('open-chat-modal').click();
 
 }
 

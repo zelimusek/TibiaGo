@@ -130,23 +130,6 @@ touch.__handleMobileChannelIncrement(-1, touchEvent);
 touch.__handleMobileChannelIncrement(1, touchEvent);
 assert.deepStrictEqual(increments, [-1, 1]);
 
-let tabClicks = 0;
-touch.__handleMobileChannelTab({
-  preventDefault() {},
-  stopPropagation() {},
-  target: {
-    closest(selector) {
-      assert.strictEqual(selector, ".chat-title");
-      return {
-        click() {
-          tabClicks++;
-        },
-      };
-    },
-  },
-});
-assert.strictEqual(tabClicks, 1, "Touching a channel tab should select it.");
-
 touch.__handleChatButton(touchEvent);
 assert.strictEqual(
   chatContainer.classList.contains("mobile-chat-active"),
@@ -165,6 +148,9 @@ const html = fs.readFileSync(
   "utf8"
 );
 assert.match(html, /id="mobile-chat-expand"/);
+assert.match(html, /id="mobile-current-channel"/);
+assert.match(html, /id="mobile-left-channel"/);
+assert.match(html, /id="mobile-right-channel"/);
 
 const css = fs.readFileSync(
   path.join(__dirname, "..", "client", "css", "mobile.css"),
@@ -172,7 +158,14 @@ const css = fs.readFileSync(
 );
 assert.match(css, /\.mobile-chat-active\.mobile-chat-expanded/);
 assert.match(css, /min-height:\s*92px/);
-assert.match(css, /#chat-lock-resize\s*\{\s*display:\s*none/);
-assert.match(css, /\.wrapper-header\s*>\s*\.symbol-button-long/);
+assert.match(css, /\.mobile-chat-active\s+\.wrapper-header\s*\{\s*display:\s*none/);
+assert.match(css, /\.mobile-chat-current/);
+
+const channelManagerSource = fs.readFileSync(
+  path.join(__dirname, "..", "client", "src", "utils", "channel-manager.js"),
+  "utf8"
+);
+assert.match(channelManagerSource, /__updateMobileChannelLabel/);
+assert.match(channelManagerSource, /label\.textContent\s*=\s*channel\.name/);
 
 console.log("PASS: mobile chat input, sizing and channel controls work by touch.");
