@@ -153,12 +153,11 @@ CharacterElement.prototype.setTextPosition = function () {
   // Use scale.y for vertical offset to match height scaling
   offset.top -= isMobile ? (scale.y * 0.7) : (scale.y / 4);
 
-  // Add smooth transition for mobile to reduce any visual jittering
-  if (isMobile) {
-    this.element.style.transition = "transform 0.05s linear";
-  } else {
-    this.element.style.transition = "";
-  }
+  // Character sprites are rendered immediately on the canvas every frame.
+  // A CSS transition here makes the DOM nameplate trail behind moving wolves
+  // (and behind camera movement) by several frames. Keep both layers on the
+  // exact same frame instead of smoothing only the DOM overlay.
+  this.element.style.transition = "";
 
   // Delegate to the generic move function
   this.__updateTextPosition(offset);
