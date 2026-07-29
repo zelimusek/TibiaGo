@@ -43,6 +43,12 @@ const Touch = function () {
     // taps available for walking, looking and using objects.
     this.itemDrag = null;
 
+    // Mobile keyboard layout is bound once even when __initialize() runs again
+    // after rotating or resizing the device.
+    this.__mobileChatViewportBound = false;
+    this.__mobileChatInputFocused = false;
+    this.__mobileChatViewportTimers = new Array();
+
     // Initialize if on mobile or landscape
     if (this.isTouchDevice || window.innerWidth <= 768 || window.innerHeight <= 500) {
         this.__initialize();
@@ -85,6 +91,7 @@ Touch.prototype.__initialize = function () {
     this.rightChannelBtn = document.getElementById('right-channel');
     this.openChatBtn = document.getElementById('open-chat-modal');
     this.__prepareMobileChat();
+    this.__bindMobileChatViewport();
     this.__updateChatExpandButton(false);
 
     // Status bars
@@ -185,6 +192,7 @@ Touch.prototype.__handleResize = function () {
         this.__cleanup();
     } else if (shouldBeMobile) {
         this.__prepareMobileChat();
+        this.__syncMobileChatViewport();
     }
 
 }
@@ -212,6 +220,159 @@ Touch.prototype.__prepareMobileChat = function () {
 
 }
 
+Touch.prototype.__bindMobileChatViewport = function () {
+
+    /*
+     * Function Touch.__bindMobileChatViewport
+     * Keep the chat composer inside Android/iOS visualViewport while the
+     * on-screen keyboard is open. The binding must remain idempotent because
+     * mobile mode may be initialized again after rotating the phone.
+     */
+
+    if (this.__mobileChatViewportBound) {
+        return;
+    }
+
+    let input = document.getElementById('chat-input');
+    if (!input) {
+        return;
+    }
+
+    this.__mobileChatViewportBound = true;
+    this.__mobileChatInput = input;
+    this.__boundMobileChatViewportSync = this.__syncMobileChatViewport.bind(this);
+
+    input.addEventListener('focus', function () {
+        this.__mobileChatInputFocused = true;
+        this.__scheduleMobileChatViewportSync();
+    }.bind(this));
+
+    input.addEventListener('blur', function () {
+        this.__mobileChatInputFocused = false;
+
+        // Keep the composer stationary long enough for a tap on Send to
+        // deliver its click. Resetting the fixed panel synchronously during
+        // blur can move the button away before Android dispatches click.
+        this.__mobileChatViewportTimers.forEach(function (timer) {
+            clearTimeout(timer);
+        });
+        this.__mobileChatViewportTimers = [
+            setTimeout(this.__boundMobileChatViewportSync, 150)
+        ];
+    }.bind(this));
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', this.__boundMobileChatViewportSync);
+        window.visualViewport.addEventListener('scroll', this.__boundMobileChatViewportSync);
+    }
+
+    window.addEventListener('orientationchange', this.__boundMobileChatViewportSync);
+
+}
+
+Touch.prototype.__scheduleMobileChatViewportSync = function () {
+
+    /*
+     * Android animates its keyboard and reports several viewport sizes. Update
+     * immediately and after the animation settles instead of trusting only the
+     * first focus event.
+     */
+
+    this.__mobileChatViewportTimers.forEach(function (timer) {
+        clearTimeout(timer);
+    });
+    this.__mobileChatViewportTimers = new Array();
+
+    this.__syncMobileChatViewport();
+
+    [50, 150, 300].forEach(function (delay) {
+        this.__mobileChatViewportTimers.push(
+            setTimeout(this.__boundMobileChatViewportSync, delay)
+        );
+    }, this);
+
+}
+
+Touch.prototype.__resetMobileChatViewport = function (chatContainer) {
+
+    chatContainer.classList.remove('mobile-chat-keyboard-open');
+    chatContainer.classList.remove('mobile-chat-keyboard-tiny');
+
+    [
+        '--mobile-chat-viewport-top',
+        '--mobile-chat-viewport-height',
+        '--mobile-chat-viewport-width',
+        '--mobile-chat-viewport-center-x'
+    ].forEach(function (property) {
+        chatContainer.style.removeProperty(property);
+    });
+
+}
+
+Touch.prototype.__syncMobileChatViewport = function () {
+
+    /*
+     * Function Touch.__syncMobileChatViewport
+     * Position the compact composer immediately above the software keyboard.
+     * visualViewport is required because fixed elements otherwise remain tied
+     * to the larger layout viewport and disappear underneath Android's OSK.
+     */
+
+    let chatContainer = document.querySelector('#game-wrapper .main .lower');
+    if (!chatContainer) {
+        return;
+    }
+
+    let input = this.__mobileChatInput || document.getElementById('chat-input');
+    let inputFocused = this.__mobileChatInputFocused
+        && input
+        && document.activeElement === input;
+    let chatOpened = chatContainer.classList.contains('mobile-chat-active');
+
+    if (!this.isMobileMode || !inputFocused || !chatOpened) {
+        return this.__resetMobileChatViewport(chatContainer);
+    }
+
+    let viewport = window.visualViewport;
+    let viewportTop = viewport ? viewport.offsetTop : 0;
+    let viewportLeft = viewport ? viewport.offsetLeft : 0;
+    let viewportHeight = viewport ? viewport.height : window.innerHeight;
+    let viewportWidth = viewport ? viewport.width : window.innerWidth;
+
+    viewportTop = Number.isFinite(viewportTop) ? viewportTop : 0;
+    viewportLeft = Number.isFinite(viewportLeft) ? viewportLeft : 0;
+    viewportHeight = Math.max(40, Number(viewportHeight) || window.innerHeight || 40);
+    viewportWidth = Math.max(120, Number(viewportWidth) || window.innerWidth || 120);
+
+    let margin = 4;
+    let tiny = viewportHeight < 112;
+    let availableHeight = Math.max(40, viewportHeight - (margin * 2));
+    let composerHeight = Math.min(tiny ? 58 : 104, availableHeight);
+    let composerTop;
+
+    if (viewport) {
+        composerTop = viewportTop + Math.max(margin, viewportHeight - composerHeight - margin);
+    } else {
+        // Older WebViews do not expose the keyboard rectangle. Pinning the
+        // composer to the top is safer than leaving it underneath the OSK.
+        composerTop = margin;
+        tiny = true;
+        composerHeight = Math.min(58, availableHeight);
+    }
+
+    chatContainer.style.setProperty('--mobile-chat-viewport-top', composerTop + 'px');
+    chatContainer.style.setProperty('--mobile-chat-viewport-height', composerHeight + 'px');
+    chatContainer.style.setProperty('--mobile-chat-viewport-width', viewportWidth + 'px');
+    chatContainer.style.setProperty(
+        '--mobile-chat-viewport-center-x',
+        (viewportLeft + (viewportWidth / 2)) + 'px'
+    );
+
+    chatContainer.classList.add('mobile-chat-keyboard-open');
+    chatContainer.classList.toggle('mobile-chat-keyboard-tiny', tiny);
+
+}
+
 Touch.prototype.__cleanup = function () {
 
     /*
@@ -227,6 +388,11 @@ Touch.prototype.__cleanup = function () {
     this.actionMode = null;
     this.__clearActionButtonHighlights();
     this.__clearItemDrag();
+
+    let chatContainer = document.querySelector('#game-wrapper .main .lower');
+    if (chatContainer) {
+        this.__resetMobileChatViewport(chatContainer);
+    }
 
 }
 

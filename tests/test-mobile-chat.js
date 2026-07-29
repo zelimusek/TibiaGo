@@ -190,6 +190,9 @@ assert.match(css, /#game-wrapper\s+\.main\s+\.lower\.mobile-chat-active[\s\S]*?m
 assert.match(css, /#game-wrapper\s+\.main\s+\.lower\s+\.wrapper-header\s*\{\s*display:\s*flex/);
 assert.match(css, /#game-wrapper\s+\.main\s+\.lower\s+\.chat-header/);
 assert.match(css, /#game-wrapper\s+\.main\s+\.lower\s+#chat-lock-resize/);
+assert.match(css, /\.mobile-chat-keyboard-open/);
+assert.match(css, /\.mobile-chat-keyboard-tiny/);
+assert.match(css, /font-size:\s*16px\s*!important/);
 
 const channelManagerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "utils", "channel-manager.js"),
@@ -202,6 +205,8 @@ assert.match(touchSource, /document\.getElementById\('chat-lock-resize'\)/);
 assert.match(touchSource, /document\.getElementById\('left-channel'\)/);
 assert.match(touchSource, /document\.getElementById\('right-channel'\)/);
 assert.match(touchSource, /__prepareMobileChat/);
+assert.match(touchSource, /__bindMobileChatViewport/);
+assert.match(touchSource, /window\.visualViewport/);
 assert.match(touchSource, /style\.setProperty\('display', 'flex', 'important'\)/);
 assert.doesNotMatch(touchSource, /__ensureMobileChatHeader/);
 
@@ -209,18 +214,20 @@ const serviceWorkerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "service-worker.js"),
   "utf8"
 );
-assert.match(serviceWorkerSource, /tibiago-static-v11/);
+assert.match(serviceWorkerSource, /tibiago-static-v12/);
 assert.match(serviceWorkerSource, /client\.navigate\(target\.href\)/);
-assert.match(html, /mobile\.css\?v=20260729\.4/);
+assert.match(html, /interactive-widget=resizes-content/);
+assert.match(html, /enterkeyhint="send"/);
+assert.match(html, /mobile\.css\?v=20260730\.1/);
 assert.match(html, /screen-element\.css\?v=20260729\.4/);
-assert.match(html, /launcher\.js\?v=20260729\.4/);
-assert.match(html, /service-worker\.js\?v=11/);
+assert.match(html, /launcher\.js\?v=20260730\.1/);
+assert.match(html, /service-worker\.js\?v=12/);
 
 const launcherSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "launcher.js"),
   "utf8"
 );
-assert.match(launcherSource, /CLIENT_BUILD\s*=\s*"20260729\.4"/);
+assert.match(launcherSource, /CLIENT_BUILD\s*=\s*"20260730\.1"/);
 assert.match(launcherSource, /encodeURIComponent\(CLIENT_BUILD\)/);
 
 console.log("PASS: mobile chat input, sizing and channel controls work by touch.");

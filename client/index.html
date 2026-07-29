@@ -8,7 +8,7 @@
 <meta name="description" content="Gravak">
 <meta name="keywords" content="HTML5, JavaScript, NodeJS, Open Tibia, Client, Gravak">
 <meta name="author" content="Gravak">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 
 <title>TibiaGo</title>
 <!-- PWA -->
@@ -37,7 +37,7 @@
 <link rel="stylesheet" type="text/css" href="./css/change-outfit-modal.css">
 <link rel="stylesheet" type="text/css" href="./css/context-menu.css">
 <link rel="stylesheet" type="text/css" href="./css/achievement.css">
-<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260729.4">
+<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260730.1">
 <link rel="stylesheet" type="text/css" href="./css/fight-mode.css">
 <link rel="stylesheet" type="text/css" href="./css/tooltip.css">
 <link rel="stylesheet" type="text/css" href="./css/questlog.css">
@@ -1260,7 +1260,9 @@
             <button id="chat-say-loudness" class="symbol-button-long">))</button>
             <div id="chat-input-wrapper" class="chat-input-wrapper locked">
               <span id="chat-lock-indicator" class="material-icons" aria-hidden="true">lock</span>
-              <input id="chat-input" type="text" placeholder="Press Enter to unlock." disabled>
+              <input id="chat-input" type="text" inputmode="text" enterkeyhint="send"
+                autocomplete="off" autocapitalize="sentences" autocorrect="on" spellcheck="true"
+                placeholder="Press Enter to unlock." disabled>
             </div>
             <button id="send-chat-message" class="symbol-button-text">Send</button>
           </div>
@@ -1437,7 +1439,7 @@
 
   <!-- Protocol to speak to the NodeJS Server -->
   <!-- Launcher script to handle loading with progress screen -->
-  <script src="src/launcher.js?v=20260729.4"></script>
+  <script src="src/launcher.js?v=20260730.1"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
@@ -1452,7 +1454,7 @@
           window.location.reload();
         });
 
-        navigator.serviceWorker.register("/service-worker.js?v=11", {
+        navigator.serviceWorker.register("/service-worker.js?v=12", {
           updateViaCache: "none"
         }).then(function (registration) {
           registration.update();

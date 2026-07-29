@@ -790,6 +790,91 @@ screen and (max-width: 768px) {
     }
 }
 
+/* Keep the composer visible above Android/iOS software keyboards. */
+@media screen and (max-height: 500px),
+screen and (max-width: 768px) {
+    #game-wrapper .main .lower.mobile-chat-active.mobile-chat-keyboard-open {
+        position: fixed !important;
+        top: var(--mobile-chat-viewport-top, 4px) !important;
+        bottom: auto !important;
+        left: var(--mobile-chat-viewport-center-x, 50%) !important;
+        width: min(calc(var(--mobile-chat-viewport-width, 100vw) - 8px), 500px) !important;
+        height: var(--mobile-chat-viewport-height, 104px) !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        transform: translateX(-50%) !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open .chatbox-wrapper {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open #chat-text {
+        display: none !important;
+        min-height: 0 !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open .chat-footer {
+        display: flex !important;
+        flex: 1 1 auto !important;
+        align-items: stretch !important;
+        min-height: 0 !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 4px !important;
+        box-sizing: border-box !important;
+        background: rgba(20, 20, 22, 0.99) !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open #chat-input-wrapper {
+        min-height: 40px !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open #chat-input {
+        display: block !important;
+        height: auto !important;
+        min-height: 40px !important;
+        box-sizing: border-box !important;
+        font-size: 16px !important;
+        line-height: 20px !important;
+        color: #ffff66 !important;
+        caret-color: white !important;
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        touch-action: manipulation;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open #chat-say-loudness {
+        flex: 0 0 38px !important;
+        min-width: 38px !important;
+    }
+
+    #game-wrapper .main .lower.mobile-chat-keyboard-open #send-chat-message {
+        flex: 0 0 58px !important;
+        min-width: 58px !important;
+        font-size: 12px !important;
+    }
+
+    /*
+     * Landscape keyboards can leave less than 112 CSS pixels. Collapse the
+     * channel toolbar without changing its inline display fallback, leaving
+     * the complete remaining viewport to the text field.
+     */
+    #game-wrapper .main .lower.mobile-chat-keyboard-open.mobile-chat-keyboard-tiny .wrapper-header {
+        flex: 0 0 0 !important;
+        width: 100% !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        border: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+}
+
 /* Menu button in action bar */
 #mobile-menu-btn.mobile-action-btn {
     background: linear-gradient(145deg, #555, #333);
