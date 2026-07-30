@@ -59,6 +59,37 @@
     box-shadow: 0 0 10px rgba(255, 212, 71, 0.9) !important;
 }
 
+.mobile-tap-tile-highlight {
+    position: fixed;
+    z-index: 9993;
+    box-sizing: border-box;
+    pointer-events: none;
+    transform-origin: center;
+    border: 2px solid rgba(255, 224, 92, 0.88);
+    background: rgba(255, 219, 72, 0.13);
+    box-shadow:
+        inset 0 0 8px rgba(255, 238, 145, 0.38),
+        0 0 8px rgba(255, 214, 58, 0.48);
+    animation: mobile-tap-tile-feedback 520ms ease-out forwards;
+}
+
+@keyframes mobile-tap-tile-feedback {
+    0% {
+        opacity: 0;
+        transform: scale(0.76);
+    }
+
+    18% {
+        opacity: 1;
+        transform: scale(0.94);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1);
+    }
+}
+
 /* ======================================
    Touch Device Detection
    Use max-height for landscape detection

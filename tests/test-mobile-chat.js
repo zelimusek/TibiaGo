@@ -137,9 +137,10 @@ assert.strictEqual(
 );
 assert.strictEqual(
   unlockCalls,
-  1,
-  "Opening mobile chat should unlock and focus the input immediately."
+  0,
+  "Opening mobile chat should not summon the keyboard before the composer is tapped."
 );
+assert.deepStrictEqual(lockCalls, [true]);
 
 touch.__handleChatExpandButton(touchEvent);
 assert.strictEqual(
@@ -168,7 +169,7 @@ assert.strictEqual(
   false,
   "Closing chat should reset its expanded state."
 );
-assert.deepStrictEqual(lockCalls, [true]);
+assert.deepStrictEqual(lockCalls, [true, true]);
 
 const html = fs.readFileSync(
   path.join(__dirname, "..", "client", "index.html"),
@@ -217,20 +218,20 @@ const serviceWorkerSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "service-worker.js"),
   "utf8"
 );
-assert.match(serviceWorkerSource, /tibiago-static-v13/);
+assert.match(serviceWorkerSource, /tibiago-static-v14/);
 assert.match(serviceWorkerSource, /client\.navigate\(target\.href\)/);
 assert.match(html, /interactive-widget=resizes-content/);
 assert.match(html, /enterkeyhint="send"/);
-assert.match(html, /mobile\.css\?v=20260730\.2/);
+assert.match(html, /mobile\.css\?v=20260730\.3/);
 assert.match(html, /screen-element\.css\?v=20260729\.4/);
-assert.match(html, /launcher\.js\?v=20260730\.2/);
-assert.match(html, /service-worker\.js\?v=13/);
+assert.match(html, /launcher\.js\?v=20260730\.3/);
+assert.match(html, /service-worker\.js\?v=14/);
 
 const launcherSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "launcher.js"),
   "utf8"
 );
-assert.match(launcherSource, /CLIENT_BUILD\s*=\s*"20260730\.2"/);
+assert.match(launcherSource, /CLIENT_BUILD\s*=\s*"20260730\.3"/);
 assert.match(launcherSource, /encodeURIComponent\(CLIENT_BUILD\)/);
 
 console.log("PASS: mobile chat input, sizing and channel controls work by touch.");

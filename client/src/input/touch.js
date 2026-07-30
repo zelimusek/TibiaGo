@@ -38,6 +38,9 @@ const Touch = function () {
     // raw pixels so both taps may land anywhere inside the same SQM.
     this.lastCanvasTapTime = 0;
     this.lastCanvasTapTile = null;
+    this.pendingCanvasWalkTimer = null;
+    this.canvasTapHighlight = null;
+    this.canvasTapHighlightTimer = null;
 
     // One-finger item drag state. A small movement threshold keeps ordinary
     // taps available for walking, looking and using objects.
@@ -62,6 +65,9 @@ const Touch = function () {
 
 Touch.prototype.JOYSTICK_DEADZONE = 15;
 Touch.prototype.LONG_PRESS_DURATION = 500; // ms for long press
+Touch.prototype.CANVAS_DOUBLE_TAP_INTERVAL = 350;
+Touch.prototype.CANVAS_WALK_DELAY = 380;
+Touch.prototype.CANVAS_TAP_HIGHLIGHT_DURATION = 520;
 
 Touch.prototype.__initialize = function () {
 
@@ -395,6 +401,7 @@ Touch.prototype.__cleanup = function () {
     this.actionMode = null;
     this.__clearActionButtonHighlights();
     this.__clearItemDrag();
+    this.__cancelPendingCanvasWalk();
 
     let chatContainer = document.querySelector('#game-wrapper .main .lower');
     if (chatContainer) {
@@ -436,10 +443,12 @@ Touch.prototype.__handleCanvasTouchStart = function (event) {
     this.touchStartX = touch.clientX;
     this.touchStartY = touch.clientY;
     this.longPressTriggered = false;
+    this.__cancelPendingCanvasWalk();
 
     // Start long press timer for Look action
     this.longPressTimer = setTimeout(() => {
         this.longPressTriggered = true;
+        this.__cancelPendingCanvasWalk();
         this.__performLookAtTouch(touch);
     }, this.LONG_PRESS_DURATION);
 
@@ -461,6 +470,7 @@ Touch.prototype.__handleCanvasTouchMove = function (event) {
     // If moved more than threshold, cancel long press
     if (dx > 10 || dy > 10) {
         this.__cancelLongPress();
+        this.__cancelPendingCanvasWalk();
     }
 
 }
@@ -525,7 +535,7 @@ Touch.prototype.__performCanvasDoubleTapAction = function () {
     let now = Date.now();
     let isDoubleTap = (
         this.lastCanvasTapTile === tileObject.which &&
-        now - this.lastCanvasTapTime <= 350
+        now - this.lastCanvasTapTime <= this.CANVAS_DOUBLE_TAP_INTERVAL
     );
 
     this.lastCanvasTapTime = now;
@@ -545,8 +555,10 @@ Touch.prototype.__performCanvasDoubleTapAction = function () {
         return false;
     }
 
-    // Replace the walk started by the first tap. Mouse.use() either executes
-    // immediately or walks beside a distant ladder/door and completes Use.
+    // Cancel the short walk reservation made by the first tap. Mouse.use()
+    // either executes immediately or walks beside a distant ladder/door and
+    // completes Use.
+    this.__cancelPendingCanvasWalk();
     gameClient.mouse.cancelPendingActions();
     gameClient.world.pathfinder.setPathfindCache(null);
     gameClient.mouse.use(tileObject);
@@ -560,6 +572,111 @@ Touch.prototype.__cancelLongPress = function () {
         clearTimeout(this.longPressTimer);
         this.longPressTimer = null;
     }
+
+}
+
+Touch.prototype.__clearCanvasTapHighlight = function () {
+
+    if (this.canvasTapHighlightTimer != null) {
+        clearTimeout(this.canvasTapHighlightTimer);
+        this.canvasTapHighlightTimer = null;
+    }
+
+    if (this.canvasTapHighlight != null) {
+        if (typeof this.canvasTapHighlight.remove === 'function') {
+            this.canvasTapHighlight.remove();
+        } else if (this.canvasTapHighlight.parentNode) {
+            this.canvasTapHighlight.parentNode.removeChild(this.canvasTapHighlight);
+        }
+        this.canvasTapHighlight = null;
+    }
+
+}
+
+Touch.prototype.__showCanvasTapHighlight = function (event) {
+
+    this.__clearCanvasTapHighlight();
+
+    let canvas = document.getElementById('screen');
+    if (!canvas || !document.body || typeof document.createElement !== 'function') {
+        return;
+    }
+
+    let rect = canvas.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+        return;
+    }
+
+    // The game viewport always contains 15 x 11 SQMs. Calculate the touched
+    // screen cell after CSS scaling so the feedback stays square in portrait
+    // and landscape orientations.
+    let tileWidth = rect.width / 15;
+    let tileHeight = rect.height / 11;
+    let column = Math.floor((event.clientX - rect.left) / tileWidth);
+    let row = Math.floor((event.clientY - rect.top) / tileHeight);
+
+    if (column < 0 || column >= 15 || row < 0 || row >= 11) {
+        return;
+    }
+
+    let highlight = document.createElement('div');
+    highlight.className = 'mobile-tap-tile-highlight';
+    highlight.style.left = (rect.left + column * tileWidth) + 'px';
+    highlight.style.top = (rect.top + row * tileHeight) + 'px';
+    highlight.style.width = tileWidth + 'px';
+    highlight.style.height = tileHeight + 'px';
+    document.body.appendChild(highlight);
+
+    this.canvasTapHighlight = highlight;
+    this.canvasTapHighlightTimer = setTimeout(
+        this.__clearCanvasTapHighlight.bind(this),
+        this.CANVAS_TAP_HIGHLIGHT_DURATION
+    );
+
+}
+
+Touch.prototype.__cancelPendingCanvasWalk = function () {
+
+    if (this.pendingCanvasWalkTimer != null) {
+        clearTimeout(this.pendingCanvasWalkTimer);
+        this.pendingCanvasWalkTimer = null;
+    }
+
+    this.__clearCanvasTapHighlight();
+
+}
+
+Touch.prototype.__scheduleCanvasWalk = function (event, targetTile) {
+
+    this.__cancelPendingCanvasWalk();
+    this.__showCanvasTapHighlight(event);
+
+    // Stop the old route immediately, then briefly reserve the new destination
+    // so a second tap on the same SQM can become Use instead of Walk.
+    gameClient.mouse.cancelPendingActions();
+    gameClient.world.pathfinder.setPathfindCache(null);
+
+    this.pendingCanvasWalkTimer = setTimeout(function () {
+        this.pendingCanvasWalkTimer = null;
+
+        if (
+            !gameClient ||
+            !gameClient.player ||
+            gameClient.player.isDead ||
+            (
+                gameClient.networkManager &&
+                !gameClient.networkManager.isConnected()
+            )
+        ) {
+            this.__clearCanvasTapHighlight();
+            return;
+        }
+
+        gameClient.world.pathfinder.findPath(
+            gameClient.player.getPosition(),
+            targetTile.__position
+        );
+    }.bind(this), this.CANVAS_WALK_DELAY);
 
 }
 
@@ -582,6 +699,7 @@ Touch.prototype.__performTapAction = function () {
 
     switch (this.actionMode) {
         case 'look':
+            this.__cancelPendingCanvasWalk();
             gameClient.mouse.look(tileObject);
             this.__clearActionMode();
             break;
@@ -591,6 +709,7 @@ Touch.prototype.__performTapAction = function () {
             // autowalk to the occupied SQM.
             let otherCreatures = gameClient.mouse.getOtherCreatures(tileObject.which);
             if (otherCreatures.size > 0) {
+                this.__cancelPendingCanvasWalk();
                 gameClient.world.targetMonster(otherCreatures);
                 return;
             }
@@ -598,10 +717,7 @@ Touch.prototype.__performTapAction = function () {
             // Default: walk to tile
             let targetTile = gameClient.renderer.screen.getWorldCoordinates(fakeEvent);
             if (targetTile) {
-                gameClient.world.pathfinder.findPath(
-                    gameClient.player.getPosition(),
-                    targetTile.__position
-                );
+                this.__scheduleCanvasWalk(fakeEvent, targetTile);
             }
             break;
     }
@@ -657,6 +773,7 @@ Touch.prototype.__handleJoystickStart = function (event) {
      */
 
     event.preventDefault();
+    this.__cancelPendingCanvasWalk();
 
     let touch = event.touches[0];
     let rect = this.joystickZone.getBoundingClientRect();
@@ -1069,19 +1186,15 @@ Touch.prototype.__handleChatButton = function (event) {
         // Toggle the mobile-chat-active class
         chatContainer.classList.toggle('mobile-chat-active');
 
-        // Unlock and focus synchronously while handling the touch gesture. Mobile
-        // browsers will not open the virtual keyboard for a delayed focus call.
-        if (chatContainer.classList.contains('mobile-chat-active')) {
-            if (gameClient.interface && gameClient.interface.channelManager) {
-                gameClient.interface.channelManager.unlockInputForTouch();
-            }
-        } else {
+        // Opening the panel is browse-only. The player explicitly taps the
+        // composer when they want to unlock it and summon the mobile keyboard.
+        if (gameClient.interface && gameClient.interface.channelManager) {
+            gameClient.interface.channelManager.setInputLocked(true);
+        }
+
+        if (!chatContainer.classList.contains('mobile-chat-active')) {
             chatContainer.classList.remove('mobile-chat-expanded');
             this.__updateChatExpandButton(false);
-
-            if (gameClient.interface && gameClient.interface.channelManager) {
-                gameClient.interface.channelManager.setInputLocked(true);
-            }
         }
     }
 
