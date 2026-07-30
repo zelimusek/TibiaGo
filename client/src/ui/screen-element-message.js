@@ -15,9 +15,26 @@ const MessageElement = function (entity, message, color) {
   // Inherit from text element
   ScreenElement.call(this, "message-element-prototype");
 
-  // Message elements occupy a space in the game world at a specific tile
+  // Freeze speech at the exact visual world position where it was spoken.
+  // A creature that is mid-step already owns its destination position while
+  // the sprite is still offset towards the previous tile, so preserve that
+  // movement offset instead of letting the bubble jump one SQM ahead.
   this.__entity = entity;
   this.__position = entity.__position.copy();
+  this.__visualOffset = { x: 0, y: 0 };
+
+  if (
+    typeof entity.getPosition === "function" &&
+    typeof entity.getMoveOffset === "function"
+  ) {
+    let moveOffset = entity.getMoveOffset();
+    let tile = gameClient.world.getTileFromWorldPosition(entity.getPosition());
+    let elevation = tile ? tile.__renderElevation : 0;
+
+    this.__visualOffset.x = moveOffset.x + elevation;
+    this.__visualOffset.y = moveOffset.y + elevation;
+  }
+
   this.__message = message;
   this.__color = color;
 
@@ -77,18 +94,12 @@ MessageElement.prototype.setTextPosition = function () {
    * Requests the offset of the text element and updates the text position
    */
 
-  // Speech belongs to the speaker, not merely to the destination SQM stored
-  // when the packet arrived. During a step the creature position already
-  // points at the destination while its sprite is still interpolated from the
-  // previous tile. Reuse the creature anchor so speech follows that movement
-  // and any visual elevation caused by furniture below the creature.
-  let screenPosition = (
-    this.__entity &&
-    typeof this.__entity.getPosition === "function" &&
-    typeof this.__entity.getMoveOffset === "function"
-  ) ?
-    gameClient.renderer.getCreatureScreenPosition(this.__entity) :
-    gameClient.renderer.getStaticScreenPosition(this.__position);
+  // Convert the frozen world anchor on every camera update. Do not read the
+  // speaker's current position here: subsequent player, NPC or monster
+  // movement must leave the speech exactly where it was spoken.
+  let screenPosition = gameClient.renderer.getStaticScreenPosition(this.__position);
+  screenPosition.x -= this.__visualOffset.x;
+  screenPosition.y -= this.__visualOffset.y;
 
   let offset = this.__getAbsoluteOffset(screenPosition);
   let fraction = gameClient.interface.getSpriteScaling();

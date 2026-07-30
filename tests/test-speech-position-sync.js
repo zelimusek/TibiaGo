@@ -7,27 +7,43 @@ const vm = require("vm");
 
 const root = path.join(__dirname, "..");
 const speaker = {
+  name: "God",
+  __position: {
+    x: 101,
+    y: 101,
+    z: 7,
+    copy: () => ({ x: 101, y: 101, z: 7 }),
+  },
   getPosition: () => ({ x: 100, y: 100, z: 7 }),
   getMoveOffset: () => ({ x: 0.5, y: 0.25 }),
 };
 
-let anchoredEntity = null;
+let staticWorldPosition = null;
 const context = vm.createContext({
   console,
   document: {
     hidden: false,
     getElementById: () => ({
-      cloneNode: () => ({ style: {} }),
+      cloneNode: () => {
+        const spans = [{ innerHTML: "", style: {} }, { innerHTML: "", style: {} }];
+        return {
+          style: {},
+          querySelectorAll: () => spans,
+        };
+      },
     }),
   },
   gameClient: {
+    world: {
+      getTileFromWorldPosition: () => ({ __renderElevation: 0.5 }),
+    },
     renderer: {
-      getCreatureScreenPosition: (entity) => {
-        anchoredEntity = entity;
-        return { x: 8.5, y: 6.25 };
+      getCreatureScreenPosition: () => {
+        throw new Error("Frozen speech must not follow the speaker.");
       },
-      getStaticScreenPosition: () => {
-        throw new Error("Creature speech must not use an un-interpolated tile anchor.");
+      getStaticScreenPosition: (position) => {
+        staticWorldPosition = position;
+        return { x: 8.5, y: 6.25 };
       },
     },
     interface: {
@@ -44,7 +60,11 @@ const context = vm.createContext({
 
 context.window = context;
 context.global = context;
-context.ScreenElement = function () {};
+context.Interface = function () {};
+context.Interface.prototype.getHexColor = () => "#ffffff";
+context.ScreenElement = function () {
+  this.element = context.document.getElementById().cloneNode(true);
+};
 context.ScreenElement.prototype = {};
 
 const messageFile = path.join(root, "client", "src", "ui", "screen-element-message.js");
@@ -54,9 +74,7 @@ vm.runInContext(
   { filename: messageFile }
 );
 
-const message = Object.create(context.MessageElement.prototype);
-message.__entity = speaker;
-message.__position = { x: 101, y: 101, z: 7 };
+const message = new context.MessageElement(speaker, "czesc", 0);
 message.__getAbsoluteOffset = (position) => ({
   left: position.x * 32,
   top: position.y * 32,
@@ -67,10 +85,12 @@ message.__updateTextPosition = (offset) => {
 };
 
 message.setTextPosition();
-assert.strictEqual(anchoredEntity, speaker);
+assert.deepStrictEqual(staticWorldPosition, message.__position);
+assert.strictEqual(message.__visualOffset.x, 1);
+assert.strictEqual(message.__visualOffset.y, 0.75);
 assert.deepStrictEqual(finalOffset, {
-  left: (8.5 * 32) + (32 * 0.35),
-  top: (6.25 * 32) - (32 * 0.05),
+  left: ((8.5 - 1) * 32) + (32 * 0.35),
+  top: ((6.25 - 0.75) * 32) - (32 * 0.05),
 });
 
 const managerFile = path.join(root, "client", "src", "ui", "screen-element-manager.js");
@@ -91,8 +111,16 @@ manager.render();
 
 assert.strictEqual(
   renderCalls,
-  1,
-  "Speech must follow a moving remote speaker even while the local player stands still."
+  0,
+  "Speech must not follow a moving remote speaker while the camera stands still."
 );
 
-console.log("PASS: overhead speech follows creature movement and tile elevation.");
+context.gameClient.player.isMoving = () => true;
+manager.render();
+assert.strictEqual(
+  renderCalls,
+  1,
+  "Frozen world speech must still be repositioned when the camera moves."
+);
+
+console.log("PASS: overhead speech stays where it was spoken without jumping mid-step.");
