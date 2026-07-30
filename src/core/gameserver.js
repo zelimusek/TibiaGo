@@ -1,5 +1,9 @@
 "use strict";
 
+const childProcess = require("child_process");
+const fs = require("fs");
+const path = require("path");
+
 const Database = requireModule("core/database");
 const Enum = requireModule("utils/enum");
 const GameLoop = requireModule("core/gameloop");
@@ -166,6 +170,116 @@ GameServer.prototype.scheduleShutdown = function (seconds) {
 
   // Use the timeout function not the event queue
   setTimeout(this.shutdown.bind(this), seconds);
+
+}
+
+GameServer.prototype.__spawnReplacementProcess = function () {
+
+  /*
+   * Starts a detached helper which waits until the current process has
+   * completed its graceful shutdown and then launches the same entry point.
+   * Keeping the wait in another process prevents the restart from dying with
+   * this Node.js instance.
+   */
+
+  let workingDirectory = process.cwd();
+  let entryPoint = path.resolve(
+    process.argv[1] || path.join(workingDirectory, "server-production.js")
+  );
+  let logDirectory = path.join(workingDirectory, "logs");
+  let logFile = path.join(logDirectory, "server.log");
+  let pidFile = path.join(workingDirectory, ".server-production.pid");
+
+  fs.mkdirSync(logDirectory, { recursive: true });
+
+  let helperSource = [
+    '"use strict";',
+    'const childProcess = require("child_process");',
+    'const fs = require("fs");',
+    "const entryPoint = " + JSON.stringify(entryPoint) + ";",
+    "const workingDirectory = " + JSON.stringify(workingDirectory) + ";",
+    "const pidFile = " + JSON.stringify(pidFile) + ";",
+    "setTimeout(function () {",
+    "  const server = childProcess.spawn(process.execPath, [entryPoint], {",
+    "    cwd: workingDirectory,",
+    "    detached: true,",
+    '    stdio: "inherit",',
+    "    env: process.env",
+    "  });",
+    '  fs.writeFileSync(pidFile, String(server.pid), "utf8");',
+    "  server.unref();",
+    "}, 5000);"
+  ].join("\n");
+
+  let logDescriptor = fs.openSync(logFile, "a");
+  let helper;
+
+  try {
+    helper = childProcess.spawn(process.execPath, ["-e", helperSource], {
+      cwd: workingDirectory,
+      detached: true,
+      stdio: ["ignore", logDescriptor, logDescriptor],
+      env: process.env
+    });
+  } finally {
+    fs.closeSync(logDescriptor);
+  }
+
+  helper.once("error", function (error) {
+    console.error("The restart helper failed:", error);
+  });
+  helper.unref();
+
+  return helper.pid;
+
+}
+
+GameServer.prototype.restart = function () {
+
+  /*
+   * Launches the replacement helper before beginning the normal graceful
+   * shutdown. Websocket disconnects save every connected character, and the
+   * replacement waits longer than that shutdown grace period.
+   */
+
+  try {
+    let helperPid = this.__spawnReplacementProcess();
+    console.log("Restart helper started with PID %s.".format(helperPid));
+  } catch (error) {
+    console.error("Could not schedule the replacement server:", error);
+    this.setServerStatus(this.STATUS.OPEN);
+    this.world.broadcastMessage(
+      "The gameserver restart was cancelled because the replacement process could not be started."
+    );
+    return false;
+  }
+
+  this.shutdown();
+  return true;
+
+}
+
+GameServer.prototype.scheduleRestart = function (milliseconds) {
+
+  /*
+   * Schedules a graceful restart. The delay is expressed in milliseconds to
+   * match scheduleShutdown and the existing server configuration.
+   */
+
+  if (this.__serverStatus === this.STATUS.CLOSING) {
+    console.log("Restart command refused because the server is already shutting down.");
+    return false;
+  }
+
+  this.setServerStatus(this.STATUS.CLOSING);
+
+  this.world.broadcastMessage(
+    "The gameserver is restarting in %s seconds. Please log out in a safe place."
+      .format(Math.ceil(milliseconds / 1000))
+  );
+
+  setTimeout(this.restart.bind(this), milliseconds);
+  return true;
 
 }
 

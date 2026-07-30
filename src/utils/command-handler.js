@@ -128,6 +128,29 @@ CommandHandler.prototype.handleCommandAdvance = function (player, amount) {
   return gameServer.world.creatureHandler.teleportCreature(player, destination);
 };
 
+CommandHandler.prototype.handleCommandRestart = function (player, value) {
+  /*
+   * CommandHandler.handleCommandRestart
+   * Schedules a graceful server restart for GM/GOD accounts.
+   */
+
+  let seconds = value === undefined ? 10 : Number(value);
+
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 300) {
+    return player.sendCancelMessage("Usage: /restart [seconds from 1 to 300]");
+  }
+
+  if (!gameServer.scheduleRestart(seconds * 1000)) {
+    return player.sendCancelMessage(
+      "The server is already shutting down or restarting."
+    );
+  }
+
+  return player.sendCancelMessage(
+    "Server restart scheduled in " + seconds + " seconds."
+  );
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -575,6 +598,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/a") {
     return this.handleCommandAdvance(player, message[1]);
+  }
+
+  if (message[0] === "/restart") {
+    return this.handleCommandRestart(player, message[1]);
   }
 
   if (message[0] === "/broadcast") {
