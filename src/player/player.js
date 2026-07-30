@@ -829,7 +829,14 @@ Player.prototype.getSpeed = function () {
   // Apply haste condition multiplier
   if (this.hasCondition(Condition.prototype.HASTE)) {
     // Haste formula: speed * 1.3 - 24 (approximately)
-    baseSpeed = Math.floor(baseSpeed * 1.3 - 24);
+    let normalSpeed = baseSpeed;
+    let standardHasteSpeed = Math.floor(normalSpeed * 1.3 - 24);
+    let bonusFactor = Number(this.__hasteBonusFactor) > 1
+      ? Number(this.__hasteBonusFactor)
+      : 1;
+    baseSpeed = Math.floor(
+      normalSpeed + (standardHasteSpeed - normalSpeed) * bonusFactor
+    );
   }
 
   // Paralyze is intentionally applied after haste. It reduces the final

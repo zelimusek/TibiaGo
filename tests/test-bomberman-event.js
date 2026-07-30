@@ -6,6 +6,9 @@ require("../require");
 
 const BombermanEvent = requireModule("core/bomberman-event");
 const Position = requireModule("utils/position");
+const Player = requireModule("player/player");
+const Condition = requireModule("combat/condition");
+const hasteDefinition = require("../data/740/conditions/definitions/haste");
 
 let currentTime = 1000;
 let effects = [];
@@ -104,15 +107,20 @@ try {
   assert.strictEqual(event.start("mayhem").ok, true);
   assert.strictEqual(event.isRunning(), true);
   assert.strictEqual(event.__state.mode, "mayhem");
+  assert.strictEqual(event.__state.endsAt - event.__state.startsAt, 180000);
   assert.strictEqual(event.__state.participants.size, 2);
   assert.strictEqual(event.__state.borderItems.size, 52);
   assert.strictEqual(event.__state.crateItems.size, 36);
   assert.strictEqual(addedThings.filter((entry) => entry.thing.id === 1497).length, 52);
-  assert.strictEqual(addedThings.filter((entry) => entry.thing.id === 1739).length, 36);
+  assert.strictEqual(addedThings.filter((entry) => entry.thing.id === 1740).length, 36);
   assert.ok(
     addedThings
-      .filter((entry) => entry.thing.id === 1739)
+      .filter((entry) => entry.thing.id === 1740)
       .every((entry) => entry.thing.isBlockSolid() && !entry.thing.isMoveable())
+  );
+  assert.ok(
+    Array.from(event.__state.crateDrops.values())
+      .filter((type) => type === "bomb").length >= 8
   );
   assert.strictEqual(event.placeBomb(alice).ok, false);
 
@@ -122,6 +130,12 @@ try {
   );
   assert.ok(blockedSpectator);
   assert.strictEqual(blockedSpectator.position.x, 32507);
+  const frozenMovement = event.handleDestination(
+    alice,
+    new Position(32510, 32340, 7)
+  );
+  assert.ok(frozenMovement);
+  assert.strictEqual(frozenMovement.position, null);
 
   currentTime += 5001;
   event.tick();
@@ -132,6 +146,13 @@ try {
   alice.position = new Position(32509, 32341, 7);
   bob.position = new Position(32521, 32352, 7);
   assert.strictEqual(event.placeBomb(alice).ok, true);
+  const placedBomb = addedThings.find((entry) => entry.thing.id === 2109);
+  assert.ok(placedBomb);
+  assert.ok(placedBomb.thing.isBlockSolid());
+  assert.ok(!placedBomb.thing.isMoveable());
+  const blockedByBomb = event.handleDestination(bob, alice.position);
+  assert.ok(blockedByBomb);
+  assert.strictEqual(blockedByBomb.position, null);
   currentTime += 3001;
   event.tick();
   assert.strictEqual(event.__state.crateItems.size, 35);
@@ -150,10 +171,25 @@ try {
   assert.strictEqual(alice.addedConditions.length, 1);
   assert.strictEqual(alice.addedConditions[0].ticks, 20);
   assert.strictEqual(alice.addedConditions[0].duration, 500);
+  assert.deepStrictEqual(alice.addedConditions[0].properties, { bonusFactor: 1.5 });
 
   const shieldPosition = new Position(32520, 32352, 7);
   addPowerUp(event, bob, "shield", shieldPosition);
   assert.strictEqual(event.__state.shields.get("Bob"), 1);
+  const shieldEffectsBeforePulse = effects.filter((entry) =>
+    positionKey(entry.position) === positionKey(bob.position)
+    && entry.effect === CONST.EFFECT.MAGIC.MAGIC_BLUE
+  ).length;
+  currentTime += 701;
+  event.tick();
+  const shieldEffectsAfterPulse = effects.filter((entry) =>
+      positionKey(entry.position) === positionKey(bob.position)
+      && entry.effect === CONST.EFFECT.MAGIC.MAGIC_BLUE
+  ).length;
+  assert.ok(
+    shieldEffectsAfterPulse > shieldEffectsBeforePulse,
+    "A shielded player should pulse with a visible blue aura."
+  );
 
   // The shield absorbs one explosion without a death or score.
   currentTime += 2001;
@@ -196,7 +232,7 @@ try {
   assert.strictEqual(event.isRunning(), false);
   assert.ok(alice.removedConditions.length > 0);
   assert.strictEqual(deletedThings.filter((entry) => entry.thing.id === 1497).length, 52);
-  assert.strictEqual(deletedThings.filter((entry) => entry.thing.id === 1739).length, 36);
+  assert.strictEqual(deletedThings.filter((entry) => entry.thing.id === 1740).length, 36);
 
   // Elimination has no respawn: one protected survivor wins immediately.
   currentTime = 200000;
@@ -210,6 +246,11 @@ try {
     random: () => 0.99,
   });
   assert.strictEqual(elimination.start("elimination").ok, true);
+  assert.strictEqual(
+    Array.from(elimination.__state.crateDrops.values())
+      .filter((type) => type === "bomb").length,
+    8
+  );
   currentTime += 5001;
   elimination.tick();
   elimination.__state.shields.set("Alice", 1);
@@ -222,8 +263,39 @@ try {
   assert.strictEqual(bob.position.x, 32507);
   assert.ok(alice.messages.some((message) => /Alice wins Bomberman elimination/i.test(message)));
 
+  // Bomberman haste increases the normal haste bonus by exactly 50%.
+  const speedSubject = {
+    skills: {
+      getSkillLevel() {
+        return 100;
+      },
+    },
+    containerManager: null,
+    hasCondition(id) {
+      return id === Condition.prototype.HASTE;
+    },
+  };
+  const standardHasteSpeed = Player.prototype.getSpeed.call(speedSubject);
+  speedSubject.__hasteBonusFactor = 1.5;
+  const bombermanHasteSpeed = Player.prototype.getSpeed.call(speedSubject);
+  const normalSpeed = 209;
+  assert.strictEqual(
+    bombermanHasteSpeed - normalSpeed,
+    Math.floor((standardHasteSpeed - normalSpeed) * 1.5)
+  );
+  const conditionCreature = {
+    sendCancelMessage() {},
+    isPlayer() {
+      return false;
+    },
+  };
+  hasteDefinition.onStart(conditionCreature, { bonusFactor: 1.5 });
+  assert.strictEqual(conditionCreature.__hasteBonusFactor, 1.5);
+  hasteDefinition.onExpire(conditionCreature);
+  assert.strictEqual(conditionCreature.__hasteBonusFactor, undefined);
+
   console.log(
-    "PASS: Bomberman supports mayhem, elimination, destructible crates and all four power-ups."
+    "PASS: Bomberman has frozen countdowns, blocking bombs, shield auras, stronger speed and guaranteed bomb drops."
   );
 } finally {
   process.gameServer = originalProcessGameServer;

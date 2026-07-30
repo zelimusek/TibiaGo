@@ -19,7 +19,7 @@ const BOMBERMAN_CONFIG = {
     }
   ],
   countdownMs: 5000,
-  mayhemRoundMs: 90000,
+  mayhemRoundMs: 180000,
   eliminationRoundMs: 180000,
   fuseMs: 3000,
   initialBlastRange: 2,
@@ -29,13 +29,16 @@ const BOMBERMAN_CONFIG = {
   respawnProtectionMs: 2000,
   hasteTicks: 20,
   hasteTickMs: 500,
+  hasteBonusFactor: 1.5,
   bombPulseMs: 500,
   powerUpPulseMs: 700,
+  shieldPulseMs: 700,
   barrierPulseMs: 1000,
   powerUpDropChance: 0.55,
-  bombItemId: 2247,
+  minimumBombPowerUps: 8,
+  bombItemId: 2109,
   borderWallItemId: 1497,
-  crateItemId: 1739
+  crateItemId: 1740
 };
 
 const POWER_UPS = {
@@ -330,7 +333,7 @@ BombermanEvent.prototype.__buildArena = function () {
     }
 
     // Arena crates must behave as fixed one-SQM obstacles even though the
-    // ordinary map version of item 1739 is a moveable container.
+    // ordinary map version of item 1740 is a moveable container.
     crate.isBlockSolid = function () { return true; };
     crate.isBlockProjectile = function () { return true; };
     crate.isMoveable = function () { return false; };
@@ -378,6 +381,7 @@ BombermanEvent.prototype.__cleanupArena = function () {
     );
   });
   this.__state.powerUps.clear();
+  this.__state.crateDrops.clear();
 
   this.__state.hastePlayers.forEach(function (name) {
     let player = this.__getConnectedPlayer(name);
@@ -472,6 +476,7 @@ BombermanEvent.prototype.start = function (mode) {
     blastRangeByPlayer: new Map(),
     shields: new Map(),
     powerUps: new Map(),
+    crateDrops: new Map(),
     hastePlayers: new Set(),
     borderItems: new Map(),
     crateItems: new Map(),
@@ -481,6 +486,7 @@ BombermanEvent.prototype.start = function (mode) {
     lastAnnouncedRemaining: null,
     lastBombPulseAt: 0,
     lastPowerUpPulseAt: 0,
+    lastShieldPulseAt: 0,
     lastBarrierPulseAt: 0
   };
 
@@ -501,6 +507,7 @@ BombermanEvent.prototype.start = function (mode) {
 
   this.__teleportParticipantsToStarts(spawnPositions);
   this.__buildArena();
+  this.__planCrateDrops();
   this.__broadcast(
     "Bomberman %s starts in 5 seconds! %s players locked in. Put /bomb on a hotkey."
       .format(mode, participants.size)
@@ -613,6 +620,10 @@ BombermanEvent.prototype.placeBomb = function (player) {
     return { ok: false, message: "A bomb cannot be placed here." };
   }
 
+  thing.isBlockSolid = function () { return true; };
+  thing.isBlockProjectile = function () { return true; };
+  thing.isMoveable = function () { return false; };
+  thing.isPickupable = function () { return false; };
   tile.addTopThing(thing);
   this.__state.bombs.set(key, {
     position: position,
@@ -672,6 +683,11 @@ BombermanEvent.prototype.__getBlastPositions = function (bomb) {
         break;
       }
 
+      if (this.__state.bombs.has(key)) {
+        positions.push(position);
+        break;
+      }
+
       if (this.__isBlastBlocked(position)) {
         break;
       }
@@ -708,6 +724,23 @@ BombermanEvent.prototype.__rollPowerUp = function () {
 
 }
 
+BombermanEvent.prototype.__planCrateDrops = function () {
+
+  let crateKeys = this.__shuffle(Array.from(this.__state.crateItems.keys()));
+  let guaranteedBombs = Math.min(
+    BOMBERMAN_CONFIG.minimumBombPowerUps,
+    crateKeys.length
+  );
+
+  crateKeys.forEach(function (key, index) {
+    this.__state.crateDrops.set(
+      key,
+      index < guaranteedBombs ? "bomb" : this.__rollPowerUp()
+    );
+  }, this);
+
+}
+
 BombermanEvent.prototype.__destroyCrates = function (crateKeys) {
 
   crateKeys.forEach(function (key) {
@@ -727,7 +760,8 @@ BombermanEvent.prototype.__destroyCrates = function (crateKeys) {
       CONST.EFFECT.MAGIC.BLOCKHIT
     );
 
-    let type = this.__rollPowerUp();
+    let type = this.__state.crateDrops.get(key) || null;
+    this.__state.crateDrops.delete(key);
     if (type !== null) {
       this.__state.powerUps.set(key, {
         type: type,
@@ -767,7 +801,7 @@ BombermanEvent.prototype.__applyPowerUp = function (player, powerUp) {
         Condition.prototype.HASTE,
         BOMBERMAN_CONFIG.hasteTicks,
         BOMBERMAN_CONFIG.hasteTickMs,
-        null
+        { bonusFactor: BOMBERMAN_CONFIG.hasteBonusFactor }
       );
       this.__state.hastePlayers.add(name);
     }
@@ -1033,6 +1067,24 @@ BombermanEvent.prototype.handleDestination = function (player, position) {
     return { position: player.position };
   }
 
+  if (
+    isParticipant
+    && !isEliminated
+    && this.__state.phase === "countdown"
+  ) {
+    return { position: null };
+  }
+
+  if (
+    isParticipant
+    && !isEliminated
+    && destinationOnFloor
+    && this.__state.bombs.has(this.__positionKey(position))
+    && this.__positionKey(position) !== this.__positionKey(player.position)
+  ) {
+    return { position: null };
+  }
+
   if (isParticipant && !isEliminated && destinationOnFloor) {
     this.__collectPowerUpAt(player, position);
   }
@@ -1091,6 +1143,23 @@ BombermanEvent.prototype.__pulseArena = function (now) {
         POWER_UPS[powerUp.type].effect()
       );
     });
+  }
+
+  if (now - this.__state.lastShieldPulseAt >= BOMBERMAN_CONFIG.shieldPulseMs) {
+    this.__state.lastShieldPulseAt = now;
+    this.__state.shields.forEach(function (charges, name) {
+      if (charges <= 0 || this.__state.eliminated.has(name)) {
+        return;
+      }
+
+      let player = this.__getConnectedPlayer(name);
+      if (player !== null) {
+        gameServer.world.sendMagicEffect(
+          player.position,
+          CONST.EFFECT.MAGIC.MAGIC_BLUE
+        );
+      }
+    }, this);
   }
 
   if (now - this.__state.lastBarrierPulseAt >= BOMBERMAN_CONFIG.barrierPulseMs) {
