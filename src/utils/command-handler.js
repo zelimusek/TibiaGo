@@ -346,6 +346,45 @@ CommandHandler.prototype.handleCommandFloorLava = function (player, message) {
 
 };
 
+CommandHandler.prototype.handleCommandBomberman = function (player, message) {
+
+  let action = (message[1] || "status").toLowerCase();
+  let result;
+
+  if (action === "start") {
+    result = gameServer.world.creatureHandler.bomberman.start();
+  } else if (action === "stop") {
+    result = gameServer.world.creatureHandler.bomberman.stop();
+  } else if (action === "status") {
+    return player.sendCancelMessage(
+      gameServer.world.creatureHandler.bomberman.getStatus()
+    );
+  } else {
+    return player.sendCancelMessage(
+      "Usage: /bomber start, /bomber stop or /bomber status."
+    );
+  }
+
+  if (!result.ok) {
+    return player.sendCancelMessage(result.message);
+  }
+
+  return true;
+
+};
+
+CommandHandler.prototype.handleCommandBomb = function (player) {
+
+  let result = gameServer.world.creatureHandler.bomberman.placeBomb(player);
+
+  if (!result.ok) {
+    return player.sendCancelMessage(result.message);
+  }
+
+  return true;
+
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -447,14 +486,19 @@ CommandHandler.prototype.findCreatureByName = function (name) {
 };
 
 CommandHandler.prototype.handle = function (player, message) {
+  message = message.split(" ");
+
+  // /bomb is deliberately available to regular players during Bomberman.
+  if (message[0] === "/bomb") {
+    return this.handleCommandBomb(player);
+  }
+
   // Slash commands in this handler are administrative tools (spawning,
   // teleporting, editing radio zones, and similar). They must not be exposed
   // to regular player accounts.
   if (!player.isGM()) {
     return player.sendCancelMessage("Only GMs can use game master commands.");
   }
-
-  message = message.split(" ");
 
   if (message[0] === "/property") {
     return player.setProperty(Number(message[1]), Number(message[2]));
@@ -470,6 +514,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/lava") {
     return this.handleCommandFloorLava(player, message);
+  }
+
+  if (message[0] === "/bomber") {
+    return this.handleCommandBomberman(player, message);
   }
 
   if (message[0] === "/teleport") {

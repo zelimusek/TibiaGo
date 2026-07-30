@@ -6,6 +6,7 @@ const Player = requireModule("player/player");
 const Condition = requireModule("combat/condition");
 const Position = requireModule("utils/position");
 const FloorLavaEvent = requireModule("core/floor-lava-event");
+const BombermanEvent = requireModule("core/bomberman-event");
 const fs = require("fs");
 const path = require("path");
 
@@ -64,6 +65,9 @@ const CreatureHandler = function () {
 
   // Server-authoritative Floor is Lava event for the disco dance floor.
   this.floorLava = new FloorLavaEvent(this);
+
+  // Safe, score-based Bomberman event on the same disco dance floor.
+  this.bomberman = new BombermanEvent(this);
 
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
@@ -606,6 +610,15 @@ CreatureHandler.prototype.addPlayer = function (player, position) {
     );
   }
 
+  let bombermanPosition = this.bomberman.handlePlayerConnected(player);
+  if (bombermanPosition !== null) {
+    this.teleportCreature(
+      player,
+      bombermanPosition,
+      { ignoreBomberman: true }
+    );
+  }
+
   player.broadcast(new EffectMagicPacket(player.position, CONST.EFFECT.MAGIC.TELEPORT));
   this.__syncRadioZone(player, null);
 
@@ -642,6 +655,7 @@ CreatureHandler.prototype.tick = function () {
 
   this.__tickClubDance();
   this.floorLava.tick();
+  this.bomberman.tick();
 
   // Handle always active NPCs
   this.sceneNPCs.forEach(npc => npc.cutsceneHandler.think());
@@ -997,6 +1011,16 @@ CreatureHandler.prototype.teleportCreature = function (creature, position, optio
     }
   }
 
+  if (creature.isPlayer() && options.ignoreBomberman !== true) {
+    let bombermanRedirect = this.bomberman.handleDestination(creature, position);
+    if (bombermanRedirect !== null) {
+      if (bombermanRedirect.position === null) {
+        return false;
+      }
+      position = bombermanRedirect.position;
+    }
+  }
+
   let tile = gameServer.world.getTileFromWorldPosition(position);
   let oldPosition = creature.position;
   let oldTile = gameServer.world.getTileFromWorldPosition(oldPosition);
@@ -1051,6 +1075,22 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
         creature,
         floorLavaRedirect.position,
         { ignoreFloorLava: true }
+      );
+    }
+  }
+
+  if (creature.isPlayer()) {
+    let bombermanRedirect = this.bomberman.handleDestination(creature, position);
+
+    if (bombermanRedirect !== null) {
+      if (bombermanRedirect.position === null) {
+        return false;
+      }
+
+      return this.teleportCreature(
+        creature,
+        bombermanRedirect.position,
+        { ignoreBomberman: true }
       );
     }
   }

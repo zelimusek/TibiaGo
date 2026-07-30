@@ -219,6 +219,13 @@ FloorLavaEvent.prototype.start = function () {
     return { ok: false, message: "A Floor is Lava round is already running." };
   }
 
+  if (
+    this.__creatureHandler.bomberman
+    && this.__creatureHandler.bomberman.isRunning()
+  ) {
+    return { ok: false, message: "Stop Bomberman before starting Floor is Lava." };
+  }
+
   let playableTiles = this.__getPlayableFloorTiles();
 
   if (playableTiles.length < 2) {
