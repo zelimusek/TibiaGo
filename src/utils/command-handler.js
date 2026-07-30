@@ -352,7 +352,7 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
   let result;
 
   if (action === "start") {
-    result = gameServer.world.creatureHandler.bomberman.start();
+    result = gameServer.world.creatureHandler.bomberman.start(message[2]);
   } else if (action === "stop") {
     result = gameServer.world.creatureHandler.bomberman.stop();
   } else if (action === "status") {
@@ -361,7 +361,7 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
     );
   } else {
     return player.sendCancelMessage(
-      "Usage: /bomber start, /bomber stop or /bomber status."
+      "Usage: /bomber start [mayhem|elimination], /bomber stop or /bomber status."
     );
   }
 

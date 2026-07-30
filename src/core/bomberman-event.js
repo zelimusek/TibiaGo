@@ -1,6 +1,7 @@
 "use strict";
 
 const Position = requireModule("utils/position");
+const Condition = requireModule("combat/condition");
 
 const BOMBERMAN_CONFIG = {
   floor: {
@@ -18,14 +19,42 @@ const BOMBERMAN_CONFIG = {
     }
   ],
   countdownMs: 5000,
-  roundMs: 90000,
+  mayhemRoundMs: 90000,
+  eliminationRoundMs: 180000,
   fuseMs: 3000,
-  blastRange: 2,
+  initialBlastRange: 2,
+  maximumBlastRange: 6,
+  initialMaximumBombs: 1,
+  maximumBombs: 4,
   respawnProtectionMs: 2000,
+  hasteTicks: 20,
+  hasteTickMs: 500,
   bombPulseMs: 500,
+  powerUpPulseMs: 700,
   barrierPulseMs: 1000,
+  powerUpDropChance: 0.55,
   bombItemId: 2247,
-  wallItemId: 1497
+  borderWallItemId: 1497,
+  crateItemId: 1739
+};
+
+const POWER_UPS = {
+  bomb: {
+    label: "+1 active bomb",
+    effect: () => CONST.EFFECT.MAGIC.ENERGYHIT
+  },
+  range: {
+    label: "+1 explosion range",
+    effect: () => CONST.EFFECT.MAGIC.FIREAREA
+  },
+  speed: {
+    label: "10 seconds of speed",
+    effect: () => CONST.EFFECT.MAGIC.MAGIC_GREEN
+  },
+  shield: {
+    label: "one-hit shield",
+    effect: () => CONST.EFFECT.MAGIC.MAGIC_BLUE
+  }
 };
 
 const BombermanEvent = function (creatureHandler, options) {
@@ -192,7 +221,7 @@ BombermanEvent.prototype.__getBorderPositions = function () {
 
 }
 
-BombermanEvent.prototype.__getPillarPositions = function () {
+BombermanEvent.prototype.__getCratePositions = function () {
 
   let floor = BOMBERMAN_CONFIG.floor;
   let minX = Math.min(floor.from.x, floor.to.x);
@@ -226,12 +255,12 @@ BombermanEvent.prototype.__getSpawnPositions = function () {
     new Position(minX, maxY, z)
   ];
   let preferredKeys = new Set(preferred.map(this.__positionKey.bind(this)));
-  let pillarKeys = new Set(
-    this.__getPillarPositions().map(this.__positionKey.bind(this))
+  let crateKeys = new Set(
+    this.__getCratePositions().map(this.__positionKey.bind(this))
   );
   let remaining = this.__getAreaPositions(floor).filter(function (position) {
     let key = this.__positionKey(position);
-    return !preferredKeys.has(key) && !pillarKeys.has(key);
+    return !preferredKeys.has(key) && !crateKeys.has(key);
   }, this);
 
   return preferred.concat(this.__shuffle(remaining));
@@ -266,7 +295,7 @@ BombermanEvent.prototype.__addWall = function (position, collection) {
     return false;
   }
 
-  let wall = gameServer.database.createThing(BOMBERMAN_CONFIG.wallItemId);
+  let wall = gameServer.database.createThing(BOMBERMAN_CONFIG.borderWallItemId);
 
   if (wall === null || typeof tile.addTopThing !== "function") {
     return false;
@@ -288,8 +317,30 @@ BombermanEvent.prototype.__buildArena = function () {
     this.__addWall(position, this.__state.borderItems);
   }, this);
 
-  this.__getPillarPositions().forEach(function (position) {
-    this.__addWall(position, this.__state.pillarItems);
+  this.__getCratePositions().forEach(function (position) {
+    let tile = gameServer.world.getTileFromWorldPosition(position);
+
+    if (tile === null || tile.id === 0) {
+      return;
+    }
+
+    let crate = gameServer.database.createThing(BOMBERMAN_CONFIG.crateItemId);
+    if (crate === null || typeof tile.addTopThing !== "function") {
+      return;
+    }
+
+    // Arena crates must behave as fixed one-SQM obstacles even though the
+    // ordinary map version of item 1739 is a moveable container.
+    crate.isBlockSolid = function () { return true; };
+    crate.isBlockProjectile = function () { return true; };
+    crate.isMoveable = function () { return false; };
+    crate.isPickupable = function () { return false; };
+    crate.isContainer = function () { return false; };
+    tile.addTopThing(crate);
+    this.__state.crateItems.set(this.__positionKey(position), {
+      position: position,
+      thing: crate
+    });
   }, this);
 
 }
@@ -318,8 +369,22 @@ BombermanEvent.prototype.__cleanupArena = function () {
   }
 
   this.__deleteItemEntries(this.__state.bombs, CONST.EFFECT.MAGIC.POFF);
-  this.__deleteItemEntries(this.__state.pillarItems, CONST.EFFECT.MAGIC.POFF);
+  this.__deleteItemEntries(this.__state.crateItems, CONST.EFFECT.MAGIC.POFF);
   this.__deleteItemEntries(this.__state.borderItems, CONST.EFFECT.MAGIC.POFF);
+  this.__state.powerUps.forEach(function (powerUp) {
+    gameServer.world.sendMagicEffect(
+      powerUp.position,
+      CONST.EFFECT.MAGIC.POFF
+    );
+  });
+  this.__state.powerUps.clear();
+
+  this.__state.hastePlayers.forEach(function (name) {
+    let player = this.__getConnectedPlayer(name);
+    if (player !== null && typeof player.removeCondition === "function") {
+      player.removeCondition(Condition.prototype.HASTE);
+    }
+  }, this);
 
 }
 
@@ -344,7 +409,16 @@ BombermanEvent.prototype.__teleportParticipantsToStarts = function (spawnPositio
 
 }
 
-BombermanEvent.prototype.start = function () {
+BombermanEvent.prototype.start = function (mode) {
+
+  mode = (mode || "mayhem").toLowerCase();
+
+  if (!["mayhem", "elimination"].includes(mode)) {
+    return {
+      ok: false,
+      message: "Usage: /bomber start mayhem or /bomber start elimination."
+    };
+  }
 
   if (this.__state !== null) {
     return { ok: false, message: "A Bomberman round is already running." };
@@ -381,21 +455,32 @@ BombermanEvent.prototype.start = function () {
   }
 
   let now = this.__now();
+  let roundMs = mode === "elimination"
+    ? BOMBERMAN_CONFIG.eliminationRoundMs
+    : BOMBERMAN_CONFIG.mayhemRoundMs;
   this.__state = {
     phase: "countdown",
+    mode: mode,
     participants: participants,
+    eliminated: new Set(),
     scores: new Map(),
     deaths: new Map(),
     invulnerableUntil: new Map(),
     bombs: new Map(),
     activeBombsByPlayer: new Map(),
+    maximumBombsByPlayer: new Map(),
+    blastRangeByPlayer: new Map(),
+    shields: new Map(),
+    powerUps: new Map(),
+    hastePlayers: new Set(),
     borderItems: new Map(),
-    pillarItems: new Map(),
+    crateItems: new Map(),
     startsAt: now + BOMBERMAN_CONFIG.countdownMs,
-    endsAt: now + BOMBERMAN_CONFIG.countdownMs + BOMBERMAN_CONFIG.roundMs,
+    endsAt: now + BOMBERMAN_CONFIG.countdownMs + roundMs,
     lastCountdownSecond: 5,
     lastAnnouncedRemaining: null,
     lastBombPulseAt: 0,
+    lastPowerUpPulseAt: 0,
     lastBarrierPulseAt: 0
   };
 
@@ -403,16 +488,28 @@ BombermanEvent.prototype.start = function () {
     this.__state.scores.set(name, 0);
     this.__state.deaths.set(name, 0);
     this.__state.activeBombsByPlayer.set(name, 0);
+    this.__state.maximumBombsByPlayer.set(
+      name,
+      BOMBERMAN_CONFIG.initialMaximumBombs
+    );
+    this.__state.blastRangeByPlayer.set(
+      name,
+      BOMBERMAN_CONFIG.initialBlastRange
+    );
+    this.__state.shields.set(name, 0);
   }, this);
 
   this.__teleportParticipantsToStarts(spawnPositions);
   this.__buildArena();
   this.__broadcast(
-    "Bomberman starts in 5 seconds! %s players locked in. Put /bomb on a hotkey."
-      .format(participants.size)
+    "Bomberman %s starts in 5 seconds! %s players locked in. Put /bomb on a hotkey."
+      .format(mode, participants.size)
+  );
+  this.__broadcast(
+    "Destroy crates to find RANGE, BOMB, SPEED and SHIELD bonuses."
   );
 
-  return { ok: true, message: "Bomberman countdown started." };
+  return { ok: true, message: "Bomberman %s countdown started.".format(mode) };
 
 }
 
@@ -447,7 +544,17 @@ BombermanEvent.prototype.getStatus = function () {
     })
     .join(", ");
 
-  return "Bomberman: %s, %ss left. Scores: %s"
+  if (this.__state.mode === "elimination") {
+    return "Bomberman elimination: %s, %ss left, %s/%s players alive."
+      .format(
+        this.__state.phase,
+        seconds,
+        this.__getSurvivorNames().length,
+        this.__state.participants.size
+      );
+  }
+
+  return "Bomberman mayhem: %s, %ss left. Scores: %s"
     .format(this.__state.phase, seconds, scores);
 
 }
@@ -464,6 +571,10 @@ BombermanEvent.prototype.placeBomb = function (player) {
     return { ok: false, message: "You are only spectating this Bomberman round." };
   }
 
+  if (this.__state.eliminated.has(name)) {
+    return { ok: false, message: "You are eliminated. Wait for the next round." };
+  }
+
   if (this.__state.phase !== "active") {
     return { ok: false, message: "Wait for GO before placing bombs." };
   }
@@ -476,8 +587,14 @@ BombermanEvent.prototype.placeBomb = function (player) {
     return { ok: false, message: "You cannot place a bomb during respawn protection." };
   }
 
-  if ((this.__state.activeBombsByPlayer.get(name) || 0) >= 1) {
-    return { ok: false, message: "Your previous bomb has not exploded yet." };
+  let maximumBombs = this.__state.maximumBombsByPlayer.get(name)
+    || BOMBERMAN_CONFIG.initialMaximumBombs;
+  if ((this.__state.activeBombsByPlayer.get(name) || 0) >= maximumBombs) {
+    return {
+      ok: false,
+      message: "You already have %s active bomb%s."
+        .format(maximumBombs, maximumBombs === 1 ? "" : "s")
+    };
   }
 
   let position = player.position.copy
@@ -503,7 +620,10 @@ BombermanEvent.prototype.placeBomb = function (player) {
     ownerName: name,
     detonatesAt: this.__now() + BOMBERMAN_CONFIG.fuseMs
   });
-  this.__state.activeBombsByPlayer.set(name, 1);
+  this.__state.activeBombsByPlayer.set(
+    name,
+    (this.__state.activeBombsByPlayer.get(name) || 0) + 1
+  );
   gameServer.world.sendMagicEffect(position, CONST.EFFECT.MAGIC.SOUND_YELLOW);
   return { ok: true, message: "Bomb placed." };
 
@@ -523,6 +643,9 @@ BombermanEvent.prototype.__isBlastBlocked = function (position) {
 BombermanEvent.prototype.__getBlastPositions = function (bomb) {
 
   let positions = [bomb.position];
+  let crateKeys = new Set();
+  let blastRange = this.__state.blastRangeByPlayer.get(bomb.ownerName)
+    || BOMBERMAN_CONFIG.initialBlastRange;
   let directions = [
     { x: 0, y: -1 },
     { x: 1, y: 0 },
@@ -531,12 +654,23 @@ BombermanEvent.prototype.__getBlastPositions = function (bomb) {
   ];
 
   directions.forEach(function (direction) {
-    for (let distance = 1; distance <= BOMBERMAN_CONFIG.blastRange; distance++) {
+    for (let distance = 1; distance <= blastRange; distance++) {
       let position = bomb.position.addVector(
         direction.x * distance,
         direction.y * distance,
         0
       );
+      let key = this.__positionKey(position);
+
+      if (!this.isOnFloor(position)) {
+        break;
+      }
+
+      if (this.__state.crateItems.has(key)) {
+        positions.push(position);
+        crateKeys.add(key);
+        break;
+      }
 
       if (this.__isBlastBlocked(position)) {
         break;
@@ -546,7 +680,133 @@ BombermanEvent.prototype.__getBlastPositions = function (bomb) {
     }
   }, this);
 
-  return positions;
+  return {
+    positions: positions,
+    crateKeys: crateKeys
+  };
+
+}
+
+BombermanEvent.prototype.__rollPowerUp = function () {
+
+  if (this.__random() >= BOMBERMAN_CONFIG.powerUpDropChance) {
+    return null;
+  }
+
+  let roll = this.__random();
+
+  if (roll < 0.4) {
+    return "range";
+  }
+  if (roll < 0.65) {
+    return "bomb";
+  }
+  if (roll < 0.83) {
+    return "speed";
+  }
+  return "shield";
+
+}
+
+BombermanEvent.prototype.__destroyCrates = function (crateKeys) {
+
+  crateKeys.forEach(function (key) {
+    let entry = this.__state.crateItems.get(key);
+    if (!entry) {
+      return;
+    }
+
+    let tile = gameServer.world.getTileFromWorldPosition(entry.position);
+    if (tile !== null && typeof tile.deleteThing === "function") {
+      tile.deleteThing(entry.thing);
+    }
+
+    this.__state.crateItems.delete(key);
+    gameServer.world.sendMagicEffect(
+      entry.position,
+      CONST.EFFECT.MAGIC.BLOCKHIT
+    );
+
+    let type = this.__rollPowerUp();
+    if (type !== null) {
+      this.__state.powerUps.set(key, {
+        type: type,
+        position: entry.position
+      });
+      gameServer.world.sendMagicEffect(
+        entry.position,
+        POWER_UPS[type].effect()
+      );
+    }
+  }, this);
+
+}
+
+BombermanEvent.prototype.__applyPowerUp = function (player, powerUp) {
+
+  let name = this.__getPlayerName(player);
+  let message;
+
+  if (powerUp.type === "bomb") {
+    let value = Math.min(
+      BOMBERMAN_CONFIG.maximumBombs,
+      (this.__state.maximumBombsByPlayer.get(name) || 1) + 1
+    );
+    this.__state.maximumBombsByPlayer.set(name, value);
+    message = "+1 BOMB! You may place %s bombs at once.".format(value);
+  } else if (powerUp.type === "range") {
+    let value = Math.min(
+      BOMBERMAN_CONFIG.maximumBlastRange,
+      (this.__state.blastRangeByPlayer.get(name) || BOMBERMAN_CONFIG.initialBlastRange) + 1
+    );
+    this.__state.blastRangeByPlayer.set(name, value);
+    message = "+1 RANGE! Your explosions now reach %s SQMs.".format(value);
+  } else if (powerUp.type === "speed") {
+    if (typeof player.addCondition === "function") {
+      player.addCondition(
+        Condition.prototype.HASTE,
+        BOMBERMAN_CONFIG.hasteTicks,
+        BOMBERMAN_CONFIG.hasteTickMs,
+        null
+      );
+      this.__state.hastePlayers.add(name);
+    }
+    message = "SPEED! You are faster for 10 seconds.";
+  } else {
+    this.__state.shields.set(name, 1);
+    message = "SHIELD! The next explosion will not hit you.";
+  }
+
+  player.sendCancelMessage(message);
+  gameServer.world.sendMagicEffect(
+    powerUp.position,
+    POWER_UPS[powerUp.type].effect()
+  );
+
+}
+
+BombermanEvent.prototype.__collectPowerUpAt = function (player, position) {
+
+  if (this.__state === null || !position) {
+    return;
+  }
+
+  let name = this.__getPlayerName(player);
+  if (
+    !this.__state.participants.has(name)
+    || this.__state.eliminated.has(name)
+  ) {
+    return;
+  }
+
+  let key = this.__positionKey(position);
+  let powerUp = this.__state.powerUps.get(key);
+  if (!powerUp) {
+    return;
+  }
+
+  this.__state.powerUps.delete(key);
+  this.__applyPowerUp(player, powerUp);
 
 }
 
@@ -588,12 +848,34 @@ BombermanEvent.prototype.__getRespawnPosition = function (blockedKeys) {
 
 }
 
+BombermanEvent.prototype.__getSurvivorNames = function () {
+
+  if (this.__state === null) {
+    return [];
+  }
+
+  return Array.from(this.__state.participants).filter(function (name) {
+    return !this.__state.eliminated.has(name);
+  }, this);
+
+}
+
 BombermanEvent.prototype.__hitPlayer = function (player, ownerName, blastKeys) {
 
   let name = this.__getPlayerName(player);
   let now = this.__now();
 
   if ((this.__state.invulnerableUntil.get(name) || 0) > now) {
+    return;
+  }
+
+  if ((this.__state.shields.get(name) || 0) > 0) {
+    this.__state.shields.set(name, 0);
+    gameServer.world.sendMagicEffect(
+      player.position,
+      CONST.EFFECT.MAGIC.MAGIC_BLUE
+    );
+    player.sendCancelMessage("Your shield absorbed the explosion!");
     return;
   }
 
@@ -604,6 +886,30 @@ BombermanEvent.prototype.__hitPlayer = function (player, ownerName, blastKeys) {
       ownerName,
       (this.__state.scores.get(ownerName) || 0) + 1
     );
+  }
+
+  if (this.__state.mode === "elimination") {
+    this.__state.eliminated.add(name);
+    gameServer.world.sendMagicEffect(
+      player.position,
+      CONST.EFFECT.MAGIC.HITBYFIRE
+    );
+
+    let audiencePosition = this.__getAudiencePosition();
+    if (audiencePosition !== null) {
+      this.__creatureHandler.teleportCreature(
+        player,
+        audiencePosition,
+        { ignoreBomberman: true }
+      );
+    }
+
+    this.__broadcast(
+      ownerName === name
+        ? "%s eliminated themselves!".format(name)
+        : "%s eliminated %s!".format(ownerName, name)
+    );
+    return;
   }
 
   this.__state.invulnerableUntil.set(
@@ -638,6 +944,7 @@ BombermanEvent.prototype.__detonateBombs = function (initialKeys) {
   let queue = initialKeys.slice();
   let queued = new Set(queue);
   let blastEntries = [];
+  let destroyedCrateKeys = new Set();
 
   while (queue.length > 0) {
     let key = queue.shift();
@@ -648,10 +955,16 @@ BombermanEvent.prototype.__detonateBombs = function (initialKeys) {
     }
 
     this.__removeBomb(key, bomb);
-    let positions = this.__getBlastPositions(bomb);
-    blastEntries.push({ ownerName: bomb.ownerName, positions: positions });
+    let blast = this.__getBlastPositions(bomb);
+    blastEntries.push({
+      ownerName: bomb.ownerName,
+      positions: blast.positions
+    });
+    blast.crateKeys.forEach(function (crateKey) {
+      destroyedCrateKeys.add(crateKey);
+    });
 
-    positions.forEach(function (position) {
+    blast.positions.forEach(function (position) {
       let chainedKey = this.__positionKey(position);
       if (this.__state.bombs.has(chainedKey) && !queued.has(chainedKey)) {
         queued.add(chainedKey);
@@ -659,6 +972,8 @@ BombermanEvent.prototype.__detonateBombs = function (initialKeys) {
       }
     }, this);
   }
+
+  this.__destroyCrates(destroyedCrateKeys);
 
   let allBlastKeys = new Set();
   blastEntries.forEach(function (entry) {
@@ -689,6 +1004,8 @@ BombermanEvent.prototype.__detonateBombs = function (initialKeys) {
     }, this);
   }, this);
 
+  this.__finishEliminationIfResolved();
+
 }
 
 BombermanEvent.prototype.handleDestination = function (player, position) {
@@ -699,16 +1016,25 @@ BombermanEvent.prototype.handleDestination = function (player, position) {
 
   let name = this.__getPlayerName(player);
   let isParticipant = this.__state.participants.has(name);
+  let isEliminated = this.__state.eliminated.has(name);
   let destinationOnFloor = this.isOnFloor(position);
 
-  if (!isParticipant && destinationOnFloor) {
-    player.sendCancelMessage("A Bomberman round is running. You are spectating.");
+  if ((!isParticipant || isEliminated) && destinationOnFloor) {
+    player.sendCancelMessage(
+      isEliminated
+        ? "You are eliminated. Wait for the next Bomberman round."
+        : "A Bomberman round is running. You are spectating."
+    );
     return { position: this.__getAudiencePosition() };
   }
 
-  if (isParticipant && !destinationOnFloor) {
+  if (isParticipant && !isEliminated && !destinationOnFloor) {
     player.sendCancelMessage("You cannot leave the arena during Bomberman.");
     return { position: player.position };
+  }
+
+  if (isParticipant && !isEliminated && destinationOnFloor) {
+    this.__collectPowerUpAt(player, position);
   }
 
   return null;
@@ -722,6 +1048,11 @@ BombermanEvent.prototype.handlePlayerConnected = function (player) {
   }
 
   let name = this.__getPlayerName(player);
+
+  if (this.__state.eliminated.has(name)) {
+    player.sendCancelMessage("You are eliminated. You are spectating.");
+    return this.__getAudiencePosition();
+  }
 
   if (this.__state.participants.has(name)) {
     this.__state.invulnerableUntil.set(
@@ -752,6 +1083,16 @@ BombermanEvent.prototype.__pulseArena = function (now) {
     });
   }
 
+  if (now - this.__state.lastPowerUpPulseAt >= BOMBERMAN_CONFIG.powerUpPulseMs) {
+    this.__state.lastPowerUpPulseAt = now;
+    this.__state.powerUps.forEach(function (powerUp) {
+      gameServer.world.sendMagicEffect(
+        powerUp.position,
+        POWER_UPS[powerUp.type].effect()
+      );
+    });
+  }
+
   if (now - this.__state.lastBarrierPulseAt >= BOMBERMAN_CONFIG.barrierPulseMs) {
     this.__state.lastBarrierPulseAt = now;
     this.__state.borderItems.forEach(function (entry, key) {
@@ -766,7 +1107,7 @@ BombermanEvent.prototype.__pulseArena = function (now) {
 
 }
 
-BombermanEvent.prototype.__finish = function () {
+BombermanEvent.prototype.__finishMayhem = function () {
 
   let scores = Array.from(this.__state.scores.entries());
   let bestScore = Math.max.apply(null, scores.map(function (entry) {
@@ -806,6 +1147,74 @@ BombermanEvent.prototype.__finish = function () {
 
 }
 
+BombermanEvent.prototype.__finishElimination = function () {
+
+  let survivors = this.__getSurvivorNames();
+
+  survivors.forEach(function (name) {
+    let player = this.__getConnectedPlayer(name);
+    if (player !== null) {
+      gameServer.world.sendMagicEffect(
+        player.position,
+        CONST.EFFECT.MAGIC.SOUND_WHITE
+      );
+    }
+  }, this);
+
+  this.__cleanupArena();
+  this.__state = null;
+
+  if (survivors.length === 1) {
+    this.__broadcast("%s wins Bomberman elimination!".format(survivors[0]));
+  } else if (survivors.length === 0) {
+    this.__broadcast("Bomberman elimination ends with no survivors!");
+  } else {
+    this.__broadcast(
+      "Bomberman elimination time is up — survivors draw: %s."
+        .format(survivors.join(", "))
+    );
+  }
+
+}
+
+BombermanEvent.prototype.__finishEliminationIfResolved = function () {
+
+  if (
+    this.__state !== null
+    && this.__state.mode === "elimination"
+    && this.__getSurvivorNames().length <= 1
+  ) {
+    this.__finishElimination();
+    return true;
+  }
+
+  return false;
+
+}
+
+BombermanEvent.prototype.__eliminateDisconnectedPlayers = function () {
+
+  if (this.__state.mode !== "elimination") {
+    return;
+  }
+
+  this.__getSurvivorNames().forEach(function (name) {
+    if (this.__getConnectedPlayer(name) === null) {
+      this.__state.eliminated.add(name);
+      this.__broadcast("%s was eliminated after leaving the game.".format(name));
+    }
+  }, this);
+
+}
+
+BombermanEvent.prototype.__collectStandingPowerUps = function () {
+
+  this.__creatureHandler.getConnectedPlayers().forEach(function (player) {
+    this.__collectPowerUpAt(player, player.position);
+  }, this);
+
+}
+
 BombermanEvent.prototype.tick = function () {
 
   if (this.__state === null) {
@@ -814,6 +1223,7 @@ BombermanEvent.prototype.tick = function () {
 
   let now = this.__now();
   this.__pulseArena(now);
+  this.__collectStandingPowerUps();
 
   if (this.__state.phase === "countdown") {
     let seconds = Math.max(0, Math.ceil((this.__state.startsAt - now) / 1000));
@@ -831,11 +1241,24 @@ BombermanEvent.prototype.tick = function () {
     }
 
     this.__state.phase = "active";
-    this.__broadcast("GO! Use /bomb — one active bomb per player.");
+    this.__broadcast(
+      this.__state.mode === "elimination"
+        ? "GO! Last player alive wins. Use /bomb."
+        : "GO! Score as many hits as possible. Use /bomb."
+    );
+  }
+
+  this.__eliminateDisconnectedPlayers();
+  if (this.__finishEliminationIfResolved()) {
+    return;
   }
 
   if (now >= this.__state.endsAt) {
-    this.__finish();
+    if (this.__state.mode === "elimination") {
+      this.__finishElimination();
+    } else {
+      this.__finishMayhem();
+    }
     return;
   }
 

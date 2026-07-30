@@ -14,6 +14,7 @@ const originalGlobalGameServer = global.gameServer;
 let startCalls = 0;
 let stopCalls = 0;
 let bombCalls = 0;
+let startMode = null;
 let redirectedPosition = null;
 let redirectOptions = null;
 const audiencePosition = new Position(32507, 32343, 7);
@@ -22,8 +23,9 @@ global.gameServer = process.gameServer = {
   world: {
     creatureHandler: {
       bomberman: {
-        start() {
+        start(mode) {
           startCalls++;
+          startMode = mode;
           return { ok: true, message: "started" };
         },
         stop() {
@@ -58,8 +60,9 @@ try {
     },
   };
 
-  assert.strictEqual(commandHandler.handle(gm, "/bomber start"), true);
+  assert.strictEqual(commandHandler.handle(gm, "/bomber start elimination"), true);
   assert.strictEqual(startCalls, 1);
+  assert.strictEqual(startMode, "elimination");
   assert.strictEqual(commandHandler.handle(gm, "/bomber stop"), true);
   assert.strictEqual(stopCalls, 1);
   commandHandler.handle(gm, "/bomber status");
