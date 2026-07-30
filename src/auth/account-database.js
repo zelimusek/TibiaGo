@@ -70,6 +70,9 @@ AccountDatabase.prototype.__createDefaultCharacter = async function (
     role: Number.isInteger(DEFAULT_CHARACTER.ROLE)
       ? DEFAULT_CHARACTER.ROLE
       : CONST.ROLES.GOD,
+    outfit: Number.isInteger(DEFAULT_CHARACTER.OUTFIT)
+      ? DEFAULT_CHARACTER.OUTFIT
+      : CONST.LOOKTYPES.OTHER.GAMEMASTER,
   };
 
   // Check if default character already exists
@@ -92,8 +95,29 @@ AccountDatabase.prototype.__createDefaultCharacter = async function (
       character.properties = {};
     }
 
+    let characterUpdated = false;
+
     if (character.properties.role !== queryObject.role) {
       character.properties.role = queryObject.role;
+      characterUpdated = true;
+    }
+
+    if (
+      !character.properties.outfit ||
+      character.properties.outfit.id !== queryObject.outfit
+    ) {
+      character.properties.outfit = {
+        id: queryObject.outfit,
+        details: null,
+        mount: 0,
+        mounted: false,
+        addonOne: false,
+        addonTwo: false,
+      };
+      characterUpdated = true;
+    }
+
+    if (characterUpdated) {
       await this.db
         .update(accounts)
         .set({
@@ -102,9 +126,9 @@ AccountDatabase.prototype.__createDefaultCharacter = async function (
         })
         .where(eq(accounts.account, queryObject.account.toLowerCase()));
 
-      console.log("Default character role has been updated to GOD");
+      console.log("Default GOD character role and outfit have been updated");
     } else {
-      console.log("Default character already exists with the correct role");
+      console.log("Default GOD character already has the correct role and outfit");
     }
     return;
   }
@@ -187,6 +211,17 @@ AccountDatabase.prototype.createAccount = function (queryObject, callback) {
             // All ordinary registrations keep the CharacterCreator default (NONE).
             if (Number.isInteger(queryObject.role)) {
               character.properties.role = queryObject.role;
+            }
+
+            if (Number.isInteger(queryObject.outfit)) {
+              character.properties.outfit = {
+                id: queryObject.outfit,
+                details: null,
+                mount: 0,
+                mounted: false,
+                addonOne: false,
+                addonTwo: false,
+              };
             }
 
             // Insert into the database

@@ -49,6 +49,55 @@ CommandHandler.prototype.handleCommandWaypoint = function (player, waypoint) {
   );
 };
 
+CommandHandler.prototype.handleCommandTeleport = function (player, coordinates) {
+  /*
+   * CommandHandler.handleCommandTeleport
+   * Teleports a GM to an exact world position.
+   */
+
+  let x = Number(coordinates[0]);
+  let y = Number(coordinates[1]);
+  let z = Number(coordinates[2]);
+
+  if (
+    coordinates.length !== 3 ||
+    !Number.isInteger(x) ||
+    !Number.isInteger(y) ||
+    !Number.isInteger(z) ||
+    x < 0 ||
+    x > 65535 ||
+    y < 0 ||
+    y > 65535 ||
+    z < 0 ||
+    z > 15
+  ) {
+    return player.sendCancelMessage("Usage: /teleport X Y Z");
+  }
+
+  let destination = new Position(x, y, z);
+
+  if (!gameServer.world.getTileFromWorldPosition(destination)) {
+    return player.sendCancelMessage("There is no valid tile at that destination.");
+  }
+
+  let teleported = gameServer.world.creatureHandler.teleportCreature(
+    player,
+    destination,
+    {
+      ignoreFloorLava: true,
+      ignoreBomberman: true,
+    }
+  );
+
+  if (!teleported) {
+    return player.sendCancelMessage("Could not teleport to that destination.");
+  }
+
+  return player.sendCancelMessage(
+    "Teleported to " + x + ", " + y + ", " + z + "."
+  );
+};
+
 CommandHandler.prototype.handleCommandAdvance = function (player, amount) {
   /*
    * CommandHandler.handleCommandAdvance
@@ -521,10 +570,7 @@ CommandHandler.prototype.handle = function (player, message) {
   }
 
   if (message[0] === "/teleport") {
-    return gameServer.world.creatureHandler.teleportCreature(
-      player,
-      new Position(Number(message[1]), Number(message[2]), Number(message[3]))
-    );
+    return this.handleCommandTeleport(player, message.slice(1));
   }
 
   if (message[0] === "/a") {

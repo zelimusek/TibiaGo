@@ -26,7 +26,8 @@
       "PASSWORD": "tibia",
       "SEX": "male",
       "NAME": "God",
-      "ROLE": 4
+      "ROLE": 4,
+      "OUTFIT": 75
     }
   },
   "SERVER": {
