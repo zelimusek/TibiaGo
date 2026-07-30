@@ -94,9 +94,16 @@ try {
   assert.strictEqual(event.isRunning(), true);
   assert.strictEqual(event.__state.participants.size, 2);
   assert.strictEqual(event.__state.playableTiles.length, 169);
-  assert.strictEqual(addedThings.length, 7);
+  assert.strictEqual(addedThings.length, 52);
   assert.ok(addedThings.every((entry) => entry.thing.id === 1498));
-  assert.ok(addedThings.every((entry) => entry.position.x === 32508));
+  assert.ok(addedThings.some((entry) => entry.position.x === 32508 && entry.position.y === 32340));
+  assert.ok(addedThings.some((entry) => entry.position.x === 32522 && entry.position.y === 32352));
+  assert.ok(addedThings.some((entry) => entry.position.x === 32509 && entry.position.y === 32339));
+  assert.ok(addedThings.some((entry) => entry.position.x === 32521 && entry.position.y === 32353));
+  assert.ok(!addedThings.some((entry) => entry.position.x === 32508 && entry.position.y === 32339));
+  assert.ok(!addedThings.some((entry) => entry.position.x === 32522 && entry.position.y === 32339));
+  assert.ok(!addedThings.some((entry) => entry.position.x === 32508 && entry.position.y === 32353));
+  assert.ok(!addedThings.some((entry) => entry.position.x === 32522 && entry.position.y === 32353));
   assert.ok(effects.some((entry) => entry.effect === CONST.EFFECT.MAGIC.MAGIC_BLUE));
 
   const lateEntry = event.handleDestination(
@@ -141,7 +148,7 @@ try {
 
   assert.strictEqual(event.stop().ok, true);
   assert.strictEqual(event.isRunning(), false);
-  assert.strictEqual(deletedThings.length, 7);
+  assert.strictEqual(deletedThings.length, 52);
   assert.ok(deletedThings.every((entry) => entry.thing.id === 1498));
 
   effects = [];

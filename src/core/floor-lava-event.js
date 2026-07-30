@@ -18,8 +18,6 @@ const FLOOR_LAVA_CONFIG = {
     }
   ],
   entranceBarrier: {
-    from: { x: 32508, y: 32340, z: 7 },
-    to: { x: 32508, y: 32346, z: 7 },
     itemId: 1498,
     pulseMs: 1000
   },
@@ -100,6 +98,30 @@ FloorLavaEvent.prototype.__getAreaPositions = function (area) {
     for (let y = minY; y <= maxY; y++) {
       positions.push(new Position(x, y, area.from.z));
     }
+  }
+
+  return positions;
+
+}
+
+FloorLavaEvent.prototype.__getEntranceBarrierPositions = function () {
+
+  let floor = FLOOR_LAVA_CONFIG.floor;
+  let z = floor.from.z;
+  let minX = Math.min(floor.from.x, floor.to.x) - 1;
+  let maxX = Math.max(floor.from.x, floor.to.x) + 1;
+  let minY = Math.min(floor.from.y, floor.to.y) - 1;
+  let maxY = Math.max(floor.from.y, floor.to.y) + 1;
+  let positions = [];
+
+  for (let x = minX + 1; x <= maxX - 1; x++) {
+    positions.push(new Position(x, minY, z));
+    positions.push(new Position(x, maxY, z));
+  }
+
+  for (let y = minY + 1; y <= maxY - 1; y++) {
+    positions.push(new Position(minX, y, z));
+    positions.push(new Position(maxX, y, z));
   }
 
   return positions;
@@ -519,7 +541,7 @@ FloorLavaEvent.prototype.__closeEntranceBarrier = function () {
     return;
   }
 
-  this.__getAreaPositions(FLOOR_LAVA_CONFIG.entranceBarrier).forEach(function (position) {
+  this.__getEntranceBarrierPositions().forEach(function (position) {
     let tile = gameServer.world.getTileFromWorldPosition(position);
 
     if (tile === null || tile.id === 0) {
@@ -572,7 +594,7 @@ FloorLavaEvent.prototype.__pulseEntranceBarrier = function (now) {
 
   this.__state.lastEntranceBarrierPulseAt = now;
 
-  this.__getAreaPositions(FLOOR_LAVA_CONFIG.entranceBarrier).forEach(function (position, index) {
+  this.__getEntranceBarrierPositions().forEach(function (position, index) {
     let effect = index % 2 === 0
       ? CONST.EFFECT.MAGIC.ENERGYHIT
       : CONST.EFFECT.MAGIC.MAGIC_BLUE;
