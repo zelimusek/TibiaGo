@@ -1,5 +1,5 @@
-const CACHE_NAME = "tibiago-static-v15";
-const CLIENT_BUILD = "20260730.4";
+const CACHE_NAME = "tibiago-static-v16";
+const CLIENT_BUILD = "20260730.5";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
@@ -46,10 +46,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // The game is online-only, so its code must always be current. Caching the
-  // launcher or source modules can mix an old client protocol with a newly
-  // deployed server and lead to a black screen after reconnecting.
-  if (request.mode === "navigate" || /\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)) {
+  // The game is online-only, so its code and data must always be current.
+  // Tibia.spr is large and the client already persists it in IndexedDB; teeing
+  // that stream into Cache Storage can stall an installed desktop PWA before
+  // SpriteBuffer receives the complete response.
+  if (
+    request.mode === "navigate" ||
+    requestUrl.pathname.startsWith("/data/") ||
+    /\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)
+  ) {
     event.respondWith(fetch(request));
     return;
   }
