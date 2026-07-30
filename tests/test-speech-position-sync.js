@@ -49,6 +49,9 @@ const context = vm.createContext({
     interface: {
       getSpriteScaling: () => 32,
     },
+    eventQueue: {
+      addEvent: () => 123,
+    },
     player: {
       isMoving: () => false,
     },
@@ -122,5 +125,39 @@ assert.strictEqual(
   1,
   "Frozen world speech must still be repositioned when the camera moves."
 );
+
+let measuredWidth = 0;
+const measurableElement = {
+  style: {
+    display: "none",
+    visibility: "",
+  },
+};
+Object.defineProperty(measurableElement, "offsetWidth", {
+  get: function () {
+    return this.style.display === "none" ? 0 : 80;
+  },
+});
+
+const firstFrameMessage = {
+  element: measurableElement,
+  getDuration: () => 1,
+  setTextPosition: function () {
+    measuredWidth = this.element.offsetWidth;
+  },
+};
+
+manager.activeTextElements = new Set();
+manager.add = () => {};
+manager.deleteTextElement = () => {};
+manager.__createTextElement(firstFrameMessage);
+
+assert.strictEqual(
+  measuredWidth,
+  80,
+  "The first speech position must be measured while the bubble has its real width."
+);
+assert.strictEqual(measurableElement.style.display, "block");
+assert.strictEqual(measurableElement.style.visibility, "");
 
 console.log("PASS: overhead speech stays where it was spoken without jumping mid-step.");

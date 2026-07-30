@@ -121,8 +121,17 @@ ScreenElementManager.prototype.__createTextElement = function (messageElement) {
   // Add the element to the screen wrapper
   this.add(messageElement.element);
 
-  // Must update the position after appending to the parent
+  // ScreenElement clones start with display:none to prevent a one-frame flash
+  // at (0, 0). Such an element has offsetWidth/offsetHeight equal to zero, so
+  // make it measurable but still invisible before calculating its first
+  // centered position.
+  messageElement.element.style.visibility = "hidden";
+  messageElement.element.style.display = "block";
+
+  // Must update the position after appending to the parent and making it
+  // measurable.
   messageElement.setTextPosition();
+  messageElement.element.style.visibility = "";
 
   // Add an event to delete the text element after some time
   let event = gameClient.eventQueue.addEvent(this.deleteTextElement.bind(this, messageElement), messageElement.getDuration());
