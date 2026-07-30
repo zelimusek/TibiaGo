@@ -58,20 +58,47 @@ def run_remote(client, command: str, *, check: bool = True, timeout: int = 900) 
     return output
 
 
+def get_listening_pid(client) -> int | None:
+    output = run_remote(
+        client,
+        "sockstat -4 -l 2>/dev/null | grep ':2436' || true",
+    )
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) >= 3 and fields[2].isdigit():
+            return int(fields[2])
+    return None
+
+
 def process_status(client) -> str:
+    pid = get_listening_pid(client)
+    if pid is None:
+        return ""
     return run_remote(
         client,
-        "ps ax -o pid=,rss=,etime=,command= | "
-        "grep '[n]ode.*server-production\\.js' || true",
+        f"ps -ww -p {pid} -o pid,ppid,rss,etime,args 2>/dev/null || "
+        f"echo '{pid} listening on port 2436'",
     )
 
 
 def stop_server(client) -> None:
-    run_remote(client, "pkill -f '[n]ode.*server-production\\.js' || true")
-    time.sleep(2)
+    pid = get_listening_pid(client)
+    if pid is None:
+        print("TIBIAGO_ALREADY_STOPPED")
+        return
+
+    # SIGTERM invokes GameServer.scheduleShutdown(), allowing character and
+    # PGlite writes to finish before the process exits.
+    run_remote(client, f"kill -TERM {pid}")
+    for _ in range(15):
+        time.sleep(1)
+        if get_listening_pid(client) is None:
+            print("TIBIAGO_STOPPED")
+            return
+
     status = process_status(client)
     if status:
-        raise RuntimeError(f"TibiaGo is still running:\n{status}")
+        raise RuntimeError(f"TibiaGo is still running after SIGTERM:\n{status}")
     print("TIBIAGO_STOPPED")
 
 
@@ -167,7 +194,10 @@ def snapshot(client, config, remote_root: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("status", "storage", "stop", "snapshot", "start"))
+    parser.add_argument(
+        "command",
+        choices=("status", "processes", "storage", "stop", "snapshot", "start"),
+    )
     args = parser.parse_args()
 
     deploy = load_deploy_module()
@@ -177,6 +207,14 @@ def main() -> int:
         if args.command == "status":
             status = process_status(client)
             print(status if status else "TIBIAGO_STOPPED")
+        elif args.command == "processes":
+            status = process_status(client)
+            sockets = run_remote(
+                client,
+                "sockstat -4 -l 2>&1 | grep ':2436' || true",
+            )
+            print(status if status else "NO_PROCESS_ON_PORT_2436")
+            print(sockets if sockets else "NO_SOCKET_ON_PORT_2436")
         elif args.command == "storage":
             print(
                 run_remote(
