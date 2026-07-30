@@ -79,6 +79,12 @@ const MIME_TYPES = {
 };
 
 const CLIENT_DIR = path.join(__dirname, "client");
+const MEMORY_LOG_INTERVAL_MS = Math.max(
+  10000,
+  parseInt(process.env.MEMORY_LOG_INTERVAL_MS, 10) || 60000
+);
+const MEMORY_LOG_MAX_BYTES = 5 * 1024 * 1024;
+const MEMORY_LOG_PATH = path.join(__dirname, "logs", "memory.jsonl");
 
 // ─── Initialize Login Server Logic (without creating its own HTTP server) ──
 const LoginServer = requireModule("auth/login-server");
@@ -112,6 +118,72 @@ const httpServer = gameServer.HTTPServer.__server;
 // Save the original request handler
 const originalRequestHandler = gameServer.HTTPServer.__handleRequest.bind(gameServer.HTTPServer);
 const originalUpgradeHandler = gameServer.HTTPServer.__handleUpgrade.bind(gameServer.HTTPServer);
+
+function bytesToMiB(bytes) {
+  return Number((bytes / (1024 * 1024)).toFixed(1));
+}
+
+function getRuntimeStats() {
+  const memory = process.memoryUsage();
+  let connections = 0;
+  let players = 0;
+
+  try {
+    connections = gameServer.HTTPServer.websocketServer.socketHandler.getTotalConnectedSockets();
+    players = gameServer.world.creatureHandler.getConnectedPlayers().size;
+  } catch (error) {
+    // Startup and shutdown can briefly leave one of these managers unavailable.
+  }
+
+  return {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    memoryMiB: {
+      rss: bytesToMiB(memory.rss),
+      heapUsed: bytesToMiB(memory.heapUsed),
+      heapTotal: bytesToMiB(memory.heapTotal),
+      external: bytesToMiB(memory.external),
+      arrayBuffers: bytesToMiB(memory.arrayBuffers),
+    },
+    connections,
+    players,
+  };
+}
+
+function rotateMemoryLogIfNeeded() {
+  try {
+    if (!fs.existsSync(MEMORY_LOG_PATH)) {
+      return;
+    }
+    if (fs.statSync(MEMORY_LOG_PATH).size < MEMORY_LOG_MAX_BYTES) {
+      return;
+    }
+
+    const rotatedPath = MEMORY_LOG_PATH + ".1";
+    if (fs.existsSync(rotatedPath)) {
+      fs.unlinkSync(rotatedPath);
+    }
+    fs.renameSync(MEMORY_LOG_PATH, rotatedPath);
+  } catch (error) {
+    console.error("Could not rotate memory telemetry log:", error.message);
+  }
+}
+
+function writeMemoryTelemetry() {
+  try {
+    fs.mkdirSync(path.dirname(MEMORY_LOG_PATH), { recursive: true });
+    rotateMemoryLogIfNeeded();
+    fs.appendFileSync(MEMORY_LOG_PATH, JSON.stringify(getRuntimeStats()) + "\n", "utf8");
+  } catch (error) {
+    console.error("Could not write memory telemetry:", error.message);
+  }
+}
+
+// Keep a small, rotating history so memory regressions can be diagnosed
+// without relying solely on the hosting panel.
+writeMemoryTelemetry();
+setInterval(writeMemoryTelemetry, MEMORY_LOG_INTERVAL_MS).unref();
 
 // ─── Static file handler ────────────────────────────────────────────────
 function serveStaticFile(req, res) {
@@ -218,7 +290,7 @@ httpServer.on("request", (req, res) => {
   // 2. Health check
   if (pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", uptime: process.uptime() }));
+    res.end(JSON.stringify(getRuntimeStats()));
     return;
   }
 
