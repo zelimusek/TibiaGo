@@ -421,6 +421,31 @@ CommandHandler.prototype.handleCommandAddSkill = function (
   }
 };
 
+CommandHandler.prototype.findCreatureByName = function (name) {
+  /*
+   * CommandHandler.findCreatureByName
+   * Finds an online creature by exact case-insensitive name.
+   */
+
+  let normalizedName = (name || "").toLowerCase();
+  let target = null;
+  let targetName = "";
+  let found = false;
+
+  gameServer.world.creatureHandler.__creatureMap.forEach(function (creature) {
+    if (found) return;
+
+    let creatureName = creature.getProperty(CONST.PROPERTIES.NAME);
+    if (creatureName && creatureName.toLowerCase() === normalizedName) {
+      target = creature;
+      targetName = creatureName;
+      found = true;
+    }
+  });
+
+  return { target, targetName };
+};
+
 CommandHandler.prototype.handle = function (player, message) {
   // Slash commands in this handler are administrative tools (spawning,
   // teleporting, editing radio zones, and similar). They must not be exposed
@@ -555,27 +580,23 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/goto") {
     let name = message.slice(1).join(" ").toLowerCase();
+    let result = this.findCreatureByName(name);
 
-    // Find the creature
-    let target = null;
-    let targetName = "";
-    let found = false;
+    if (result.target) {
+      gameServer.world.creatureHandler.teleportCreature(player, result.target.getPosition());
+      return player.sendCancelMessage("Teleported to " + result.targetName + ".");
+    } else {
+      return player.sendCancelMessage("Creature not found: " + name);
+    }
+  }
 
-    gameServer.world.creatureHandler.__creatureMap.forEach(function (creature) {
-      if (found) return;
+  if (message[0] === "/bring") {
+    let name = message.slice(1).join(" ").toLowerCase();
+    let result = this.findCreatureByName(name);
 
-      // Get creature name using getProperty for consistency
-      let creatureName = creature.getProperty(CONST.PROPERTIES.NAME);
-      if (creatureName && creatureName.toLowerCase() === name) {
-        target = creature;
-        targetName = creatureName;
-        found = true;
-      }
-    });
-
-    if (target) {
-      gameServer.world.creatureHandler.teleportCreature(player, target.getPosition());
-      return player.sendCancelMessage("Teleported to " + targetName + ".");
+    if (result.target) {
+      gameServer.world.creatureHandler.teleportCreature(result.target, player.getPosition());
+      return player.sendCancelMessage("Brought " + result.targetName + " to you.");
     } else {
       return player.sendCancelMessage("Creature not found: " + name);
     }
