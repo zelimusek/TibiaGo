@@ -269,17 +269,21 @@ Renderer.prototype.getCreatureScreenPosition = function (creature) {
 
   /*
    * Function Renderer.getCreatureScreenPosition
-   * Returns the creature position which is a static position plus the creature move offset
+   * Returns the creature position including movement and the visual elevation
+   * accumulated by high items on its tile.
    */
 
   // Add the creature moving offset to the static position
   let staticPosition = this.getStaticScreenPosition(creature.getPosition());
   let creatureMoveOffset = creature.getMoveOffset();
+  let tile = gameClient.world.getTileFromWorldPosition(creature.getPosition());
+  let elevation = tile ? tile.__renderElevation : 0;
 
-  // Add the move offset to the static position
+  // Use one shared elevated anchor for the sprite, its name/health plate,
+  // target rectangle, attached effects and mouse hit testing.
   return new Position(
-    staticPosition.x - creatureMoveOffset.x,
-    staticPosition.y - creatureMoveOffset.y
+    staticPosition.x - creatureMoveOffset.x - elevation,
+    staticPosition.y - creatureMoveOffset.y - elevation
   );
 
 }
@@ -687,12 +691,7 @@ Renderer.prototype.__renderCreature = function (tile, creature, deferred) {
   }
 
   // Get the position of the creature
-  let position = this.getCreatureScreenPosition(creature);
-
-  let renderPosition = new Position(
-    position.x - tile.__renderElevation,
-    position.y - tile.__renderElevation
-  );
+  let renderPosition = this.getCreatureScreenPosition(creature);
 
   // Should the rendering of the creature be deferred to another tile
   if (this.__shouldDefer(tile, creature) && !deferred) {
