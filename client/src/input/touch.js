@@ -47,6 +47,7 @@ const Touch = function () {
     // after rotating or resizing the device.
     this.__mobileChatViewportBound = false;
     this.__mobileChatInputFocused = false;
+    this.__mobileChatBlurPending = false;
     this.__mobileChatViewportTimers = new Array();
 
     // Initialize if on mobile or landscape
@@ -243,21 +244,29 @@ Touch.prototype.__bindMobileChatViewport = function () {
     this.__boundMobileChatViewportSync = this.__syncMobileChatViewport.bind(this);
 
     input.addEventListener('focus', function () {
+        this.__mobileChatViewportTimers.forEach(function (timer) {
+            clearTimeout(timer);
+        });
+        this.__mobileChatViewportTimers = new Array();
+        this.__mobileChatBlurPending = false;
         this.__mobileChatInputFocused = true;
         this.__scheduleMobileChatViewportSync();
     }.bind(this));
 
     input.addEventListener('blur', function () {
-        this.__mobileChatInputFocused = false;
-
         // Keep the composer stationary long enough for a tap on Send to
         // deliver its click. Resetting the fixed panel synchronously during
         // blur can move the button away before Android dispatches click.
+        this.__mobileChatBlurPending = true;
         this.__mobileChatViewportTimers.forEach(function (timer) {
             clearTimeout(timer);
         });
         this.__mobileChatViewportTimers = [
-            setTimeout(this.__boundMobileChatViewportSync, 150)
+            setTimeout(function () {
+                this.__mobileChatBlurPending = false;
+                this.__mobileChatInputFocused = false;
+                this.__boundMobileChatViewportSync();
+            }.bind(this), 180)
         ];
     }.bind(this));
 
@@ -313,9 +322,10 @@ Touch.prototype.__syncMobileChatViewport = function () {
 
     /*
      * Function Touch.__syncMobileChatViewport
-     * Position the compact composer immediately above the software keyboard.
-     * visualViewport is required because fixed elements otherwise remain tied
-     * to the larger layout viewport and disappear underneath Android's OSK.
+     * Position the compact composer at the safe top of the mobile viewport.
+     * Some Android keyboards expose an accessory strip without subtracting it
+     * from visualViewport. Bottom anchoring would therefore leave the input
+     * hidden behind that strip even though the channel toolbar remains visible.
      */
 
     let chatContainer = document.querySelector('#game-wrapper .main .lower');
@@ -326,39 +336,36 @@ Touch.prototype.__syncMobileChatViewport = function () {
     let input = this.__mobileChatInput || document.getElementById('chat-input');
     let inputFocused = this.__mobileChatInputFocused
         && input
-        && document.activeElement === input;
-    let chatOpened = chatContainer.classList.contains('mobile-chat-active');
-
-    if (!this.isMobileMode || !inputFocused || !chatOpened) {
+        && (document.activeElement === input || this.__mobileChatBlurPending);
+    if (!this.isMobileMode || !inputFocused) {
         return this.__resetMobileChatViewport(chatContainer);
     }
+
+    // Focusing the mobile input is an explicit request to open the chat. This
+    // also covers portrait layouts where the panel may be visible without the
+    // mobile-chat-active class before the first touch.
+    chatContainer.classList.add('mobile-chat-active');
 
     let viewport = window.visualViewport;
     let viewportTop = viewport ? viewport.offsetTop : 0;
     let viewportLeft = viewport ? viewport.offsetLeft : 0;
-    let viewportHeight = viewport ? viewport.height : window.innerHeight;
     let viewportWidth = viewport ? viewport.width : window.innerWidth;
 
     viewportTop = Number.isFinite(viewportTop) ? viewportTop : 0;
     viewportLeft = Number.isFinite(viewportLeft) ? viewportLeft : 0;
-    viewportHeight = Math.max(40, Number(viewportHeight) || window.innerHeight || 40);
     viewportWidth = Math.max(120, Number(viewportWidth) || window.innerWidth || 120);
 
-    let margin = 4;
-    let tiny = viewportHeight < 112;
-    let availableHeight = Math.max(40, viewportHeight - (margin * 2));
-    let composerHeight = Math.min(tiny ? 58 : 104, availableHeight);
-    let composerTop;
+    let statusBar = document.getElementById('mobile-status-bar');
+    let statusBarBottom = 0;
 
-    if (viewport) {
-        composerTop = viewportTop + Math.max(margin, viewportHeight - composerHeight - margin);
-    } else {
-        // Older WebViews do not expose the keyboard rectangle. Pinning the
-        // composer to the top is safer than leaving it underneath the OSK.
-        composerTop = margin;
-        tiny = true;
-        composerHeight = Math.min(58, availableHeight);
+    if (statusBar && typeof statusBar.getBoundingClientRect === 'function') {
+        let statusBarRect = statusBar.getBoundingClientRect();
+        statusBarBottom = Number(statusBarRect.bottom) || 0;
     }
+
+    let margin = 4;
+    let composerHeight = 52;
+    let composerTop = Math.max(viewportTop, statusBarBottom) + margin;
 
     chatContainer.style.setProperty('--mobile-chat-viewport-top', composerTop + 'px');
     chatContainer.style.setProperty('--mobile-chat-viewport-height', composerHeight + 'px');
@@ -369,7 +376,7 @@ Touch.prototype.__syncMobileChatViewport = function () {
     );
 
     chatContainer.classList.add('mobile-chat-keyboard-open');
-    chatContainer.classList.toggle('mobile-chat-keyboard-tiny', tiny);
+    chatContainer.classList.add('mobile-chat-keyboard-tiny');
 
 }
 
