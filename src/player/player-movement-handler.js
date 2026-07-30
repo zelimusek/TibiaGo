@@ -73,7 +73,14 @@ PlayerMovementHandler.prototype.handleMovement = function (direction) {
   if (!success) {
     gameServer.world.creatureHandler.teleportCreature(
       this.__player,
-      this.__player.position
+      this.__player.position,
+      {
+        // This is a client correction back to the creature's authoritative
+        // server position, not a new movement attempt. Event movement guards
+        // must not block it or the client remains one SQM out of sync.
+        ignoreFloorLava: true,
+        ignoreBomberman: true
+      }
     );
   }
 };

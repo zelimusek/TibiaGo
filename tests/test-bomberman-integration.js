@@ -6,6 +6,7 @@ require("../require");
 
 const CommandHandler = requireModule("utils/command-handler");
 const CreatureHandler = requireModule("core/world-creature-handler");
+const PlayerMovementHandler = requireModule("player/player-movement-handler");
 const Position = requireModule("utils/position");
 
 const originalProcessGameServer = process.gameServer;
@@ -101,8 +102,65 @@ try {
   assert.strictEqual(redirectedPosition, audiencePosition);
   assert.deepStrictEqual(redirectOptions, { ignoreBomberman: true });
 
+  let correctionOptions = null;
+  let currentPosition = {
+    getPositionFromDirection() {
+      return destinationPosition;
+    },
+    isDiagonal() {
+      return false;
+    },
+  };
+  let destinationPosition = {
+    isDiagonal() {
+      return false;
+    },
+  };
+  const bufferedMovement = Object.create(PlayerMovementHandler.prototype);
+  bufferedMovement.__player = {
+    isDead: false,
+    position: currentPosition,
+    getPosition() {
+      return currentPosition;
+    },
+    getStepDuration() {
+      return 100;
+    },
+  };
+  bufferedMovement.__moveLock = {
+    isLocked() {
+      return false;
+    },
+    lock() {},
+  };
+  gameServer.world.getTileFromWorldPosition = function () {
+    return {
+      id: 1,
+      getFriction() {
+        return 100;
+      },
+    };
+  };
+  gameServer.world.creatureHandler = {
+    moveCreature() {
+      return false;
+    },
+    teleportCreature(creature, position, options) {
+      assert.strictEqual(creature, bufferedMovement.__player);
+      assert.strictEqual(position, currentPosition);
+      correctionOptions = options;
+      return true;
+    },
+  };
+
+  bufferedMovement.handleMovement(0);
+  assert.deepStrictEqual(correctionOptions, {
+    ignoreFloorLava: true,
+    ignoreBomberman: true,
+  });
+
   console.log(
-    "PASS: /bomb is public, /bomber is GM-only and arena movement is redirected."
+    "PASS: Bomberman commands, arena redirects and blocked-movement resync are integrated."
   );
 } finally {
   process.gameServer = originalProcessGameServer;
