@@ -400,6 +400,7 @@ NetworkManager.prototype.connect = function () {
    * Connects to the server websocket at the remote host and port
    */
 
+  const restartMessage = "The game server is restarting. Please wait a moment and try again.";
   let { account, password } = gameClient.interface.getAccountDetails();
 
   // Contact the login server
@@ -409,10 +410,25 @@ NetworkManager.prototype.connect = function () {
       case 200: break;
       case 401: throw new AuthenticationError("The account number or password is incorrect.");
       case 500: throw new ServerError("The server experienced an internal error.");
+      case 502:
+      case 503:
+      case 504:
+        throw new ServerError(restartMessage);
+      default:
+        throw new ServerError("Unable to contact the game server. Please try again shortly.");
+    }
+
+    // A reverse proxy can return an HTML error page while the game server
+    // restarts. Do not expose the resulting JSON parser error to the player.
+    let contentType = response.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      throw new ServerError(restartMessage);
     }
 
     // Proceed
-    return response.json();
+    return response.json().catch(function () {
+      throw new ServerError(restartMessage);
+    });
 
   }).then(function (response) {
 
@@ -426,7 +442,16 @@ NetworkManager.prototype.connect = function () {
     this.socket.onclose = this.__handleClose.bind(this);
     this.socket.onerror = this.__handleError.bind(this);
 
-  }.bind(this)).catch(x => gameClient.interface.modalManager.open("floater-connecting", x));
+  }.bind(this)).catch(function (error) {
+    let message = error && error.message ? error.message : restartMessage;
+
+    // A failed fetch is expected while the process or proxy is restarting.
+    if (!error || (error.name !== "AuthenticationError" && error.name !== "ServerError")) {
+      message = restartMessage;
+    }
+
+    gameClient.interface.modalManager.open("floater-connecting", message);
+  });
 
 }
 
