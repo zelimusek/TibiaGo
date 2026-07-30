@@ -46,8 +46,14 @@ ScreenElementManager.prototype.render = function () {
   // Render other text bubbles on the screen
   this.activeTextElements.forEach(function (screenElement) {
 
-    // Only update the position of the text when it is floating or when the player moves
-    if (gameClient.player.isMoving() || screenElement.constructor.name === "FloatingElement") {
+    // Speech is anchored to its speaker and must update even when another
+    // creature moves while the local player stands still. Floating numbers
+    // also animate every frame; static tile text only follows camera movement.
+    if (
+      gameClient.player.isMoving() ||
+      screenElement.constructor.name === "MessageElement" ||
+      screenElement.constructor.name === "FloatingElement"
+    ) {
       return screenElement.setTextPosition();
     }
 

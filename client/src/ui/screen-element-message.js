@@ -77,7 +77,20 @@ MessageElement.prototype.setTextPosition = function () {
    * Requests the offset of the text element and updates the text position
    */
 
-  let offset = this.__getAbsoluteOffset(gameClient.renderer.getStaticScreenPosition(this.__position));
+  // Speech belongs to the speaker, not merely to the destination SQM stored
+  // when the packet arrived. During a step the creature position already
+  // points at the destination while its sprite is still interpolated from the
+  // previous tile. Reuse the creature anchor so speech follows that movement
+  // and any visual elevation caused by furniture below the creature.
+  let screenPosition = (
+    this.__entity &&
+    typeof this.__entity.getPosition === "function" &&
+    typeof this.__entity.getMoveOffset === "function"
+  ) ?
+    gameClient.renderer.getCreatureScreenPosition(this.__entity) :
+    gameClient.renderer.getStaticScreenPosition(this.__position);
+
+  let offset = this.__getAbsoluteOffset(screenPosition);
   let fraction = gameClient.interface.getSpriteScaling();
 
   // Center the text horizontally (match CharacterElement)
