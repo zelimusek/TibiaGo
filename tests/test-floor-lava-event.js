@@ -10,6 +10,9 @@ const Position = requireModule("utils/position");
 let currentTime = 1000;
 let occupiedPositions = new Set();
 let effects = [];
+let createdThings = [];
+let addedThings = [];
+let deletedThings = [];
 let players = new Map();
 
 const positionKey = (position) => `${position.x}:${position.y}:${position.z}`;
@@ -19,11 +22,24 @@ const createTile = (position) => ({
   position,
   isOccupied: () => false,
   isOccupiedCharacters: () => occupiedPositions.has(positionKey(position)),
+  addTopThing(thing) {
+    addedThings.push({ position, thing });
+  },
+  deleteThing(thing) {
+    deletedThings.push({ position, thing });
+  },
 });
 
 const originalProcessGameServer = process.gameServer;
 const originalGlobalGameServer = global.gameServer;
 global.gameServer = process.gameServer = {
+  database: {
+    createThing(id) {
+      const thing = { id };
+      createdThings.push(thing);
+      return thing;
+    },
+  },
   world: {
     getTileFromWorldPosition(position) {
       return createTile(position);
@@ -78,6 +94,10 @@ try {
   assert.strictEqual(event.isRunning(), true);
   assert.strictEqual(event.__state.participants.size, 2);
   assert.strictEqual(event.__state.playableTiles.length, 169);
+  assert.strictEqual(addedThings.length, 7);
+  assert.ok(addedThings.every((entry) => entry.thing.id === 1498));
+  assert.ok(addedThings.every((entry) => entry.position.x === 32508));
+  assert.ok(effects.some((entry) => entry.effect === CONST.EFFECT.MAGIC.MAGIC_BLUE));
 
   const lateEntry = event.handleDestination(
     outsider,
@@ -121,6 +141,12 @@ try {
 
   assert.strictEqual(event.stop().ok, true);
   assert.strictEqual(event.isRunning(), false);
+  assert.strictEqual(deletedThings.length, 7);
+  assert.ok(deletedThings.every((entry) => entry.thing.id === 1498));
+
+  effects = [];
+  addedThings = [];
+  deletedThings = [];
 
   players.clear();
   const carol = createPlayer("Carol", new Position(32509, 32340, 7));

@@ -17,6 +17,12 @@ const FLOOR_LAVA_CONFIG = {
       to: { x: 32523, y: 32346, z: 7 }
     }
   ],
+  entranceBarrier: {
+    from: { x: 32508, y: 32340, z: 7 },
+    to: { x: 32508, y: 32346, z: 7 },
+    itemId: 1498,
+    pulseMs: 1000
+  },
   countdownMs: 10000,
   warningMs: 1500,
   waveCooldownMs: 1500,
@@ -220,13 +226,17 @@ FloorLavaEvent.prototype.start = function () {
     playableTiles: playableTiles,
     lava: new Set(),
     warned: new Map(),
+    entranceBarrierItems: new Map(),
     startsAt: now + FLOOR_LAVA_CONFIG.countdownMs,
     nextWaveAt: null,
     warningActivatesAt: null,
     lastCountdownSecond: 10,
     lastLavaPulseAt: 0,
+    lastEntranceBarrierPulseAt: 0,
     wave: 0
   };
+
+  this.__closeEntranceBarrier();
 
   this.__broadcast(
     "Floor is Lava starts in 10 seconds! %s player%s locked in. Stay on the dance floor."
@@ -243,6 +253,7 @@ FloorLavaEvent.prototype.stop = function (reason) {
     return { ok: false, message: "No Floor is Lava round is running." };
   }
 
+  this.__openEntranceBarrier();
   this.__state = null;
   this.__broadcast(reason || "Floor is Lava was stopped by a game master.");
   return { ok: true, message: "Floor is Lava stopped." };
@@ -415,6 +426,7 @@ FloorLavaEvent.prototype.__finishIfResolved = function () {
     return false;
   }
 
+  this.__openEntranceBarrier();
   this.__state = null;
 
   if (survivors.length === 0) {
@@ -501,6 +513,75 @@ FloorLavaEvent.prototype.__pulseLava = function (now) {
 
 }
 
+FloorLavaEvent.prototype.__closeEntranceBarrier = function () {
+
+  if (this.__state === null) {
+    return;
+  }
+
+  this.__getAreaPositions(FLOOR_LAVA_CONFIG.entranceBarrier).forEach(function (position) {
+    let tile = gameServer.world.getTileFromWorldPosition(position);
+
+    if (tile === null || tile.id === 0) {
+      return;
+    }
+
+    let wall = gameServer.database.createThing(FLOOR_LAVA_CONFIG.entranceBarrier.itemId);
+
+    if (wall !== null && typeof tile.addTopThing === "function") {
+      tile.addTopThing(wall);
+      this.__state.entranceBarrierItems.set(this.__positionKey(position), {
+        position: position,
+        wall: wall
+      });
+    }
+
+    gameServer.world.sendMagicEffect(position, CONST.EFFECT.MAGIC.MAGIC_BLUE);
+  }, this);
+
+}
+
+FloorLavaEvent.prototype.__openEntranceBarrier = function () {
+
+  if (this.__state === null) {
+    return;
+  }
+
+  this.__state.entranceBarrierItems.forEach(function (entry) {
+    let tile = gameServer.world.getTileFromWorldPosition(entry.position);
+
+    if (tile !== null && typeof tile.deleteThing === "function") {
+      tile.deleteThing(entry.wall);
+    }
+
+    gameServer.world.sendMagicEffect(entry.position, CONST.EFFECT.MAGIC.POFF);
+  });
+
+  this.__state.entranceBarrierItems.clear();
+
+}
+
+FloorLavaEvent.prototype.__pulseEntranceBarrier = function (now) {
+
+  if (
+    this.__state === null
+    || now - this.__state.lastEntranceBarrierPulseAt < FLOOR_LAVA_CONFIG.entranceBarrier.pulseMs
+  ) {
+    return;
+  }
+
+  this.__state.lastEntranceBarrierPulseAt = now;
+
+  this.__getAreaPositions(FLOOR_LAVA_CONFIG.entranceBarrier).forEach(function (position, index) {
+    let effect = index % 2 === 0
+      ? CONST.EFFECT.MAGIC.ENERGYHIT
+      : CONST.EFFECT.MAGIC.MAGIC_BLUE;
+
+    gameServer.world.sendMagicEffect(position, effect);
+  });
+
+}
+
 FloorLavaEvent.prototype.tick = function () {
 
   if (this.__state === null) {
@@ -508,6 +589,7 @@ FloorLavaEvent.prototype.tick = function () {
   }
 
   let now = this.__now();
+  this.__pulseEntranceBarrier(now);
   this.__eliminateInvalidSurvivors();
 
   if (this.__state.phase === "countdown") {
