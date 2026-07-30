@@ -321,6 +321,31 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
 
 };
 
+CommandHandler.prototype.handleCommandFloorLava = function (player, message) {
+
+  let action = (message[1] || "status").toLowerCase();
+  let result;
+
+  if (action === "start") {
+    result = gameServer.world.creatureHandler.floorLava.start();
+  } else if (action === "stop") {
+    result = gameServer.world.creatureHandler.floorLava.stop();
+  } else if (action === "status") {
+    return player.sendCancelMessage(
+      gameServer.world.creatureHandler.floorLava.getStatus()
+    );
+  } else {
+    return player.sendCancelMessage("Usage: /lava start, /lava stop or /lava status.");
+  }
+
+  if (!result.ok) {
+    return player.sendCancelMessage(result.message);
+  }
+
+  return true;
+
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -416,6 +441,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/radio") {
     return this.handleCommandRadio(player, message);
+  }
+
+  if (message[0] === "/lava") {
+    return this.handleCommandFloorLava(player, message);
   }
 
   if (message[0] === "/teleport") {

@@ -5,6 +5,7 @@ const Monster = requireModule("monster/monster");
 const Player = requireModule("player/player");
 const Condition = requireModule("combat/condition");
 const Position = requireModule("utils/position");
+const FloorLavaEvent = requireModule("core/floor-lava-event");
 const fs = require("fs");
 const path = require("path");
 
@@ -60,6 +61,9 @@ const CreatureHandler = function () {
 
   // One short dance contest may run in the club at a time.
   this.__clubDance = null;
+
+  // Server-authoritative Floor is Lava event for the disco dance floor.
+  this.floorLava = new FloorLavaEvent(this);
 
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
@@ -591,6 +595,17 @@ CreatureHandler.prototype.addPlayer = function (player, position) {
   // Save a reference to the character name so we can look it up by name
   this.__referencePlayer(player);
 
+  // Late joiners and already eliminated players may not reconnect directly
+  // onto the dance floor while a round is running.
+  let floorLavaAudiencePosition = this.floorLava.handlePlayerConnected(player);
+  if (floorLavaAudiencePosition !== null) {
+    this.teleportCreature(
+      player,
+      floorLavaAudiencePosition,
+      { ignoreFloorLava: true }
+    );
+  }
+
   player.broadcast(new EffectMagicPacket(player.position, CONST.EFFECT.MAGIC.TELEPORT));
   this.__syncRadioZone(player, null);
 
@@ -626,6 +641,7 @@ CreatureHandler.prototype.tick = function () {
   }
 
   this.__tickClubDance();
+  this.floorLava.tick();
 
   // Handle always active NPCs
   this.sceneNPCs.forEach(npc => npc.cutsceneHandler.think());
@@ -962,12 +978,24 @@ CreatureHandler.prototype.__alertNPCEnter = function (creature) {
 
 }
 
-CreatureHandler.prototype.teleportCreature = function (creature, position) {
+CreatureHandler.prototype.teleportCreature = function (creature, position, options) {
 
   /*
    * Function Creature.teleportCreature
    * Teleports a creature to a particular world position
    */
+
+  options = options || {};
+
+  if (creature.isPlayer() && options.ignoreFloorLava !== true) {
+    let floorLavaRedirect = this.floorLava.handleDestination(creature, position);
+    if (floorLavaRedirect !== null) {
+      if (floorLavaRedirect.position === null) {
+        return false;
+      }
+      position = floorLavaRedirect.position;
+    }
+  }
 
   let tile = gameServer.world.getTileFromWorldPosition(position);
   let oldPosition = creature.position;
@@ -1010,6 +1038,22 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
    * Function World.moveCreature
    * Moves a creature from one position to a new position
    */
+
+  if (creature.isPlayer()) {
+    let floorLavaRedirect = this.floorLava.handleDestination(creature, position);
+
+    if (floorLavaRedirect !== null) {
+      if (floorLavaRedirect.position === null) {
+        return false;
+      }
+
+      return this.teleportCreature(
+        creature,
+        floorLavaRedirect.position,
+        { ignoreFloorLava: true }
+      );
+    }
+  }
 
   // Get the tile the creature wants to move to
   let tile = gameServer.world.getTileFromWorldPosition(position);
