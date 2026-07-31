@@ -15,6 +15,13 @@ const ScreenElement = function (id) {
   // Specific classes implement and create the element
   this.element = document.getElementById(id).cloneNode(true);
 
+  // A clone is a live overlay, not an HTML prototype. Give every runtime
+  // element a stable marker so session cleanup can remove even an orphaned
+  // nameplate whose Creature reference has already been lost.
+  this.element.removeAttribute("id");
+  this.element.classList.remove("prototype");
+  this.element.classList.add("screen-element-instance");
+
   // Keep clones hidden until their first valid position is known. Showing a
   // newly appended creature label at the browser default (0, 0) produces a
   // one-frame dot/ghost in the top-left corner of the game screen.

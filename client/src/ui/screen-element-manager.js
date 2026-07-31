@@ -20,10 +20,20 @@ ScreenElementManager.prototype.clear = function () {
    * Adds an element the to the screen wrapper
    */
 
-  // Remove all character elements from the DOM
-  Object.values(gameClient.world.activeCreatures).forEach(function (creature) {
-    creature.characterElement.remove();
-  });
+  // Remove every live overlay from the DOM, including orphaned character
+  // nameplates that are no longer reachable through world.activeCreatures.
+  // The legacy ID selector also cleans overlays created by an older client
+  // build before runtime instances received their own marker class.
+  this.screenWrapper
+    .querySelectorAll(
+      ".screen-element-instance, " +
+      "[id='character-element-prototype'], " +
+      "[id='message-element-prototype'], " +
+      "[id='floating-element-prototype']"
+    )
+    .forEach(function (element) {
+      element.remove();
+    });
 
   this.activeTextElements.forEach(function (screenElement) {
     screenElement.remove();

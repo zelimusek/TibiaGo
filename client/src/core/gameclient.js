@@ -92,6 +92,11 @@ GameClient.prototype.setServerData = function (packet) {
 
   let serverData = packet.readServerData();
 
+  // Starting a new character session must never inherit DOM nameplates from a
+  // previous world. This is intentionally done before replacing the World so
+  // even overlays whose Creature reference was lost can be removed.
+  this.interface.screenElementManager.clear();
+
   // The server suggested client version must match the local version
   if (this.ASSET_VERSION === this.SERVER_VERSION && (serverData.clientVersion !== this.spriteBuffer.getVersion() || serverData.clientVersion !== this.dataObjects.getVersion())) {
     gameClient.disconnect();
