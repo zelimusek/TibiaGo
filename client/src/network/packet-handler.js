@@ -1003,7 +1003,7 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
 
   let gender = packet.sex === CONST.SEX.MALE ? "He" : "She";
 
-  let vocationName = "nothing";
+  let vocationName = null;
   switch (packet.vocation) {
     case 1: vocationName = "Knight"; break;
     case 2: vocationName = "Paladin"; break;
@@ -1017,8 +1017,16 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
     case 10: vocationName = "Gamemaster"; break;
   }
 
-  // Format: "You see Name (Level X). He is a Vocation."
-  let message = "You see %s (Level %s). %s is a %s.".format(packet.name, packet.level, gender, vocationName);
+  let vocationDescription;
+  if (packet.vocation === CONST.VOCATION.NONE) {
+    vocationDescription = "%s has no vocation.".format(gender);
+  } else if (vocationName !== null) {
+    vocationDescription = "%s is a %s.".format(gender, vocationName);
+  } else {
+    vocationDescription = "%s has an unknown vocation.".format(gender);
+  }
+
+  let message = "You see %s (Level %s). %s".format(packet.name, packet.level, vocationDescription);
 
   // Show a server message
   gameClient.interface.notificationManager.setServerMessage(
