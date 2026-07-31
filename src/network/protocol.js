@@ -114,6 +114,26 @@ const ChannelDefaultPacket = function (creature, message, color) {
 ChannelDefaultPacket.prototype = Object.create(PacketWriter.prototype);
 ChannelDefaultPacket.prototype.constructor = ChannelDefaultPacket;
 
+const CreatureYellPacket = function (creature, message, color) {
+
+  let stringEncoded = this.encodeString(message);
+
+  PacketWriter.call(
+    this,
+    CONST.PROTOCOL.SERVER.CREATURE_YELL,
+    6 + stringEncoded.getEncodedLength()
+  );
+
+  this.writeUInt32(creature.getId());
+  this.writeUInt8(creature.type);
+  this.writeBuffer(stringEncoded);
+  this.writeUInt8(color);
+
+};
+
+CreatureYellPacket.prototype = Object.create(PacketWriter.prototype);
+CreatureYellPacket.prototype.constructor = CreatureYellPacket;
+
 const EffectMagicPacket = function (position, type) {
   /*
    * Class EffectMagicPacket
@@ -1030,6 +1050,7 @@ module.exports = {
   CreatureMovePacket,
   CreatureStatePacket,
   CreatureTeleportPacket,
+  CreatureYellPacket,
   CreatureTeleportPacket,
   DeathPacket,
   EffectDistancePacket,

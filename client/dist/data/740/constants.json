@@ -56,6 +56,7 @@
       "CREATURE_TELEPORT": 15,
       "CREATURE_STATE": 12,
       "CREATURE_SAY": 25,
+      "CREATURE_YELL": 55,
       "CREATURE_INFORMATION": 27,
       "CONTAINER_OPEN": 6,
       "CONTAINER_CLOSE": 11,
@@ -231,7 +232,8 @@
     "MAGIC_FLAME": 12,
     "SATED": 13,
     "HASTE": 14,
-    "ARENA": 15
+    "ARENA": 15,
+    "PARALYZED": 16
   },
   "BLOODTYPE": {
     "BLOOD": 0,

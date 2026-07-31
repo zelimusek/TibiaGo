@@ -27,6 +27,8 @@ const {
   CreatureForgetPacket,
   CreatureTeleportPacket,
   CreatureMovePacket,
+  CreatureStatePacket,
+  CreatureYellPacket,
   EffectMagicPacket,
   PlayerLoginPacket,
   RadioStreamPacket
@@ -510,11 +512,11 @@ CreatureHandler.prototype.isCreatureActive = function (creature) {
 CreatureHandler.prototype.announceNpcYell = function (npcName, message) {
 
   let normalizedName = String(npcName || "").toLowerCase();
-  let announced = false;
+  let npc = null;
 
   this.__creatureMap.forEach(function (creature) {
     if (
-      announced
+      npc !== null
       || creature.isPlayer()
       || !creature.getProperty
       || String(creature.getProperty(CONST.PROPERTIES.NAME) || "").toLowerCase() !== normalizedName
@@ -522,11 +524,41 @@ CreatureHandler.prototype.announceNpcYell = function (npcName, message) {
       return;
     }
 
-    creature.speechHandler.internalCreatureYell(message, CONST.COLOR.LIGHTBLUE);
-    announced = true;
+    npc = creature;
   });
 
-  return announced;
+  if (npc === null || typeof npc.getChunk !== "function") {
+    return false;
+  }
+
+  let npcChunk = npc.getChunk();
+  if (npcChunk === null) {
+    return false;
+  }
+
+  let packet = new CreatureYellPacket(
+    npc,
+    String(message || "").toUpperCase(),
+    CONST.COLOR.LIGHTBLUE
+  );
+
+  this.getConnectedPlayers().forEach(function (player) {
+    let playerChunk = player.getChunk();
+    if (
+      playerChunk === null
+      || Math.abs(playerChunk.position.x - npcChunk.position.x) > 2
+      || Math.abs(playerChunk.position.y - npcChunk.position.y) > 2
+    ) {
+      return;
+    }
+
+    // Ensure the client knows the speaker before it receives the dedicated
+    // yell packet, including players in the second neighbouring chunk ring.
+    player.write(new CreatureStatePacket(npc));
+    player.write(packet);
+  });
+
+  return true;
 
 }
 

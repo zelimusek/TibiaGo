@@ -216,6 +216,10 @@ NetworkManager.prototype.readPacket = function (packet) {
       return this.packetHandler.handleDefaultMessage(packet.readDefaultMessage());
     }
 
+    case CONST.PROTOCOL.SERVER.CREATURE_YELL: {
+      return this.packetHandler.handleCreatureYell(packet.readDefaultMessage());
+    }
+
     case CONST.PROTOCOL.SERVER.CREATURE_PROPERTY: {
       return this.packetHandler.handlePropertyChange(packet.readProperty());
     }

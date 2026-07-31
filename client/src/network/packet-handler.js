@@ -1327,6 +1327,20 @@ PacketHandler.prototype.handleDefaultMessage = function (packet) {
 
 }
 
+PacketHandler.prototype.handleCreatureYell = function (packet) {
+
+  let entity = gameClient.world.getCreature(packet.id);
+
+  if (entity === null) {
+    return;
+  }
+
+  // A yell has already been range-filtered by the server's chunk radius.
+  // Do not apply the normal on-screen canSeeSmall check here.
+  entity.say(packet);
+
+}
+
 PacketHandler.prototype.handleEntityTeleport = function (packet) {
 
   /*
