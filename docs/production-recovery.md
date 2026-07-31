@@ -8,9 +8,13 @@ The production helper uses the same SSH configuration as
 Stop the game process before copying PGlite:
 
 ```powershell
-python scripts/tibiago-ops.py stop
+python scripts/tibiago-ops.py maintenance-on
 python scripts/tibiago-ops.py snapshot
 ```
+
+`maintenance-on` saves the current crontab, disables only the TibiaGo
+watchdog and gracefully stops every TibiaGo process, including a process which
+loaded the map but failed before binding port 2436.
 
 The snapshot is stored in both locations:
 
@@ -24,6 +28,7 @@ local SHA-256 with the remote SHA-256.
 
 ```powershell
 python scripts/tibiago-ops.py start
+python scripts/tibiago-ops.py maintenance-off
 python scripts/tibiago-ops.py status
 ```
 

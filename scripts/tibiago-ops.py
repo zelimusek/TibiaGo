@@ -198,30 +198,31 @@ def maintenance_off(client) -> None:
 
 
 def stop_server(client) -> None:
-    pid = get_listening_pid(client)
-    if pid is None:
-        print("TIBIAGO_ALREADY_STOPPED")
-        return
-
-    # SIGTERM invokes GameServer.scheduleShutdown(), allowing character and
-    # PGlite writes to finish before the process exits.
-    run_remote(client, f"kill -TERM {pid}")
-    for _ in range(15):
-        time.sleep(1)
-        if get_listening_pid(client) is None:
-            print("TIBIAGO_STOPPED")
-            return
-
-    status = process_status(client)
-    if status:
-        raise RuntimeError(f"TibiaGo is still running after SIGTERM:\n{status}")
-    print("TIBIAGO_STOPPED")
+    # Stop every matching process, including an instance which loaded the map
+    # but failed before binding the HTTP port.
+    stop_all_server_processes(client)
 
 
 def start_server(client, remote_root: str) -> None:
-    if process_status(client):
+    listening_pid = get_listening_pid(client)
+    candidates = get_server_candidate_pids(client)
+
+    if listening_pid is not None:
+        strays = [pid for pid in candidates if pid != listening_pid]
+        if strays:
+            raise RuntimeError(
+                "A healthy listener and stray TibiaGo processes coexist: "
+                + " ".join(map(str, strays))
+            )
         print("TIBIAGO_ALREADY_RUNNING")
         return
+
+    if candidates:
+        raise RuntimeError(
+            "Refusing to start a duplicate while non-listening TibiaGo "
+            "processes exist: "
+            + " ".join(map(str, candidates))
+        )
 
     # This socket is owned by the game process and is safe to clear while the
     # process is confirmed as stopped. A stale socket otherwise causes a noisy
@@ -257,10 +258,11 @@ def sha256_file(path: pathlib.Path) -> str:
 
 def snapshot(client, config, remote_root: str) -> None:
     status = process_status(client)
-    if status:
+    candidates = get_server_candidate_pids(client)
+    if status or candidates:
         raise RuntimeError(
             "Refusing to snapshot while TibiaGo is running. Stop it first.\n"
-            f"{status}"
+            f"{status}\nCandidates: {' '.join(map(str, candidates))}"
         )
 
     timestamp = time.strftime("%Y%m%d-%H%M%S")
