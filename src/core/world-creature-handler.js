@@ -29,7 +29,8 @@ const {
   CreatureMovePacket,
   EffectMagicPacket,
   PlayerLoginPacket,
-  RadioStreamPacket
+  RadioStreamPacket,
+  ServerMessagePacket
 } = requireModule("network/protocol");
 
 const CreatureHandler = function () {
@@ -509,24 +510,17 @@ CreatureHandler.prototype.isCreatureActive = function (creature) {
 
 CreatureHandler.prototype.announceNpcYell = function (npcName, message) {
 
-  let normalizedName = String(npcName || "").toLowerCase();
-  let announced = false;
+  if (!gameServer.world || typeof gameServer.world.broadcastPacket !== "function") {
+    return false;
+  }
 
-  this.__creatureMap.forEach(function (creature) {
-    if (
-      announced
-      || creature.isPlayer()
-      || !creature.getProperty
-      || String(creature.getProperty(CONST.PROPERTIES.NAME) || "").toLowerCase() !== normalizedName
-    ) {
-      return;
-    }
+  gameServer.world.broadcastPacket(
+    new ServerMessagePacket(
+      "%s yells: %s".format(String(npcName || "DJ Thomas"), String(message || "").toUpperCase())
+    )
+  );
 
-    creature.speechHandler.internalCreatureYell(message, CONST.COLOR.LIGHTBLUE);
-    announced = true;
-  });
-
-  return announced;
+  return true;
 
 }
 
