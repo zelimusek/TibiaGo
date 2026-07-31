@@ -1206,6 +1206,13 @@ BombermanEvent.prototype.__finishMayhem = function () {
       "%s wins Bomberman with %s point%s!"
         .format(winners[0], bestScore, bestScore === 1 ? "" : "s")
     );
+    if (typeof this.__creatureHandler.announceNpcYell === "function") {
+      this.__creatureHandler.announceNpcYell(
+        "DJ Thomas",
+        "%s wins Bomberman with %s point%s!"
+          .format(winners[0], bestScore, bestScore === 1 ? "" : "s")
+      );
+    }
     return;
   }
 
@@ -1213,6 +1220,13 @@ BombermanEvent.prototype.__finishMayhem = function () {
     "Bomberman ends in a draw: %s (%s points each)!"
       .format(winners.join(", "), bestScore)
   );
+  if (typeof this.__creatureHandler.announceNpcYell === "function") {
+    this.__creatureHandler.announceNpcYell(
+      "DJ Thomas",
+      "Bomberman ends in a draw: %s (%s points each)!"
+        .format(winners.join(", "), bestScore)
+    );
+  }
 
 }
 
@@ -1235,6 +1249,12 @@ BombermanEvent.prototype.__finishElimination = function () {
 
   if (survivors.length === 1) {
     this.__broadcast("%s wins Bomberman elimination!".format(survivors[0]));
+    if (typeof this.__creatureHandler.announceNpcYell === "function") {
+      this.__creatureHandler.announceNpcYell(
+        "DJ Thomas",
+        "%s wins Bomberman elimination!".format(survivors[0])
+      );
+    }
   } else if (survivors.length === 0) {
     this.__broadcast("Bomberman elimination ends with no survivors!");
   } else {

@@ -470,6 +470,12 @@ FloorLavaEvent.prototype.__finishIfResolved = function () {
   }
 
   this.__broadcast("%s wins Floor is Lava!".format(survivors[0]));
+  if (typeof this.__creatureHandler.announceNpcYell === "function") {
+    this.__creatureHandler.announceNpcYell(
+      "DJ Thomas",
+      "%s wins Floor is Lava!".format(survivors[0])
+    );
+  }
   return true;
 
 }

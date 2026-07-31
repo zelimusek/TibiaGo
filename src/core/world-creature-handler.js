@@ -507,6 +507,29 @@ CreatureHandler.prototype.isCreatureActive = function (creature) {
 
 }
 
+CreatureHandler.prototype.announceNpcYell = function (npcName, message) {
+
+  let normalizedName = String(npcName || "").toLowerCase();
+  let announced = false;
+
+  this.__creatureMap.forEach(function (creature) {
+    if (
+      announced
+      || creature.isPlayer()
+      || !creature.getProperty
+      || String(creature.getProperty(CONST.PROPERTIES.NAME) || "").toLowerCase() !== normalizedName
+    ) {
+      return;
+    }
+
+    creature.speechHandler.internalCreatureYell(message, CONST.COLOR.LIGHTBLUE);
+    announced = true;
+  });
+
+  return announced;
+
+}
+
 CreatureHandler.prototype.removeCreature = function (creature) {
 
   /*

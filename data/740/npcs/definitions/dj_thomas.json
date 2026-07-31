@@ -1,0 +1,39 @@
+{
+  "creatureStatistics": {
+    "name": "DJ Thomas",
+    "health": 100,
+    "maxHealth": 100,
+    "mana": 0,
+    "maxMana": 0,
+    "attack": 1,
+    "attackSlowness": 40,
+    "defense": 5,
+    "speed": 0,
+    "direction": 2,
+    "outfit": {
+      "id": 128,
+      "details": {
+        "head": 94,
+        "body": 114,
+        "legs": 94,
+        "feet": 114
+      }
+    }
+  },
+  "behaviour": {
+    "wanderRange": 0,
+    "openDoors": false,
+    "ignoreCharacters": true
+  },
+  "conversation": {
+    "hearingRange": 5,
+    "keywords": {},
+    "farewells": ["bye"],
+    "greetings": ["hi", "hello"],
+    "sayings": {
+      "texts": ["DJ Thomas is ready for the next round!"],
+      "rate": 300,
+      "chance": 0
+    }
+  }
+}
