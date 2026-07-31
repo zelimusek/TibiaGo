@@ -510,11 +510,11 @@ CreatureHandler.prototype.isCreatureActive = function (creature) {
 CreatureHandler.prototype.announceNpcYell = function (npcName, message) {
 
   let normalizedName = String(npcName || "").toLowerCase();
-  let announced = false;
+  let npc = null;
 
   this.__creatureMap.forEach(function (creature) {
     if (
-      announced
+      npc !== null
       || creature.isPlayer()
       || !creature.getProperty
       || String(creature.getProperty(CONST.PROPERTIES.NAME) || "").toLowerCase() !== normalizedName
@@ -522,11 +522,42 @@ CreatureHandler.prototype.announceNpcYell = function (npcName, message) {
       return;
     }
 
-    creature.speechHandler.internalCreatureYell(message, CONST.COLOR.LIGHTBLUE);
-    announced = true;
+    npc = creature;
   });
 
-  return announced;
+  if (npc === null || typeof npc.getChunk !== "function") {
+    return false;
+  }
+
+  let npcChunk = npc.getChunk();
+  if (npcChunk === null) {
+    return false;
+  }
+
+  let globalMessage = new ServerMessagePacket(
+    "%s yells: %s".format(
+      String(npcName || "DJ Thomas"),
+      String(message || "").toUpperCase()
+    )
+  );
+
+  // Use a local server notification for the whole nearby venue area. This
+  // avoids the client's canSeeSmall filter, which can hide an NPC yell even
+  // when the player is only a few SQMs away across a chunk boundary.
+  this.getConnectedPlayers().forEach(function (player) {
+    let playerChunk = player.getChunk();
+    if (
+      playerChunk === null
+      || Math.abs(playerChunk.position.x - npcChunk.position.x) > 2
+      || Math.abs(playerChunk.position.y - npcChunk.position.y) > 2
+    ) {
+      return;
+    }
+
+    player.write(globalMessage);
+  });
+
+  return true;
 
 }
 
