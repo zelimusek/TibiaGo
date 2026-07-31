@@ -436,13 +436,22 @@ World.prototype.targetMonster = function (monsters) {
     return;
   }
 
-  // Only monsters can be attacked
-  if (monster.constructor.name !== "Creature") {
+  // Only players and monsters can be attacked. External players, monsters
+  // and NPCs all use the generic Creature class in the browser, so the
+  // protocol type must be used instead of constructor.name.
+  if (!this.isAttackableCreature(monster)) {
     return gameClient.interface.notificationManager.setCancelMessage("You cannot attack this creature.");
   }
 
   return this.toggleCreatureTarget(monster);
 
+}
+
+World.prototype.isAttackableCreature = function (creature) {
+  return Boolean(
+    creature &&
+    (creature.type === CONST.TYPES.PLAYER || creature.type === CONST.TYPES.MONSTER)
+  );
 }
 
 World.prototype.toggleCreatureTarget = function (creature) {
@@ -463,7 +472,7 @@ World.prototype.toggleCreatureTarget = function (creature) {
     return false;
   }
 
-  if (creature.constructor.name !== "Creature") {
+  if (!this.isAttackableCreature(creature)) {
     gameClient.interface.notificationManager.setCancelMessage("You cannot attack this creature.");
     return false;
   }

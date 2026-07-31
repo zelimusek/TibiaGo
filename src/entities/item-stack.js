@@ -325,7 +325,7 @@ ItemStack.prototype.isValidIndex = function(index) {
 
 }
 
-ItemStack.prototype.applyFieldDamage = function(creature) {
+ItemStack.prototype.applyFieldDamage = function(creature, source) {
 
   /*
    * Function ItemStack.applyFieldDamage
@@ -335,19 +335,24 @@ ItemStack.prototype.applyFieldDamage = function(creature) {
   // Go over the item stack from top to bottom
   for(let i = this.__items.length - 1; i >= 0; i--) {
 
-    let proto = this.__items[i].getPrototype();
+    let fieldItem = this.__items[i];
+    let proto = fieldItem.getPrototype();
 
     if(!proto.isField()) {
       continue;
     }
 
-    return this.__applyFieldCondition(proto.properties.field, creature);
+    return this.__applyFieldCondition(
+      proto.properties.field,
+      creature,
+      source || fieldItem.fieldOwner || null
+    );
 
   }
 
 }
 
-ItemStack.prototype.__applyFieldCondition = function(field, creature) {
+ItemStack.prototype.__applyFieldCondition = function(field, creature, source) {
 
   /*
    * Function ItemStack.__applyFieldCondition
@@ -356,9 +361,9 @@ ItemStack.prototype.__applyFieldCondition = function(field, creature) {
 
   // Handle specific field types
   switch(field) {
-    case "energy": return creature.addCondition(CONST.CONDITION.ELECTRIFIED, 3, 100, null);
-    case "fire": return creature.addCondition(CONST.CONDITION.BURNING, 5, 50, null);
-    case "poison": return creature.addCondition(CONST.CONDITION.POISONED, 20, 10, null);
+    case "energy": return creature.addCondition(CONST.CONDITION.ELECTRIFIED, 3, 100, { source: source });
+    case "fire": return creature.addCondition(CONST.CONDITION.BURNING, 5, 50, { source: source });
+    case "poison": return creature.addCondition(CONST.CONDITION.POISONED, 20, 10, { source: source });
   }
 
 }

@@ -456,6 +456,26 @@ Tile.prototype.isProtectionZone = function () {
 
 }
 
+Tile.prototype.isNoPvPZone = function () {
+
+  /*
+   * Returns true when player versus player combat is disabled on this tile.
+   */
+
+  return this.hasOwnProperty("tilezoneFlags") && this.tilezoneFlags.get(TileFlag.prototype.flags.TILESTATE_NOPVP);
+
+}
+
+Tile.prototype.isPvPZone = function () {
+
+  /*
+   * Returns true when the map explicitly marks this tile as a PvP zone.
+   */
+
+  return this.hasOwnProperty("tilezoneFlags") && this.tilezoneFlags.get(TileFlag.prototype.flags.TILESTATE_PVPZONE);
+
+}
+
 Tile.prototype.isBlockSolid = function () {
 
   /*

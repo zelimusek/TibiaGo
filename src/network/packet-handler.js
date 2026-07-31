@@ -2,7 +2,6 @@
 
 const Condition = requireModule("combat/condition");
 const MailboxHandler = requireModule("utils/mailbox-handler");
-const Monster = requireModule("monster/monster");
 const GuildExpRanking = requireModule("utils/guild-exp-ranking");
 
 const { ItemInformationPacket, CreatureInformationPacket } = requireModule("network/protocol");
@@ -282,18 +281,25 @@ PacketHandler.prototype.handleTargetCreature = function (player, id) {
 
   // No creature found
   if (creature === null) {
-    return;
+    return player.actionHandler.targetHandler.setTarget(null);
   }
 
-  // Must be of type monster
-  if (!(creature instanceof Monster)) {
+  // Only monsters and other players are valid combat targets. NPCs and the
+  // attacking player are never attackable.
+  if (creature === player || (!creature.isMonster() && !creature.isPlayer())) {
+    player.actionHandler.targetHandler.setTarget(null);
     return player.sendCancelMessage("You may not attack this creature.");
   }
 
-  // Can see the target
-  if (player.canSee(creature.position)) {
-    return player.actionHandler.targetHandler.setTarget(creature);
+  if (!player.canSee(creature.position)) {
+    return player.actionHandler.targetHandler.setTarget(null);
   }
+
+  if (!gameServer.world.combatHandler.canAttack(player, creature, true)) {
+    return player.actionHandler.targetHandler.setTarget(null);
+  }
+
+  return player.actionHandler.targetHandler.setTarget(creature);
 
 }
 

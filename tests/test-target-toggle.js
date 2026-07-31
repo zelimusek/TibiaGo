@@ -18,7 +18,15 @@ const packets = [];
 const targets = [];
 const monster = {
   id: 1234,
-  constructor: { name: "Creature" },
+  type: 1,
+};
+const otherPlayer = {
+  id: 4321,
+  type: 0,
+};
+const npc = {
+  id: 9876,
+  type: 2,
 };
 
 const player = {
@@ -42,6 +50,13 @@ const context = vm.createContext({
   Pathfinder: function () {},
   Clock: function () {},
   TargetPacket,
+  CONST: {
+    TYPES: {
+      PLAYER: 0,
+      MONSTER: 1,
+      NPC: 2,
+    },
+  },
   gameClient: {
     player,
     send(packet) {
@@ -76,6 +91,18 @@ assert.strictEqual(player.target, null);
 assert.deepStrictEqual(packets, [1234, 0]);
 assert.deepStrictEqual(targets, [monster, null]);
 
+assert.strictEqual(world.toggleCreatureTarget(otherPlayer), true);
+assert.strictEqual(player.target, otherPlayer);
+assert.deepStrictEqual(packets, [1234, 0, 4321]);
+
+assert.strictEqual(world.toggleCreatureTarget(otherPlayer), false);
+assert.strictEqual(player.target, null);
+assert.deepStrictEqual(packets, [1234, 0, 4321, 0]);
+
+assert.strictEqual(world.toggleCreatureTarget(npc), false);
+assert.strictEqual(player.target, null);
+assert.deepStrictEqual(packets, [1234, 0, 4321, 0]);
+
 const touchSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "input", "touch.js"),
   "utf8"
@@ -96,4 +123,4 @@ assert.strictEqual(
   "Desktop and mobile Battle List taps must both use target toggling."
 );
 
-console.log("PASS: creature targeting toggles on repeated map and Battle List taps.");
+console.log("PASS: player/monster targeting toggles while NPC targeting stays blocked.");

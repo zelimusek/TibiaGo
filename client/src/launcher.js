@@ -2,7 +2,7 @@
 
 (function () {
 
-  const CLIENT_BUILD = "20260731.3";
+  const CLIENT_BUILD = "20260731.4";
 
   // List of all scripts to load in order
   const SCRIPTS = [

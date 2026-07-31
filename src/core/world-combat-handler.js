@@ -1,13 +1,25 @@
 "use strict";
 
+const PvPPolicy = requireModule("combat/pvp-policy");
+
 const CombatHandler = function () {
 
   /*
    * Class CombatHandler
    * Wrapper for all combat related functions
-   */
+  */
+
+  this.pvpPolicy = new PvPPolicy();
 
 }
+
+CombatHandler.prototype.canAttack = function (source, target, notify) {
+  return this.pvpPolicy.canAttack(source, target, notify);
+};
+
+CombatHandler.prototype.scalePvPDamage = function (source, target, amount) {
+  return this.pvpPolicy.scaleDamage(source, target, amount);
+};
 
 CombatHandler.prototype.handleCombat = function (source) {
 
@@ -20,6 +32,15 @@ CombatHandler.prototype.handleCombat = function (source) {
   let target = source.getTarget();
 
   if (!target) {
+    return;
+  }
+
+  // Revalidate on every attack tick. A selected player may have entered a
+  // protection/no-PvP zone since the target packet was accepted.
+  if (!this.canAttack(source, target, true)) {
+    if (source.isPlayer && source.isPlayer() && source.actionHandler) {
+      source.actionHandler.targetHandler.setTarget(null);
+    }
     return;
   }
 
@@ -97,7 +118,7 @@ CombatHandler.prototype.handleDistanceCombat = function (source, target) {
 
 }
 
-CombatHandler.prototype.applyEnvironmentalDamage = function (target, amount, color) {
+CombatHandler.prototype.applyEnvironmentalDamage = function (target, amount, color, source) {
 
   /*
    * Function CombatHandler.applyEnvironmentalDamage
@@ -110,7 +131,7 @@ CombatHandler.prototype.applyEnvironmentalDamage = function (target, amount, col
   }
 
   // Decrease the health
-  target.decreaseHealth(null, amount, color);
+  target.decreaseHealth(source || null, amount, color);
 
 }
 

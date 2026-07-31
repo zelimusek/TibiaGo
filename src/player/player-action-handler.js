@@ -59,6 +59,10 @@ ActionHandler.prototype.handleActionAttack = function () {
     return this.targetHandler.setTarget(null);
   }
 
+  if (!gameServer.world.combatHandler.canAttack(this.__player, this.targetHandler.getTarget(), true)) {
+    return this.targetHandler.setTarget(null);
+  }
+
   // Not besides target and not distance fighting
   if (!this.targetHandler.isBesidesTarget() && !this.__player.isDistanceWeaponEquipped()) {
     return;

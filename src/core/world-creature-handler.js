@@ -574,6 +574,8 @@ CreatureHandler.prototype.removeCreature = function (creature) {
     return;
   }
 
+  this.clearPlayerTargetsForCreature(creature);
+
   // Delete the creature from the map
   this.__creatureMap.delete(creature.getId());
 
@@ -593,6 +595,26 @@ CreatureHandler.prototype.removeCreature = function (creature) {
   chunk.removeCreature(creature);
   tile.removeCreature(creature);
   tile.emit("exit", tile, creature);
+
+}
+
+CreatureHandler.prototype.clearPlayerTargetsForCreature = function (creature) {
+
+  /*
+   * Clear every player target that references a creature which died, logged
+   * out or was removed. This prevents stale attack boxes and queued hits.
+   */
+
+  this.__playerMap.forEach(function (player) {
+    if (
+      player !== creature &&
+      player.getTarget &&
+      player.getTarget() === creature &&
+      player.actionHandler
+    ) {
+      player.actionHandler.targetHandler.setTarget(null);
+    }
+  });
 
 }
 

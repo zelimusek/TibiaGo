@@ -411,11 +411,39 @@ Player.prototype.decreaseHealth = function (source, amount) {
 
   // Prevent damage if dead
   if (this.isDead) {
-    return;
+    return false;
+  }
+
+  let isPvPAttack = Boolean(
+    source &&
+    source !== this &&
+    source.isPlayer &&
+    source.isPlayer()
+  );
+
+  // This is the final server-side guard shared by melee, distance combat,
+  // spells, runes and player-owned fields.
+  if (isPvPAttack) {
+    if (!gameServer.world.combatHandler.canAttack(source, this, true)) {
+      return false;
+    }
+
+    amount = gameServer.world.combatHandler.scalePvPDamage(source, this, amount);
+    if (amount <= 0) {
+      return false;
+    }
+
+    source.combatLock.activate();
   }
 
   // Put the target player in combat
   this.combatLock.activate();
+
+  let sourceDescription = "";
+  if (source && source.getProperty) {
+    let sourceName = source.getProperty(CONST.PROPERTIES.NAME) || "creature";
+    sourceDescription = " due to an attack by " + (isPvPAttack ? sourceName : sourceName.toLowerCase());
+  }
 
   // Check if Magic Shield (utamo vita) is active
   const Condition = requireModule("combat/condition");
@@ -437,7 +465,7 @@ Player.prototype.decreaseHealth = function (source, amount) {
       this.write(new ChannelWritePacket(
         CONST.CHANNEL.DEFAULT,
         "",
-        "You lose " + manaAbsorbed + " mana" + (source && source.isPlayer && !source.isPlayer() ? " due to an attack by " + (source.getProperty(CONST.PROPERTIES.NAME) || "creature").toLowerCase() : "") + ".",
+        "You lose " + manaAbsorbed + " mana" + sourceDescription + ".",
         CONST.COLOR.WHITE
       ));
 
@@ -455,7 +483,7 @@ Player.prototype.decreaseHealth = function (source, amount) {
         this.write(new ChannelWritePacket(
           CONST.CHANNEL.DEFAULT,
           "",
-          "You lose " + remainingDamage + " hitpoints.",
+          "You lose " + remainingDamage + " hitpoints" + sourceDescription + ".",
           CONST.COLOR.WHITE
         ));
       }
@@ -465,10 +493,11 @@ Player.prototype.decreaseHealth = function (source, amount) {
         if (this.isDead) {
           return;
         }
-        return this.handleDeath(source);
+        this.handleDeath(source);
+        return true;
       }
 
-      return;
+      return true;
     } else {
       // No mana left, remove magic shield
       this.removeCondition(Condition.prototype.MAGIC_SHIELD);
@@ -482,33 +511,22 @@ Player.prototype.decreaseHealth = function (source, amount) {
   // Send damage color to the player
   this.broadcast(new EmotePacket(this, String(amount), CONST.COLOR.RED));
 
-  // Send combat message to chat: "You lose X hitpoints due to an attack by [monster name]."
-  if (source && source.isPlayer && !source.isPlayer()) {
-    let sourceName = source.getProperty(CONST.PROPERTIES.NAME) || "creature";
-    // Send to Default channel (console) - channel id 0
-    this.write(new ChannelWritePacket(
-      CONST.CHANNEL.DEFAULT,
-      "",
-      "You lose " + amount + " hitpoints due to an attack by " + sourceName.toLowerCase() + ".",
-      CONST.COLOR.WHITE
-    ));
-  } else if (source === null) {
-    // Environmental damage
-    this.write(new ChannelWritePacket(
-      CONST.CHANNEL.DEFAULT,
-      "",
-      "You lose " + amount + " hitpoints.",
-      CONST.COLOR.WHITE
-    ));
-  }
+  this.write(new ChannelWritePacket(
+    CONST.CHANNEL.DEFAULT,
+    "",
+    "You lose " + amount + " hitpoints" + sourceDescription + ".",
+    CONST.COLOR.WHITE
+  ));
 
   // Zero health means death
   if (this.isZeroHealth()) {
     if (this.isDead) {
       return;
     }
-    return this.handleDeath(source);
+    this.handleDeath(source);
   }
+
+  return true;
 };
 
 Player.prototype.getCorpse = function () {
@@ -540,6 +558,11 @@ Player.prototype.handleDeath = function (source = null) {
   this.isDead = true;
   this.__spawnAtTemple = true;
   this.combatLock.unlock();
+
+  // Other players must immediately stop attacking this character. The dead
+  // player remains referenced until the socket is removed, so waiting for the
+  // normal active-creature check would leave a stale target in the meantime.
+  gameServer.world.creatureHandler.clearPlayerTargetsForCreature(this);
 
   // Send death message screen to client (like Tibia's "You are dead" modal)
   // 0x28 (Death Window) should trigger the modal natively without disconnect

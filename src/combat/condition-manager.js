@@ -141,6 +141,11 @@ ConditionManager.prototype.add = function (condition, properties) {
 
   let { onStart, onTick, onExpire } = conditionDef;
 
+  // Damage-over-time conditions created by a player-owned field retain their
+  // source so PvP rules are checked on every tick, not only when the field is
+  // created.
+  condition.source = properties && properties.source ? properties.source : null;
+
   // IMPORTANT: Add condition to map BEFORE calling onStart
   // so that getSpeed() and similar functions can detect the condition
   this.__conditions.set(condition.id, condition);
