@@ -186,9 +186,6 @@ Database.prototype.storeFile = function (filename, data) {
 
   let storageFilename = gameClient.ASSET_VERSION + "/" + filename;
 
-  // Update local storage with the information
-  localStorage.setItem(storageFilename, true);
-
   let fileStore = this.transaction("files", "readwrite");
 
   // Put the updated file
@@ -198,7 +195,16 @@ Database.prototype.storeFile = function (filename, data) {
   });
 
   request.onsuccess = function (event) {
+    // Only advertise the cached file after IndexedDB has actually committed it.
+    // Writing this marker before put() completed could leave localStorage and
+    // IndexedDB out of sync when the browser closed or evicted the transaction.
+    localStorage.setItem(storageFilename, true);
     console.debug("Cached file " + storageFilename + " to indexDB.");
+  }
+
+  request.onerror = function (event) {
+    localStorage.removeItem(storageFilename);
+    console.error("Could not cache file " + storageFilename + " to indexDB.", event.target.error);
   }
 
 }
@@ -324,32 +330,55 @@ Database.prototype.__loadGameAssets = function () {
   // Notify user we are currently loading assets..
   gameClient.setErrorModal("Welcome back! Loading game assets from local storage.");
 
-  this.transaction("files", "readonly").getAll().onsuccess = function (event) {
+  let request = this.transaction("files", "readonly").getAll();
+
+  request.onsuccess = function (event) {
+
+    let spriteFilename = gameClient.ASSET_VERSION + "/Tibia.spr";
+    let objectFilename = gameClient.ASSET_VERSION + "/Tibia.dat";
+    let files = new Map(event.target.result.map(file => [file.filename, file]));
+    let spriteFile = files.get(spriteFilename);
+    let objectFile = files.get(objectFilename);
+
+    let isValidFile = function (file) {
+      return file && file.data instanceof ArrayBuffer && file.data.byteLength > 4;
+    };
 
     // Close the modal manager if it is still opened
     gameClient.interface.modalManager.close();
 
-    // Somehow no data was returned..
-    if (event.target.result.length === 0) {
-      return;
+    // localStorage can outlive or become inconsistent with IndexedDB (for
+    // example after browser storage eviction). Rebuild an empty, partial or
+    // corrupt asset cache automatically instead of leaving the UI on Missing.
+    if (!isValidFile(spriteFile) || !isValidFile(objectFile)) {
+      localStorage.removeItem(spriteFilename);
+      localStorage.removeItem(objectFilename);
+      console.warn("Cached Tibia assets are incomplete. Reloading them from the server.");
+      return gameClient.networkManager.loadGameFilesServer();
     }
 
-    // Go over the returned sprite and data file from the database: parse them to use in game
-    event.target.result.forEach(function (file) {
+    try {
+      gameClient.spriteBuffer.__load(spriteFilename, spriteFile.data);
+      gameClient.dataObjects.__load(objectFilename, objectFile.data);
+    } catch (error) {
+      localStorage.removeItem(spriteFilename);
+      localStorage.removeItem(objectFilename);
+      console.warn("Cached Tibia assets could not be parsed. Reloading them from the server.", error);
+      gameClient.networkManager.loadGameFilesServer();
+    }
 
-      // Delegate the data file to the appropriate handler
-      switch (file.filename) {
-        case gameClient.ASSET_VERSION + "/Tibia.dat":
-          return gameClient.dataObjects.__load(file.filename, file.data);
-        case gameClient.ASSET_VERSION + "/Tibia.spr":
-          return gameClient.spriteBuffer.__load(file.filename, file.data);
-        default:
-          return;
-      }
+  };
 
-    });
+  request.onerror = function (event) {
+    let spriteFilename = gameClient.ASSET_VERSION + "/Tibia.spr";
+    let objectFilename = gameClient.ASSET_VERSION + "/Tibia.dat";
 
-  }
+    localStorage.removeItem(spriteFilename);
+    localStorage.removeItem(objectFilename);
+    console.warn("Could not read cached Tibia assets. Reloading them from the server.", event.target.error);
+    gameClient.networkManager.loadGameFilesServer();
+
+  };
 
 }
 
