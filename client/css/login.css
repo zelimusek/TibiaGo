@@ -75,15 +75,7 @@
     top: 50%;
     left: 50%;
     bottom: auto;
-    width: min(220px, calc(100vw - 32px));
-    box-sizing: border-box;
     transform: translate(-50%, -50%);
-    padding: 10px;
-  }
-
-  #login-wrapper #login-inner .login-settings button {
-    width: 100%;
-    margin: 4px 0;
   }
 
   #login-wrapper #login-inner .login-version {
@@ -106,10 +98,6 @@
     max-width: calc(100vw - 24px);
     max-height: calc(100dvh - 24px);
     box-sizing: border-box;
-  }
-
-  #login-wrapper #floater-enter {
-    width: min(320px, calc(100vw - 24px));
   }
 
   #login-wrapper #floater-enter input {
