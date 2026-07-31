@@ -108,6 +108,30 @@ ContainerManager.prototype.cleanup = function () {
 
 }
 
+ContainerManager.prototype.dropAllCarriedItems = function (corpse) {
+
+  /* Red/black skull drop: equipment plus nested carried containers. */
+  if (!corpse || !corpse.container) {
+    return false;
+  }
+
+  for (let slot = 0; slot < 10; slot++) {
+    let item = this.equipment.peekIndex(slot);
+    if (item === null) {
+      continue;
+    }
+
+    let amount = item.isStackable() ? item.count : 1;
+    let removed = this.equipment.removeIndex(slot, amount);
+    if (removed !== null) {
+      corpse.addFirstEmpty(removed);
+    }
+  }
+
+  return true;
+
+}
+
 ContainerManager.prototype.checkContainer = function (container) {
 
   /*

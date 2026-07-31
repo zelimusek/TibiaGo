@@ -279,7 +279,7 @@ AccountDatabase.prototype.getCharacter = async function (account, callback) {
 
   try {
     const result = await this.db
-      .select({ character: accounts.character })
+      .select({ id: accounts.id, character: accounts.character })
       .from(accounts)
       .where(eq(accounts.account, account))
       .limit(1);

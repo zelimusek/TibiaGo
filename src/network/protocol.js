@@ -413,6 +413,15 @@ const CreatureStatePacket = function (creature) {
 CreatureStatePacket.prototype = Object.create(PacketWriter.prototype);
 CreatureStatePacket.prototype.constructor = CreatureStatePacket;
 
+const CreatureSkullPacket = function (creatureId, skull) {
+  PacketWriter.call(this, CONST.PROTOCOL.SERVER.CREATURE_SKULL, 5);
+  this.writeUInt32(creatureId);
+  this.writeUInt8(skull);
+};
+
+CreatureSkullPacket.prototype = Object.create(PacketWriter.prototype);
+CreatureSkullPacket.prototype.constructor = CreatureSkullPacket;
+
 const CancelMessagePacket = function (message) {
   /*
    * Class CancelMessagePacket
@@ -954,6 +963,9 @@ const PlayerStatePacket = function (player) {
   // Conditions
   this.writeUInt8(0);
 
+  // Persisted client combat preference.
+  this.writeBoolean(player.secureMode);
+
 };
 
 PlayerStatePacket.prototype = Object.create(PacketWriter.prototype);
@@ -1048,6 +1060,7 @@ module.exports = {
   CreatureForgetPacket,
   CreatureInformationPacket,
   CreatureMovePacket,
+  CreatureSkullPacket,
   CreatureStatePacket,
   CreatureTeleportPacket,
   CreatureYellPacket,

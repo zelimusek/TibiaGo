@@ -1402,6 +1402,13 @@ PacketHandler.prototype.handleEntityReference = function (packet) {
 
 }
 
+PacketHandler.prototype.handleCreatureSkull = function (packet) {
+  let creature = gameClient.world.getCreature(packet.id);
+  if (creature !== null && creature.setSkull) {
+    creature.setSkull(packet.skull);
+  }
+};
+
 PacketHandler.prototype.handleCreatureTurn = function (packet) {
 
   /*

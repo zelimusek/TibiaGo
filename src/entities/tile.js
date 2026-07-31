@@ -158,17 +158,8 @@ Tile.prototype.addCreature = function (creature) {
   // Write tile condition
   if (creature.isPlayer()) {
 
-    if (this.isProtectionZone()) {
-
-      // Drop the combat lock
-      if (creature.isInCombat()) {
-        creature.combatLock.unlock();
-      }
-
-      if (creature.actionHandler.targetHandler.hasTarget()) {
-        creature.actionHandler.targetHandler.setTarget(null)
-      }
-
+    if (this.isProtectionZone() && creature.actionHandler.targetHandler.hasTarget()) {
+      creature.actionHandler.targetHandler.setTarget(null)
     }
 
   }
@@ -203,6 +194,33 @@ Tile.prototype.addThing = function (thing, index) {
    * Public function to add an item to the tile at a particular index. Normally players can only add things to the top of a tile.
    * Decaying items however, may need to be inserted with the appropriate index
    */
+
+  // Player-owned harmful fields may never be created in a protection/no-PvP
+  // zone, nor cast out of one. Keep this guard in Tile so every rune/script
+  // path is covered server-side, including modified clients.
+  if (
+    thing && thing.fieldOwner && thing.isMagicField && thing.isMagicField() &&
+    process.gameServer && process.gameServer.world && process.gameServer.world.combatHandler
+  ) {
+    let manager = process.gameServer.world.combatHandler.getPvPManager();
+    let owner = manager.resolveResponsiblePlayer(thing.fieldOwner);
+    if (owner && Number.isInteger(owner.accountId)) {
+      thing.ownerPlayerId = owner.accountId;
+    }
+    let ownerTile = owner && owner.getTile ? owner.getTile() : null;
+    let protectedTarget = this.isProtectionZone() || this.isNoPvPZone();
+    let protectedSource = ownerTile && (
+      ownerTile.isProtectionZone() || ownerTile.isNoPvPZone()
+    );
+
+    if (protectedTarget || protectedSource) {
+      if (owner && owner.sendCancelMessage) {
+        owner.sendCancelMessage("You may not create a harmful field in a protection zone.");
+      }
+      if (thing.cleanup) thing.cleanup();
+      return false;
+    }
+  }
 
   if (!this.hasOwnProperty("itemStack")) {
     this.itemStack = new ItemStack();
@@ -248,6 +266,8 @@ Tile.prototype.addThing = function (thing, index) {
 
   // Broadcast
   this.broadcast(new ItemAddPacket(this.position, thing, index));
+
+  return true;
 
 }
 

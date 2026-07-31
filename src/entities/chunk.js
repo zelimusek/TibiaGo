@@ -5,7 +5,7 @@ const NPC = requireModule("npc/npc");
 const Player = requireModule("player/player");
 const Tile = requireModule("entities/tile");
 
-const { CreatureStatePacket, ChunkPacket } = requireModule("network/protocol");
+const { CreatureStatePacket, CreatureSkullPacket, ChunkPacket } = requireModule("network/protocol");
 
 const Chunk = function (id, chunkPosition) {
 
@@ -128,6 +128,13 @@ Chunk.prototype.serialize = function (targetSocket) {
 
     // Otherwise write information on other players
     targetSocket.write(new CreatureStatePacket(chunkPlayer));
+    let observer = targetSocket.player;
+    if (observer && gameServer.world.combatHandler) {
+      let skull = gameServer.world.combatHandler
+        .getPvPManager()
+        .getSkullFor(observer, chunkPlayer);
+      targetSocket.write(new CreatureSkullPacket(chunkPlayer.getId(), skull));
+    }
 
   }
 

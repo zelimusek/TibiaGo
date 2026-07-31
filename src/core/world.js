@@ -71,6 +71,9 @@ World.prototype.tick = function () {
   // Handle all the creature actions next
   this.creatureHandler.tick();
 
+  // Expire and refresh observer-relative PvP skulls and combat relations.
+  this.combatHandler.getPvPManager().tick();
+
 }
 
 World.prototype.teleportCreature = function (creature, position) {

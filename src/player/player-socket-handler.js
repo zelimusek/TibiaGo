@@ -1,5 +1,7 @@
 "use strict";
 
+const { CombatLockPacket } = requireModule("network/protocol");
+
 const SocketHandler = function(player) {
 
   /*
@@ -111,6 +113,12 @@ SocketHandler.prototype.addSpectator = function(gameSocket) {
 
   // Call to write the initial spectator packets
   gameSocket.writeWorldState(this.player);
+
+  // Hydrated PvP locks can already be active before a new controller is
+  // attached. Reflect that state after the normal login packet sequence.
+  if (this.player.combatLock && this.player.combatLock.isLocked()) {
+    gameSocket.write(new CombatLockPacket(true));
+  }
 
 }
 

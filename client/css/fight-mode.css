@@ -17,7 +17,8 @@
 }
 
 .fight-mode-btn,
-.chase-mode-btn {
+.chase-mode-btn,
+.secure-mode-btn {
   width: 24px;
   height: 24px;
   min-width: 24px;
@@ -41,12 +42,14 @@
 }
 
 .fight-mode-btn svg,
-.chase-mode-btn svg {
+.chase-mode-btn svg,
+.secure-mode-btn svg {
   pointer-events: none;
 }
 
 .fight-mode-btn:hover,
-.chase-mode-btn:hover {
+.chase-mode-btn:hover,
+.secure-mode-btn:hover {
   border-color: #777;
   background-color: #333;
   color: #fff;
@@ -55,7 +58,8 @@
 }
 
 .fight-mode-btn.active,
-.chase-mode-btn.active {
+.chase-mode-btn.active,
+.secure-mode-btn.active {
   background-color: #333;
   color: #fff;
   z-index: 1;
@@ -106,4 +110,15 @@
   background-color: #444;
   margin: 2px 0;
   display: block;
+}
+
+.secure-mode-btn.active {
+  border-color: #66ff88;
+  box-shadow: 0 0 8px rgba(102, 255, 136, 0.65);
+  color: #ddffe5;
+}
+
+.secure-mode-btn:not(.active) {
+  border-color: #aa3333;
+  color: #ffaaaa;
 }

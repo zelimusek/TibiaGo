@@ -10,7 +10,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "build:client": "node scripts/build-client.js",
-    "test:combat": "node tests/test-equipment-combat.js"
+    "test:combat": "node tests/test-equipment-combat.js",
+    "test:pvp": "node tests/test-pvp-policy.js && node tests/test-pvp-system.js"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",

@@ -26,7 +26,7 @@ const CombatLock = function(player) {
 CombatLock.prototype = Object.create(GenericLock.prototype);
 CombatLock.prototype.constructor = CombatLock;
 
-CombatLock.prototype.activate = function() {
+CombatLock.prototype.activate = function(seconds) {
 
   /*
    * Function CombatLock.activate
@@ -35,7 +35,7 @@ CombatLock.prototype.activate = function() {
 
   const COMBAT_LOCK_SECONDS = 3;
 
-  this.lockSeconds(COMBAT_LOCK_SECONDS);
+  this.lockSeconds(Number.isFinite(seconds) && seconds > 0 ? seconds : COMBAT_LOCK_SECONDS);
 
 }
 

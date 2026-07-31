@@ -18,7 +18,9 @@ module.exports = function energyBomb(source, target) {
 
     const field = process.gameServer.database.createThing(1495);
     field.fieldOwner = source;
-    tile.addTopThing(field);
+    if (tile.addTopThing(field) !== true) {
+      return;
+    }
 
     // Like fire bomb, affect a creature already standing in the new field.
     tile.players.forEach(function(creature) {

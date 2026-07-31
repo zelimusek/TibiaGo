@@ -124,6 +124,10 @@ NetworkManager.prototype.readPacket = function (packet) {
       return this.packetHandler.handleEntityReference(packet.readCreatureInfo());
     }
 
+    case CONST.PROTOCOL.SERVER.CREATURE_SKULL: {
+      return this.packetHandler.handleCreatureSkull(packet.readCreatureSkull());
+    }
+
     case CONST.PROTOCOL.SERVER.CREATURE_INFORMATION: {
       return this.packetHandler.handleCharacterInformation(packet.readCharacterInformation());
     }

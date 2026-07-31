@@ -21,7 +21,9 @@ module.exports = function fireBomb(source, target) {
     // tiles with it, which reduced a 3x3 bomb to a single visible field.
     let field = process.gameServer.database.createThing(1492);
     field.fieldOwner = source;
-    tile.addTopThing(field);
+    if (tile.addTopThing(field) !== true) {
+      return;
+    }
 
     // A creature already standing in the new field is affected immediately.
     // Tile.creatures exists only on occupied tiles; these getters safely

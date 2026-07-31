@@ -164,8 +164,13 @@ GenericLock.prototype.__extendLock = function(amount) {
    * Extends the lock with until a number of frames
    */
 
-  // Determine how long it needs to be extended for and save the state
-  this.__extendedLockFrame = Math.max(0, amount - this.__lockEvent.remainingFrames());
+  // Keep an already scheduled extension when a shorter lock is applied. For
+  // example, a normal three-second combat hit must never erase a pending
+  // 60-second PvP/PZ lock extension.
+  this.__extendedLockFrame = Math.max(
+    this.__extendedLockFrame,
+    amount - this.__lockEvent.remainingFrames()
+  );
 
 }
 

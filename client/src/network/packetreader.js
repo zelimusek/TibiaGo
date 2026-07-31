@@ -422,6 +422,13 @@ PacketReader.prototype.readCreatureTeleport = function () {
 
 }
 
+PacketReader.prototype.readCreatureSkull = function () {
+  return {
+    id: this.readUInt32(),
+    skull: this.readUInt8()
+  };
+};
+
 PacketReader.prototype.readEntityMove = function () {
 
   /*
@@ -967,6 +974,7 @@ PacketReader.prototype.readPlayerInfo = function () {
   let capacity = this.readUInt32();
   let maxCapacity = this.readUInt32();
   let conditions = this.readConditions();
+  let secureMode = this.readBoolean();
 
   return new Object({
     "id": id,
@@ -990,7 +998,8 @@ PacketReader.prototype.readPlayerInfo = function () {
     "manaMax": manaMax,
     "capacity": capacity,
     "maxCapacity": maxCapacity,
-    "conditions": conditions
+    "conditions": conditions,
+    "secureMode": secureMode
   });
 }
 

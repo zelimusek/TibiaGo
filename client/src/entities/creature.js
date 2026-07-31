@@ -24,6 +24,7 @@ const Creature = function (data) {
   this.maxHealth = data.maxHealth;
   this.speed = data.speed;
   this.attackSlowness = data.attackSlowness;
+  this.skull = CONST.SKULL ? CONST.SKULL.NONE : 0;
   this.conditions = new ConditionManager(this, data.conditions);
 
   this.__lookDirection = data.direction;
@@ -128,6 +129,13 @@ Creature.prototype.setManaStatus = function () {
   }
 
 }
+
+Creature.prototype.setSkull = function (skull) {
+  this.skull = skull;
+  if (this.characterElement && this.characterElement.setSkull) {
+    this.characterElement.setSkull(skull);
+  }
+};
 
 Creature.prototype.getMaxFloor = function () {
 

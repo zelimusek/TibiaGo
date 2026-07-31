@@ -15,6 +15,7 @@ let db = null;
 let pool = null;
 let pgliteClient = null;
 let isPglite = false;
+let schemaReady = Promise.resolve();
 
 /**
  * Ensure database tables exist (auto-migrate for PGlite / Postgres)
@@ -31,6 +32,41 @@ async function ensureTablesExist() {
             "updated_at" timestamp DEFAULT now()
         );
         CREATE UNIQUE INDEX IF NOT EXISTS "account_name_unique" ON "accounts" ("account", "name");
+        CREATE TABLE IF NOT EXISTS "pvp_relations" (
+            "id" serial PRIMARY KEY NOT NULL,
+            "attacker_id" integer NOT NULL,
+            "target_id" integer NOT NULL,
+            "aggression_expires_at" timestamp NOT NULL,
+            "retaliation_expires_at" timestamp NOT NULL,
+            "justified_at_start" boolean DEFAULT false NOT NULL,
+            "updated_at" timestamp DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "pvp_relations_attacker_target_unique"
+            ON "pvp_relations" ("attacker_id", "target_id");
+        CREATE INDEX IF NOT EXISTS "pvp_relations_attacker_expiry_idx"
+            ON "pvp_relations" ("attacker_id", "retaliation_expires_at");
+        CREATE INDEX IF NOT EXISTS "pvp_relations_target_expiry_idx"
+            ON "pvp_relations" ("target_id", "retaliation_expires_at");
+        CREATE TABLE IF NOT EXISTS "pvp_frags" (
+            "id" serial PRIMARY KEY NOT NULL,
+            "event_id" varchar(96) NOT NULL,
+            "killer_id" integer NOT NULL,
+            "victim_id" integer NOT NULL,
+            "killed_at" timestamp NOT NULL,
+            "justified" boolean NOT NULL,
+            "participants" text NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "pvp_frags_event_unique" ON "pvp_frags" ("event_id");
+        CREATE INDEX IF NOT EXISTS "pvp_frags_killer_time_idx"
+            ON "pvp_frags" ("killer_id", "killed_at");
+        CREATE TABLE IF NOT EXISTS "pvp_penalties" (
+            "player_id" integer PRIMARY KEY NOT NULL,
+            "white_until" timestamp NOT NULL,
+            "red_until" timestamp NOT NULL,
+            "black_until" timestamp NOT NULL,
+            "pz_lock_until" timestamp NOT NULL,
+            "updated_at" timestamp DEFAULT now()
+        );
     `;
 
     try {
@@ -43,6 +79,10 @@ async function ensureTablesExist() {
         }
     } catch (err) {
         console.error("Error verifying database schema:", err.message);
+        // PvP persistence is part of login and death correctness. Do not mark
+        // the schema as ready after a failed migration and then continue with
+        // partially missing tables.
+        throw err;
     }
 }
 
@@ -72,7 +112,7 @@ function initDatabase() {
         db = drizzlePglite(pgliteClient, { schema });
         isPglite = true;
 
-        ensureTablesExist();
+        schemaReady = ensureTablesExist();
 
         console.log("Embedded PostgreSQL (PGlite) connection initialized at:", dataDir);
         return db;
@@ -87,7 +127,7 @@ function initDatabase() {
     db = drizzlePg(pool, { schema });
     isPglite = false;
 
-    ensureTablesExist();
+    schemaReady = ensureTablesExist();
 
     console.log("PostgreSQL database connection initialized");
 
@@ -103,6 +143,10 @@ function getDatabase() {
         return initDatabase();
     }
     return db;
+}
+
+function waitForSchema() {
+    return schemaReady;
 }
 
 /**
@@ -126,6 +170,7 @@ async function closeDatabase() {
 module.exports = {
     initDatabase,
     getDatabase,
+    waitForSchema,
     closeDatabase,
     schema,
 };

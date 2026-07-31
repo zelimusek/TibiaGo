@@ -13,6 +13,9 @@ const FightModeSelector = function () {
     // Current chase mode (default to STAND = 0)
     this.currentChaseMode = 0; // STAND
 
+    // Secure mode prevents starting an attack on an unmarked player.
+    this.secureMode = true;
+
     // Reference to the buttons container
     this.container = document.getElementById("fight-mode-selector");
 
@@ -34,6 +37,8 @@ const FightModeSelector = function () {
         chase: this.container.querySelector('[data-chase="chase"]')
     };
 
+    this.secureButton = this.container.querySelector('[data-secure]');
+
     // Attach click listeners for fight modes
     // OFFENSIVE = 0, BALANCED = 1, DEFENSIVE = 2
     if (this.fightButtons.offensive) {
@@ -54,11 +59,34 @@ const FightModeSelector = function () {
     if (this.chaseButtons.chase) {
         this.chaseButtons.chase.addEventListener("click", this.setChaseMode.bind(this, 1));
     }
+    if (this.secureButton) {
+        this.secureButton.addEventListener("click", this.toggleSecureMode.bind(this));
+    }
 
     // Set initial visual state
     this.__updateFightVisualState();
     this.__updateChaseVisualState();
+    this.__updateSecureVisualState();
 
+};
+
+FightModeSelector.prototype.toggleSecureMode = function () {
+    this.secureMode = !this.secureMode;
+    gameClient.send(new SecureModePacket(this.secureMode));
+    this.__updateSecureVisualState();
+};
+
+FightModeSelector.prototype.setSecureModeFromServer = function (enabled) {
+    this.secureMode = enabled !== false;
+    this.__updateSecureVisualState();
+};
+
+FightModeSelector.prototype.__updateSecureVisualState = function () {
+    if (!this.secureButton) return;
+    this.secureButton.classList.toggle("active", this.secureMode);
+    this.secureButton.setAttribute("data-secure", String(this.secureMode));
+    this.secureButton.title = "Secure Mode: " + (this.secureMode ? "On" : "Off");
+    this.secureButton.innerHTML = this.secureMode ? "&#128274;" : "&#128275;";
 };
 
 FightModeSelector.prototype.setFightMode = function (mode) {

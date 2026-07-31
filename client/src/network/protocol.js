@@ -397,6 +397,14 @@ const ChaseModePacket = function (mode) {
 ChaseModePacket.prototype = Object.create(PacketWriter.prototype);
 ChaseModePacket.prototype.constructor = ChaseModePacket;
 
+const SecureModePacket = function (enabled) {
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.SECURE_MODE, 1);
+  this.writeBoolean(Boolean(enabled));
+};
+
+SecureModePacket.prototype = Object.create(PacketWriter.prototype);
+SecureModePacket.prototype.constructor = SecureModePacket;
+
 const WriteTextPacket = function (itemId, content) {
 
   /*

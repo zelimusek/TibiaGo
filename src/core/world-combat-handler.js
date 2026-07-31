@@ -21,6 +21,22 @@ CombatHandler.prototype.scalePvPDamage = function (source, target, amount) {
   return this.pvpPolicy.scaleDamage(source, target, amount);
 };
 
+CombatHandler.prototype.scaleIncomingDamage = function (target, amount) {
+  return this.pvpPolicy.scaleIncomingDamage(target, amount);
+};
+
+CombatHandler.prototype.registerPvPAggression = function (source, target) {
+  return this.pvpPolicy.registerAggression(source, target);
+};
+
+CombatHandler.prototype.recordPvPDamage = function (source, target) {
+  return this.pvpPolicy.recordDamage(source, target);
+};
+
+CombatHandler.prototype.getPvPManager = function () {
+  return this.pvpPolicy.manager;
+};
+
 CombatHandler.prototype.handleCombat = function (source) {
 
   /*

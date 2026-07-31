@@ -11,7 +11,16 @@ module.exports = function greatFireball(source, target) {
   process.gameServer.world.sendDistanceEffect(source.position, target.position, CONST.EFFECT.PROJECTILE.ENERGY);
   let field = process.gameServer.database.createThing(1495);
   field.fieldOwner = source;
-  target.addItem(field);
+  if (target.addTopThing(field) !== true) {
+    return false;
+  }
+
+  target.players.forEach(function(creature) {
+    target.itemStack.applyFieldDamage(creature, source);
+  });
+  target.monsters.forEach(function(creature) {
+    target.itemStack.applyFieldDamage(creature, source);
+  });
 
   return true;
 

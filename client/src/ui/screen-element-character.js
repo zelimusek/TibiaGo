@@ -163,6 +163,23 @@ CharacterElement.prototype.setTextPosition = function () {
   this.__updateTextPosition(offset, false);
 };
 
+CharacterElement.prototype.setSkull = function (skull) {
+  let element = this.element.querySelector(".creature-skull");
+  if (!element) return;
+  if (!skull || skull === CONST.SKULL.NONE) {
+    element.style.display = "none";
+    return;
+  }
+
+  // skulls.png contains: white, red, yellow, green and black, 11x11 each.
+  let spriteIndex = skull === CONST.SKULL.WHITE ? 0
+    : skull === CONST.SKULL.RED ? 1
+      : skull === CONST.SKULL.YELLOW ? 2
+        : skull === CONST.SKULL.BLACK ? 4 : 0;
+  element.style.display = "inline-block";
+  element.style.backgroundPosition = (-spriteIndex * 11) + "px 0";
+};
+
 CharacterElement.prototype.__setupNpcIcon = function () {
   /*
    * Function CharacterElement.__setupNpcIcon

@@ -35,6 +35,10 @@ const Player = function (data) {
   // Inherit from Creature class
   Creature.call(this, data.properties);
 
+  // Stable database identifier. Runtime creature IDs and names must never be
+  // used for persistent PvP state.
+  this.accountId = Number.isInteger(data.accountId) ? data.accountId : null;
+
 
   this.templePosition = Position.prototype.fromLiteral(data.templePosition);
 
@@ -83,6 +87,9 @@ const Player = function (data) {
 
   // Chase mode state (default to stand)
   this.chaseMode = CONST.CHASE_MODE.STAND;
+
+  // Classic secure mode defaults to enabled and is saved with the character.
+  this.secureMode = !data.pvpPreferences || data.pvpPreferences.secureMode !== false;
 };
 
 Player.prototype = Object.create(Creature.prototype);
@@ -414,34 +421,37 @@ Player.prototype.decreaseHealth = function (source, amount) {
     return false;
   }
 
-  let isPvPAttack = Boolean(
-    source &&
-    source !== this &&
-    source.isPlayer &&
-    source.isPlayer()
-  );
+  let responsiblePlayer = gameServer.world.combatHandler
+    .getPvPManager()
+    .resolveResponsiblePlayer(source);
+  let isPvPAttack = Boolean(responsiblePlayer && responsiblePlayer !== this);
 
   // This is the final server-side guard shared by melee, distance combat,
   // spells, runes and player-owned fields.
   if (isPvPAttack) {
-    if (!gameServer.world.combatHandler.canAttack(source, this, true)) {
+    if (!gameServer.world.combatHandler.canAttack(responsiblePlayer, this, true)) {
       return false;
     }
 
-    amount = gameServer.world.combatHandler.scalePvPDamage(source, this, amount);
+    gameServer.world.combatHandler.registerPvPAggression(responsiblePlayer, this);
+    gameServer.world.combatHandler.recordPvPDamage(responsiblePlayer, this);
+    amount = gameServer.world.combatHandler.scalePvPDamage(responsiblePlayer, this, amount);
     if (amount <= 0) {
       return false;
     }
 
-    source.combatLock.activate();
+    responsiblePlayer.combatLock.activate();
   }
+
+  amount = gameServer.world.combatHandler.scaleIncomingDamage(this, amount);
 
   // Put the target player in combat
   this.combatLock.activate();
 
   let sourceDescription = "";
-  if (source && source.getProperty) {
-    let sourceName = source.getProperty(CONST.PROPERTIES.NAME) || "creature";
+  let describedSource = responsiblePlayer || (source && source.getProperty ? source : null);
+  if (describedSource) {
+    let sourceName = describedSource.getProperty(CONST.PROPERTIES.NAME) || "creature";
     sourceDescription = " due to an attack by " + (isPvPAttack ? sourceName : sourceName.toLowerCase());
   }
 
@@ -557,6 +567,10 @@ Player.prototype.handleDeath = function (source = null) {
 
   this.isDead = true;
   this.__spawnAtTemple = true;
+
+  let pvpManager = gameServer.world.combatHandler.getPvPManager();
+  pvpManager.handlePlayerDeath(this, source);
+  let dropAllCarriedItems = pvpManager.shouldDropAllCarriedItems(this);
   this.combatLock.unlock();
 
   // Other players must immediately stop attacking this character. The dead
@@ -594,10 +608,16 @@ Player.prototype.handleDeath = function (source = null) {
 
   if (corpse !== null) {
     if (corpse.setDeathInfo) {
+      let responsiblePlayer = pvpManager.resolveResponsiblePlayer(source);
+      let killer = responsiblePlayer || (source && source.getProperty ? source : null);
       corpse.setDeathInfo(
         this.getProperty(CONST.PROPERTIES.NAME),
-        source && source.getProperty ? source.getProperty(CONST.PROPERTIES.NAME) : null
+        killer ? killer.getProperty(CONST.PROPERTIES.NAME) : null
       );
+    }
+
+    if (dropAllCarriedItems && this.containerManager.dropAllCarriedItems) {
+      this.containerManager.dropAllCarriedItems(corpse);
     }
 
     gameServer.world.addTopThing(this.getPosition(), corpse);
@@ -802,6 +822,7 @@ Player.prototype.toJSON = function () {
     containers: this.containerManager.toJSON(),
     friends: this.friendlist.toJSON(),
     storage: this.storage,
+    pvpPreferences: { secureMode: this.secureMode },
     lastVisit: Date.now(),
   });
 };
@@ -997,6 +1018,10 @@ Player.prototype.setChaseMode = function (mode) {
   // Log for debugging
   let modeName = ["STAND", "CHASE"][mode];
   console.log(`[CHASE_MODE] ${this.name} changed to ${modeName}`);
+};
+
+Player.prototype.setSecureMode = function (enabled) {
+  this.secureMode = Boolean(enabled);
 };
 
 Player.prototype.purchase = function (offer, count) {

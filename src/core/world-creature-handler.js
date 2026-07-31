@@ -789,7 +789,7 @@ CreatureHandler.prototype.__referencePlayer = function (player) {
 
 }
 
-CreatureHandler.prototype.createNewPlayer = function (gameSocket, data) {
+CreatureHandler.prototype.createNewPlayer = async function (gameSocket, data) {
 
   /*
    * Function CreatureHandler.createNewPlayer
@@ -799,6 +799,13 @@ CreatureHandler.prototype.createNewPlayer = function (gameSocket, data) {
   // Create the class that wraps the data
   let player = new Player(data);
   let position = Position.prototype.fromLiteral(data.position);
+
+  try {
+    await gameServer.world.combatHandler.getPvPManager().hydratePlayer(player);
+  } catch (error) {
+    console.error("Could not restore PvP state for %s:".format(player.name), error);
+    return gameSocket.closeError("Your PvP state could not be loaded. Please try again.");
+  }
 
   // Find an available tile for the player
   let tile = gameServer.world.findAvailableTile(player, position);
@@ -820,6 +827,9 @@ CreatureHandler.prototype.createNewPlayer = function (gameSocket, data) {
 
   // Attach a controller to the player
   player.socketHandler.attachController(gameSocket);
+
+  // Send viewer-relative skulls after the controller can receive packets.
+  gameServer.world.combatHandler.getPvPManager().broadcastSkullChanges();
 
 }
 
@@ -1107,11 +1117,32 @@ CreatureHandler.prototype.teleportCreature = function (creature, position, optio
     return false;
   }
 
+  if (
+    creature.isPlayer() &&
+    options.ignorePvpLock !== true &&
+    tile.isProtectionZone() &&
+    gameServer.world.combatHandler.getPvPManager().isPzLocked(creature)
+  ) {
+    creature.sendCancelMessage("You may not enter a protection zone after attacking another player.");
+    return false;
+  }
+
   // Find the destination through other portals etc..
   let destination = gameServer.world.lattice.findDestination(creature, tile);
 
   if (destination === null) {
     destination = creature;
+  }
+
+  let destinationTile = gameServer.world.getTileFromWorldPosition(destination.position);
+  if (
+    creature.isPlayer() &&
+    options.ignorePvpLock !== true &&
+    destinationTile && destinationTile.isProtectionZone() &&
+    gameServer.world.combatHandler.getPvPManager().isPzLocked(creature)
+  ) {
+    creature.sendCancelMessage("You may not enter a protection zone after attacking another player.");
+    return false;
   }
 
   // Try to set the position: it may fail however
@@ -1201,6 +1232,15 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
   }
 
   if (tile === null || tile.id === 0) {
+    return false;
+  }
+
+  if (
+    creature.isPlayer() &&
+    tile.isProtectionZone() &&
+    gameServer.world.combatHandler.getPvPManager().isPzLocked(creature)
+  ) {
+    creature.sendCancelMessage("You may not enter a protection zone after attacking another player.");
     return false;
   }
 

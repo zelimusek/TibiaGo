@@ -283,6 +283,10 @@ GameClient.prototype.handleAcceptLogin = function (packet) {
   // Create a new player with a particular server identifier
   this.player = new Player(packet);
 
+  if (this.interface.fightModeSelector) {
+    this.interface.fightModeSelector.setSecureModeFromServer(packet.secureMode);
+  }
+
   // Add the player to the game world
   this.world.createCreature(packet.id, this.player);
   this.renderer.updateTileCache();

@@ -228,6 +228,10 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
       return gameSocket.player.setChaseMode(packet.readUInt8());
     }
 
+    case CONST.PROTOCOL.CLIENT.SECURE_MODE: {
+      return gameSocket.player.setSecureMode(packet.readBoolean());
+    }
+
     // Use item on creature (from battle list)
     case CONST.PROTOCOL.CLIENT.THING_USE_ON_CREATURE: {
       return gameSocket.player.useHandler.handleActionUseOnCreature(packet.readItemUseOnCreature(gameSocket.player));

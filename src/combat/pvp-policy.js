@@ -1,11 +1,18 @@
 "use strict";
 
-const PvPPolicy = function () {
+const PvPManager = requireModule("combat/pvp-manager");
+const PvPRepository = requireModule("combat/pvp-repository");
+
+const PvPPolicy = function (options) {
   /*
    * Server-authoritative rules for player versus player combat. Every damage
    * path must ultimately pass through this policy so modified clients cannot
    * bypass vocation or zone restrictions by sending packets directly.
    */
+  options = options || {};
+  this.manager = options.manager || new PvPManager(
+    options.repository === undefined ? new PvPRepository() : options.repository
+  );
 };
 
 PvPPolicy.prototype.MESSAGES = {
@@ -13,7 +20,8 @@ PvPPolicy.prototype.MESSAGES = {
   DEAD: "You may not attack this player.",
   NO_VOCATION: "You need to choose a vocation before attacking players.",
   PROTECTION_ZONE: "You may not attack players in a protection zone.",
-  NO_PVP_ZONE: "You may not attack players in a no-PvP zone."
+  NO_PVP_ZONE: "You may not attack players in a no-PvP zone.",
+  SECURE_MODE: "Turn secure mode off if you really want to attack this unmarked player."
 };
 
 PvPPolicy.prototype.__allowed = function () {
@@ -77,6 +85,10 @@ PvPPolicy.prototype.checkAttack = function (source, target) {
     return this.__denied(this.MESSAGES.NO_VOCATION);
   }
 
+  if (source.secureMode && !this.manager.isJustifiedAttack(source, target)) {
+    return this.__denied(this.MESSAGES.SECURE_MODE);
+  }
+
   return this.__allowed();
 };
 
@@ -110,6 +122,22 @@ PvPPolicy.prototype.scaleDamage = function (source, target, amount) {
   }
 
   return Math.max(1, Math.floor(amount * this.getDamageMultiplier()));
+};
+
+PvPPolicy.prototype.registerAggression = function (source, target) {
+  if (!this.__isPlayer(source) || !this.__isPlayer(target)) return false;
+  return this.manager.registerAggression(source, target);
+};
+
+PvPPolicy.prototype.recordDamage = function (source, target) {
+  let responsible = this.manager.resolveResponsiblePlayer(source);
+  if (!this.__isPlayer(responsible) || !this.__isPlayer(target)) return;
+  this.manager.recordDamage(responsible, target);
+};
+
+PvPPolicy.prototype.scaleIncomingDamage = function (target, amount) {
+  if (!this.__isPlayer(target) || amount <= 0) return amount;
+  return Math.max(1, Math.floor(amount * this.manager.getIncomingDamageMultiplier(target)));
 };
 
 module.exports = PvPPolicy;

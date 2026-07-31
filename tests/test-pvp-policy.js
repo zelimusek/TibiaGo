@@ -1,34 +1,16 @@
 "use strict";
 
 const assert = require("assert");
+require("../require");
 
-global.CONST = {
-  PROPERTIES: {
-    ROLE: 1,
-    VOCATION: 2
-  },
-  ROLES: {
-    NONE: 0,
-    GAMEMASTER: 3,
-    GOD: 4
-  },
-  VOCATION: {
-    NONE: 0,
-    KNIGHT: 1
-  }
-};
+const PvPPolicy = requireModule("combat/pvp-policy");
 
-global.CONFIG = {
-  COMBAT: {
-    PVP_DAMAGE_MULTIPLIER: 0.5
-  }
-};
-
-const PvPPolicy = require("../src/combat/pvp-policy");
+let nextPlayerId = 1;
 
 function tile(options) {
   options = options || {};
   return {
+    accountId: nextPlayerId++,
     isProtectionZone() {
       return Boolean(options.protection);
     },
@@ -45,6 +27,7 @@ function player(options) {
     role: options.role == null ? CONST.ROLES.NONE : options.role,
     currentTile: options.tile || tile(),
     isDead: Boolean(options.dead),
+    secureMode: Boolean(options.secureMode),
     messages: [],
     isPlayer() {
       return true;
@@ -72,7 +55,7 @@ const monster = {
   }
 };
 
-const policy = new PvPPolicy();
+const policy = new PvPPolicy({ repository: null });
 const target = player();
 
 const noVocation = player({ vocation: CONST.VOCATION.NONE });
@@ -110,5 +93,9 @@ assert.strictEqual(policy.scaleDamage(knight, monster, 101), 101);
 
 CONFIG.COMBAT.PVP_DAMAGE_MULTIPLIER = 0.25;
 assert.strictEqual(policy.scaleDamage(knight, target, 100), 25);
+
+const secureKnight = player({ secureMode: true });
+assert.strictEqual(policy.canAttack(secureKnight, player(), true), false);
+assert.strictEqual(secureKnight.messages.pop(), policy.MESSAGES.SECURE_MODE);
 
 console.log("PASS: server PvP policy enforces vocation, role, zone and damage rules.");

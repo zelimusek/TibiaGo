@@ -176,15 +176,17 @@ WebsocketServer.prototype.__handleLoginRequest = function (
       // Parse the character data - handle double-escaped JSON
       let character = result.character;
 
-      // If it's a string, parse it
-      if (typeof character === "string") {
+      // Older rows may contain JSON encoded more than once. Fully unwrap the
+      // value before assigning runtime metadata; assigning a property to the
+      // intermediate string would otherwise make login fail in strict mode.
+      while (typeof character === "string") {
         character = JSON.parse(character);
       }
 
-      // If it's still a string (double-escaped), parse again
-      if (typeof character === "string") {
-        character = JSON.parse(character);
-      }
+      // Stable database identifier used by PvP relations, frags and penalties.
+      // It is deliberately not derived from the mutable character name or the
+      // temporary creature/network identifier.
+      character.accountId = result.id;
 
       // Fallback: ensure name exists in properties (fixes corrupted data from previous saves)
       if (!character.properties.name) {
