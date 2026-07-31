@@ -219,7 +219,8 @@ const serviceWorkerSource = fs.readFileSync(
   "utf8"
 );
 assert.match(serviceWorkerSource, /tibiago-static-v\d+/);
-assert.match(serviceWorkerSource, /client\.navigate\(target\.href\)/);
+assert.match(serviceWorkerSource, /self\.clients\.claim\(\)/);
+assert.doesNotMatch(serviceWorkerSource, /client\.navigate\(/);
 assert.match(
   serviceWorkerSource,
   /requestUrl\.pathname\.startsWith\("\/data\/"\)/,
@@ -231,6 +232,9 @@ assert.match(html, /mobile\.css\?v=\d{8}\.\d+/);
 assert.match(html, /screen-element\.css\?v=\d{8}\.\d+/);
 assert.match(html, /launcher\.js\?v=\d{8}\.\d+/);
 assert.match(html, /service-worker\.js\?v=\d+/);
+assert.match(html, /window\.__tibiaGoServiceWorkerReady/);
+assert.match(html, /controllerchange/);
+assert.doesNotMatch(html, /window\.location\.reload\(\)/);
 
 const launcherSource = fs.readFileSync(
   path.join(__dirname, "..", "client", "src", "launcher.js"),
@@ -238,5 +242,6 @@ const launcherSource = fs.readFileSync(
 );
 assert.match(launcherSource, /CLIENT_BUILD\s*=\s*"\d{8}\.\d+"/);
 assert.match(launcherSource, /encodeURIComponent\(CLIENT_BUILD\)/);
+assert.match(launcherSource, /window\.__tibiaGoServiceWorkerReady/);
 
 console.log("PASS: mobile chat input, sizing and channel controls work by touch.");

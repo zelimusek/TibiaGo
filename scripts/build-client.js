@@ -43,6 +43,21 @@ async function build() {
         }
     }
 
+    // The production source launcher waits before loading these files one by
+    // one. Preserve the same update barrier in the compiled game.js bundle so
+    // it cannot initialize IndexedDB or fetch Tibia assets during a Service
+    // Worker takeover either.
+    bundledCode = `
+(function () {
+  const updateBarrier = window.__tibiaGoServiceWorkerReady || Promise.resolve();
+  Promise.resolve(updateBarrier).catch(function (error) {
+    console.warn("Compiled client update barrier failed; continuing startup.", error);
+  }).then(function () {
+${bundledCode}
+  });
+})();
+`;
+
     // 4. Obfuscate bundled code
     console.log('Obfuscating game code...');
     const obfuscationResult = JavaScriptObfuscator.obfuscate(bundledCode, {

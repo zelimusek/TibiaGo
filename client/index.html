@@ -37,7 +37,7 @@
 <link rel="stylesheet" type="text/css" href="./css/change-outfit-modal.css">
 <link rel="stylesheet" type="text/css" href="./css/context-menu.css">
 <link rel="stylesheet" type="text/css" href="./css/achievement.css">
-<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260731.4">
+<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260731.5">
 <link rel="stylesheet" type="text/css" href="./css/fight-mode.css">
 <link rel="stylesheet" type="text/css" href="./css/tooltip.css">
 <link rel="stylesheet" type="text/css" href="./css/questlog.css">
@@ -1437,31 +1437,66 @@
 
   </div>
 
-  <!-- Protocol to speak to the NodeJS Server -->
-  <!-- Launcher script to handle loading with progress screen -->
-  <script src="src/launcher.js?v=20260731.4"></script>
+  <!-- Finish a Service Worker update before launcher.js starts downloading
+       client modules or Tibia assets. This prevents an update from aborting
+       Tibia.spr/Tibia.dat halfway through their IndexedDB write. -->
   <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        let refreshing = false;
+    window.__tibiaGoServiceWorkerReady = (function () {
+      if (!("serviceWorker" in navigator)) {
+        return Promise.resolve();
+      }
+
+      return new Promise(function (resolve) {
+        let resolved = false;
+        let reloading = false;
+
+        function finish() {
+          if (resolved || reloading) {
+            return;
+          }
+          resolved = true;
+          resolve();
+        }
+
+        // Never block the game forever if a browser extension or restrictive
+        // WebView prevents Service Worker installation.
+        window.setTimeout(finish, 8000);
 
         navigator.serviceWorker.addEventListener("controllerchange", function () {
-          if (refreshing) {
+          if (reloading) {
             return;
           }
 
-          refreshing = true;
-          window.location.reload();
+          reloading = true;
+          let target = new URL(window.location.href);
+          target.searchParams.set("build", "20260731.5");
+          window.location.replace(target.href);
         });
 
-        navigator.serviceWorker.register("/service-worker.js?v=24", {
+        navigator.serviceWorker.register("/service-worker.js?v=25", {
           updateViaCache: "none"
         }).then(function (registration) {
-          registration.update();
+          return registration.update().catch(function () {
+            return null;
+          }).then(function () {
+            // An installing/waiting worker calls skipWaiting() and claim(), so
+            // controllerchange performs the one required navigation. With no
+            // update pending the launcher may start immediately.
+            if (!registration.installing && !registration.waiting) {
+              finish();
+            }
+          });
+        }).catch(function (error) {
+          console.warn("Service Worker update check failed; starting the client.", error);
+          finish();
         });
       });
-    }
+    })();
   </script>
+
+  <!-- Protocol to speak to the NodeJS Server -->
+  <!-- Launcher script to handle loading with progress screen -->
+  <script src="src/launcher.js?v=20260731.5"></script>
 
   <!-- Custom SVG filter for post-processing -->
   <!-- This example filters all colors and truncates green to 0 or 1 -->

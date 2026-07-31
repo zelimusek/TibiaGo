@@ -9,6 +9,8 @@ const handlers = {};
 let networkFetches = 0;
 let cacheLookups = 0;
 let responsePromise = null;
+let activationPromise = null;
+let claimCalls = 0;
 
 const context = vm.createContext({
   URL,
@@ -38,8 +40,9 @@ const context = vm.createContext({
   self: {
     location: { origin: "https://tibiago.cyrk.fun" },
     clients: {
-      matchAll() {
-        return Promise.resolve([]);
+      claim() {
+        claimCalls++;
+        return Promise.resolve();
       },
     },
     skipWaiting() {},
@@ -55,6 +58,12 @@ const workerSource = fs.readFileSync(
 );
 vm.runInContext(workerSource, context, { filename: "client/service-worker.js" });
 
+handlers.activate({
+  waitUntil(promise) {
+    activationPromise = promise;
+  },
+});
+
 handlers.fetch({
   request: {
     method: "GET",
@@ -68,14 +77,20 @@ handlers.fetch({
 
 assert(responsePromise, "The Service Worker must answer the asset request.");
 
-responsePromise.then(function () {
+Promise.all([responsePromise, activationPromise]).then(function () {
   assert.strictEqual(networkFetches, 1);
   assert.strictEqual(
     cacheLookups,
     0,
     "Tibia data must go straight to the network instead of Cache Storage."
   );
-  console.log("PASS: Service Worker bypasses Cache Storage for Tibia data.");
+  assert.strictEqual(claimCalls, 1);
+  assert.doesNotMatch(
+    workerSource,
+    /client\.navigate\(/,
+    "The worker must not race the HTML controllerchange reload."
+  );
+  console.log("PASS: Service Worker claims once and bypasses Cache Storage for Tibia data.");
 }).catch(function (error) {
   console.error(error);
   process.exitCode = 1;

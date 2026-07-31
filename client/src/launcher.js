@@ -2,7 +2,7 @@
 
 (function () {
 
-  const CLIENT_BUILD = "20260731.4";
+  const CLIENT_BUILD = "20260731.5";
 
   // List of all scripts to load in order
   const SCRIPTS = [
@@ -404,6 +404,14 @@
     document.body.appendChild(script);
   }
 
-  loadNextScript(0);
+  // Do not initialize IndexedDB or start downloading Tibia.spr/Tibia.dat until
+  // a pending Service Worker update has either taken control or been ruled out.
+  // This makes the first launch after deploy behave exactly like later ones.
+  let updateBarrier = window.__tibiaGoServiceWorkerReady || Promise.resolve();
+  Promise.resolve(updateBarrier).catch(function (error) {
+    console.warn("Client update barrier failed; continuing startup.", error);
+  }).then(function () {
+    loadNextScript(0);
+  });
 
 })();
