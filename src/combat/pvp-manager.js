@@ -302,7 +302,7 @@ PvPManager.prototype.broadcastSkullChanges = function () {
 
   players.forEach(function (observer) {
     players.forEach(function (subject) {
-      if (observer === subject || observer.canSee(subject)) {
+      if (observer === subject || observer.canSee(subject.getPosition())) {
         let key = observer.getId() + ":" + subject.getId();
         let skull = this.getSkullFor(observer, subject);
         if (this.__visibleSkulls.get(key) !== skull) {

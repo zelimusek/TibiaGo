@@ -224,6 +224,46 @@ async function run() {
   await new Promise(function (resolve) { setImmediate(resolve); });
   assert.strictEqual(idempotentRepository.deaths.length, 1);
 
+  // Logging in a second player refreshes observer-relative skulls. Visibility
+  // checks must receive the subject position, never the creature object.
+  let firstOnline = player("FirstOnline");
+  let secondOnline = player("SecondOnline");
+  let firstPosition = { x: 100, y: 100, z: 7 };
+  let secondPosition = { x: 101, y: 100, z: 7 };
+  let firstSeen = [];
+  let secondSeen = [];
+  Object.assign(firstOnline, {
+    getId() { return 1001; },
+    getPosition() { return firstPosition; },
+    canSee(position) { firstSeen.push(position); return true; },
+    write() {}
+  });
+  Object.assign(secondOnline, {
+    getId() { return 1002; },
+    getPosition() { return secondPosition; },
+    canSee(position) { secondSeen.push(position); return true; },
+    write() {}
+  });
+
+  let previousGameServer = global.gameServer;
+  global.gameServer = {
+    world: {
+      creatureHandler: {
+        getConnectedPlayers() { return new Map([
+          ["FirstOnline", firstOnline],
+          ["SecondOnline", secondOnline]
+        ]); }
+      }
+    }
+  };
+  try {
+    new PvPManager(null).broadcastSkullChanges();
+  } finally {
+    global.gameServer = previousGameServer;
+  }
+  assert.strictEqual(firstSeen[0], secondPosition);
+  assert.strictEqual(secondSeen[0], firstPosition);
+
   console.log("PASS: classic PvP relations, skulls, frags, penalties, attribution and carried-item drop.");
 }
 
