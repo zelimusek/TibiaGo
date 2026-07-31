@@ -3,6 +3,7 @@
 const Chunk = requireModule("entities/chunk");
 const Pathfinder = requireModule("utils/pathfinder");
 const Position = requireModule("utils/position");
+const Tile = requireModule("entities/tile");
 
 const Lattice = function (size) {
 
@@ -38,6 +39,13 @@ const Lattice = function (size) {
   // Create the chunks and tiles and save reference memory
   this.__chunksPositive = new Map();
   this.__chunksNegative = new Map();
+
+  this.lazyTileNeighbours = CONFIG.WORLD.LAZY_TILE_NEIGHBOURS === true;
+  Tile.setNeighbourResolver(
+    this.lazyTileNeighbours
+      ? this.__getTileNeighbours.bind(this)
+      : null
+  );
 
 }
 
@@ -80,12 +88,14 @@ Lattice.prototype.findPath = function (creature, fromPosition, toPosition, mode)
     return new Array();
   }
 
-  if (!toTile.neighbours) {
+  let destinationNeighbours = toTile.neighbours;
+
+  if (!destinationNeighbours) {
     return new Array();
   }
 
   // Simple extra heuristic if the target is blocked in every direction do not begin search, otherwise the entire field is searched
-  if (toTile.neighbours.every(x => creature.isTileOccupied(x))) {
+  if (destinationNeighbours.every(x => creature.isTileOccupied(x))) {
     return new Array();
   }
 
@@ -158,14 +168,15 @@ Lattice.prototype.findAvailableTile = function (creature, position) {
 
   // This is the requested tile
   let tile = this.getTileFromWorldPosition(position);
+  let neighbours = tile === null ? null : tile.neighbours;
 
   // Does not exist
-  if (tile === null || !tile.hasOwnProperty("neighbours")) {
+  if (neighbours === null || typeof neighbours === "undefined") {
     return null;
   }
 
   // Go over its neighbours: this includes itself as the first element
-  for (let neighbour of tile.neighbours) {
+  for (let neighbour of neighbours) {
 
     // Cannot log into no-logout zones
     if (creature.isPlayer() && neighbour.isNoLogoutZone()) {
@@ -328,25 +339,17 @@ Lattice.prototype.enablePathfinding = function (tile, refreshNeighbours) {
    * Goes over all available chunks and references its neighbours, including tiles for pathfinding
    */
 
-  // Self and eight surrounding tiles or chunks
-  let things = new Array(
-    tile.position,
-    tile.position.west(),
-    tile.position.north(),
-    tile.position.east(),
-    tile.position.south(),
-    tile.position.northwest(),
-    tile.position.southwest(),
-    tile.position.northeast(),
-    tile.position.southeast()
-  );
+  let neighbours = this.__getTileNeighbours(tile);
 
-  // Set the neighbours of the tile
-  tile.neighbours = things.map(this.getTileFromWorldPosition, this).nullfilter().filter(x => !x.isBlockSolid());
+  // Eager mode remains available as an immediate rollback. Lazy mode always
+  // reflects current blocking tiles and does not retain an array per SQM.
+  if (!this.lazyTileNeighbours) {
+    tile.neighbours = neighbours;
+  }
 
   // Also refresh the neighbours pathfinding: but not recursively
   if (refreshNeighbours) {
-    tile.neighbours.forEach(tile => this.enablePathfinding(tile, false));
+    neighbours.forEach(tile => this.enablePathfinding(tile, false));
   }
 
 }
@@ -370,7 +373,12 @@ Lattice.prototype.__setReferences = function (chunks) {
     // Save chunk neighbours
     this.__referenceNeighbours(chunk, this.__getChunkFromChunkPosition);
 
-    // Go over all tiles that exist and reference its neighbours
+    // Go over all tiles that exist and reference their neighbours. In lazy
+    // mode those references are calculated only when gameplay needs them.
+    if (this.lazyTileNeighbours) {
+      return;
+    }
+
     chunk.layers.forEach(function (layer) {
 
       if (layer === null) {
@@ -397,6 +405,27 @@ Lattice.prototype.__setReferences = function (chunks) {
     }, this);
 
   }, this);
+
+}
+
+Lattice.prototype.__getTileNeighbours = function (tile) {
+
+  let positions = new Array(
+    tile.position,
+    tile.position.west(),
+    tile.position.north(),
+    tile.position.east(),
+    tile.position.south(),
+    tile.position.northwest(),
+    tile.position.southwest(),
+    tile.position.northeast(),
+    tile.position.southeast()
+  );
+
+  return positions
+    .map(this.getTileFromWorldPosition, this)
+    .nullfilter()
+    .filter(neighbour => !neighbour.isBlockSolid());
 
 }
 

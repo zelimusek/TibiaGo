@@ -59,6 +59,10 @@ Pathfinder.prototype.search = function (creature, from, to, mode) {
   // Add the first tile to the heap
   openHeap.push(from);
 
+  // Lazy neighbour mode resolves this list on demand. Keep the destination
+  // list for the duration of one search instead of rebuilding it per node.
+  let targetNeighbours = mode === this.ADJACENT ? to.neighbours : null;
+
   // Find path in the open heap
   while (!openHeap.isEmpty()) {
 
@@ -70,7 +74,7 @@ Pathfinder.prototype.search = function (creature, from, to, mode) {
 
     // Found the end of the traversal: must be adjacent to end
     if (mode === this.ADJACENT) {
-      if (to.neighbours.includes(currentTile)) {
+      if (targetNeighbours.includes(currentTile)) {
         return this.pathTo(currentTile);
       }
     } else if (mode === this.EXACT) {
@@ -83,8 +87,9 @@ Pathfinder.prototype.search = function (creature, from, to, mode) {
     currentNode.setClosed();
 
     // Go over all of its neighbours
-    if (currentTile.neighbours) {
-      currentTile.neighbours.forEach(function (neighbourTile) {
+    let currentNeighbours = currentTile.neighbours;
+    if (currentNeighbours) {
+      currentNeighbours.forEach(function (neighbourTile) {
 
         // Not needed
         if (neighbourTile === currentTile) {

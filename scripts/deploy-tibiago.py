@@ -81,6 +81,7 @@ ALLOWED_FILES = {
     "package.json",
     "package-lock.json",
     "client-server.py",
+    "scripts/tibiago-watchdog.sh",
 }
 
 

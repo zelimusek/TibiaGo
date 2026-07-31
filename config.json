@@ -51,6 +51,7 @@
   "WORLD": {
     "GLOBAL_COOLDOWN_MS": 1000,
     "WORLD_FILE": "Tibia74.otbm",
+    "LAZY_TILE_NEIGHBOURS": false,
     "IDLE": {
       "WARN_SECONDS": 300,
       "KICK_SECONDS": 60

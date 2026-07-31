@@ -85,6 +85,14 @@ const MEMORY_LOG_INTERVAL_MS = Math.max(
 );
 const MEMORY_LOG_MAX_BYTES = 5 * 1024 * 1024;
 const MEMORY_LOG_PATH = path.join(__dirname, "logs", "memory.jsonl");
+const configuredMemoryAlertRssMiB =
+  parseFloat(process.env.MEMORY_ALERT_RSS_MIB);
+const MEMORY_ALERT_RSS_MIB =
+  Number.isFinite(configuredMemoryAlertRssMiB) &&
+  configuredMemoryAlertRssMiB >= 0
+    ? configuredMemoryAlertRssMiB
+    : 1900;
+let memoryAlertActive = false;
 
 // ─── Initialize Login Server Logic (without creating its own HTTP server) ──
 const LoginServer = requireModule("auth/login-server");
@@ -135,16 +143,27 @@ function getRuntimeStats() {
     // Startup and shutdown can briefly leave one of these managers unavailable.
   }
 
+  const rssMiB = bytesToMiB(memory.rss);
+  const alertActive =
+    MEMORY_ALERT_RSS_MIB > 0 && rssMiB >= MEMORY_ALERT_RSS_MIB;
+
   return {
     status: "ok",
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     memoryMiB: {
-      rss: bytesToMiB(memory.rss),
+      rss: rssMiB,
       heapUsed: bytesToMiB(memory.heapUsed),
       heapTotal: bytesToMiB(memory.heapTotal),
       external: bytesToMiB(memory.external),
       arrayBuffers: bytesToMiB(memory.arrayBuffers),
+    },
+    memoryAlert: {
+      active: alertActive,
+      thresholdRssMiB: MEMORY_ALERT_RSS_MIB,
+    },
+    features: {
+      lazyTileNeighbours: CONFIG.WORLD.LAZY_TILE_NEIGHBOURS === true,
     },
     connections,
     players,
@@ -172,9 +191,28 @@ function rotateMemoryLogIfNeeded() {
 
 function writeMemoryTelemetry() {
   try {
+    const stats = getRuntimeStats();
+
+    if (stats.memoryAlert.active !== memoryAlertActive) {
+      memoryAlertActive = stats.memoryAlert.active;
+      if (memoryAlertActive) {
+        console.warn(
+          "[MEMORY ALERT] RSS %s MiB reached the %s MiB threshold.",
+          stats.memoryMiB.rss,
+          MEMORY_ALERT_RSS_MIB
+        );
+      } else {
+        console.log(
+          "[MEMORY RECOVERY] RSS %s MiB is below the %s MiB threshold.",
+          stats.memoryMiB.rss,
+          MEMORY_ALERT_RSS_MIB
+        );
+      }
+    }
+
     fs.mkdirSync(path.dirname(MEMORY_LOG_PATH), { recursive: true });
     rotateMemoryLogIfNeeded();
-    fs.appendFileSync(MEMORY_LOG_PATH, JSON.stringify(getRuntimeStats()) + "\n", "utf8");
+    fs.appendFileSync(MEMORY_LOG_PATH, JSON.stringify(stats) + "\n", "utf8");
   } catch (error) {
     console.error("Could not write memory telemetry:", error.message);
   }

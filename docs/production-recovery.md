@@ -70,3 +70,25 @@ python scripts/tibiago-ops.py restore-pgdata `
 
 Start the server separately after the restore and verify that an invalid
 account login returns HTTP 401 rather than crashing the process.
+
+## Memory guard and reversible world optimization
+
+Production uses two environment controls:
+
+- `MEMORY_ALERT_RSS_MIB=1900` exposes the threshold in `/health`, stores its
+  state in `memory.jsonl`, and writes one log message when the threshold is
+  crossed or recovered.
+- `TIBIAGO_LAZY_TILE_NEIGHBOURS=true` calculates walkable SQM neighbours only
+  when pathfinding needs them instead of retaining an array on every tile.
+
+Emergency rollback does not require a code rollback: change
+`TIBIAGO_LAZY_TILE_NEIGHBOURS=false`, upload `.env`, and restart the server.
+
+The production crontab must contain exactly one call to
+`scripts/tibiago-watchdog.sh`. The watchdog uses an atomic lock, validates the
+real listener on port 2436 and `/health`, waits for cold startup, and refuses to
+start a duplicate PGlite owner.
+
+Known-bad snapshots must be moved under
+`/home/zelek/tibiago-backups/quarantine/` and never passed to
+`restore-pgdata`.

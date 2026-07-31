@@ -36,6 +36,32 @@ const Tile = function (id, position) {
 Tile.prototype = Object.create(Thing.prototype);
 Tile.prototype.constructor = Tile;
 
+// In the original mode every walkable tile owns an array containing up to
+// nine neighbouring tile references. Large maps spend hundreds of MiB on
+// those arrays. The optional resolver lets Lattice calculate the same list on
+// demand without adding a lattice reference to every Tile instance.
+Tile.__neighbourResolver = null;
+
+Tile.setNeighbourResolver = function (resolver) {
+  Tile.__neighbourResolver = resolver;
+}
+
+Object.defineProperty(Tile.prototype, "neighbours", {
+  configurable: true,
+  get: function () {
+    if (Object.prototype.hasOwnProperty.call(this, "__neighbours")) {
+      return this.__neighbours;
+    }
+    if (Tile.__neighbourResolver !== null) {
+      return Tile.__neighbourResolver(this);
+    }
+    return undefined;
+  },
+  set: function (neighbours) {
+    this.__neighbours = neighbours;
+  }
+});
+
 // Getter for monsters on this tile
 Object.defineProperty(Tile.prototype, 'monsters', {
   get: function () {

@@ -22,10 +22,11 @@ SNAPSHOT_NAME_PATTERN = re.compile(
     r"^tibiago-pre-memory-\d{8}-\d{6}\.tar\.gz$"
 )
 TIBIAGO_CRON_LINE = (
-    "*/5 * * * * pgrep -f node.*server-production.js > /dev/null || "
-    "(cd /home/zelek/tibiago && nohup node server-production.js "
-    ">> logs/server.log 2>&1 &)"
+    "*/5 * * * * /bin/sh "
+    "/home/zelek/tibiago/scripts/tibiago-watchdog.sh "
+    ">> /home/zelek/tibiago/logs/watchdog.log 2>&1"
 )
+WATCHDOG_CRON_PATTERN = r"server-production\.js|tibiago-watchdog\.sh"
 
 
 def load_deploy_module():
@@ -174,7 +175,7 @@ def maintenance_on(client) -> None:
         client,
         f"mkdir -p {REMOTE_BACKUP_DIR}; "
         f"crontab -l > {backup} 2>/dev/null || true; "
-        f"grep -v 'server-production\\.js' {backup} > {filtered} || true; "
+        f"grep -Ev '{WATCHDOG_CRON_PATTERN}' {backup} > {filtered} || true; "
         f"crontab {filtered}",
     )
     stop_all_server_processes(client)
@@ -189,8 +190,8 @@ def maintenance_off(client) -> None:
     )
     run_remote(
         client,
-        f"crontab -l > {merged} 2>/dev/null || true; "
-        f"grep -q 'server-production\\.js' {merged} || "
+        f"crontab -l > {merged}.current 2>/dev/null || true; "
+        f"grep -Ev '{WATCHDOG_CRON_PATTERN}' {merged}.current > {merged} || true; "
         f"printf '%s\\n' '{TIBIAGO_CRON_LINE}' >> {merged}; "
         f"crontab {merged}",
     )

@@ -3,6 +3,14 @@ const path = require("path");
 
 global.CONFIG = require("./config");
 
+// Keep the memory optimization reversible. Production can enable it through
+// .env while local development and emergency rollbacks retain the eager
+// neighbour arrays from config.json.
+if (process.env.TIBIAGO_LAZY_TILE_NEIGHBOURS) {
+  CONFIG.WORLD.LAZY_TILE_NEIGHBOURS =
+    process.env.TIBIAGO_LAZY_TILE_NEIGHBOURS.toLowerCase() === "true";
+}
+
 // Allows an isolated local datapack check without changing config.json or the
 // production default. Example: TIBIAGO_CLIENT_VERSION=760 node server-production.js
 if (process.env.TIBIAGO_CLIENT_VERSION) {
