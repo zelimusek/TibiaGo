@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import pathlib
 import posixpath
+import re
 import sys
 import time
 
@@ -17,6 +18,14 @@ import paramiko
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 LOCAL_BACKUP_DIR = ROOT / ".production-backups"
 REMOTE_BACKUP_DIR = "/home/zelek/tibiago-backups"
+SNAPSHOT_NAME_PATTERN = re.compile(
+    r"^tibiago-pre-memory-\d{8}-\d{6}\.tar\.gz$"
+)
+TIBIAGO_CRON_LINE = (
+    "*/5 * * * * pgrep -f node.*server-production.js > /dev/null || "
+    "(cd /home/zelek/tibiago && nohup node server-production.js "
+    ">> logs/server.log 2>&1 &)"
+)
 
 
 def load_deploy_module():
@@ -79,6 +88,113 @@ def process_status(client) -> str:
         f"ps -ww -p {pid} -o pid,ppid,rss,etime,args 2>/dev/null || "
         f"echo '{pid} listening on port 2436'",
     )
+
+
+def get_server_candidate_pids(client) -> list[int]:
+    output = run_remote(
+        client,
+        "pgrep -f 'node.*server-production\\.js' || true",
+    )
+    return [
+        int(line.strip())
+        for line in output.splitlines()
+        if line.strip().isdigit()
+    ]
+
+
+def cleanup_stray_processes(client) -> None:
+    listening_pid = get_listening_pid(client)
+    if listening_pid is None:
+        raise RuntimeError("No healthy TibiaGo process is listening on port 2436.")
+
+    strays = [
+        pid
+        for pid in get_server_candidate_pids(client)
+        if pid != listening_pid
+    ]
+    if not strays:
+        print("NO_STRAY_TIBIAGO_PROCESSES")
+        return
+
+    for pid in strays:
+        run_remote(client, f"kill -TERM {pid}")
+
+    for _ in range(15):
+        time.sleep(1)
+        remaining = [
+            pid
+            for pid in get_server_candidate_pids(client)
+            if pid != listening_pid
+        ]
+        if not remaining:
+            if get_listening_pid(client) != listening_pid:
+                raise RuntimeError("The healthy TibiaGo listener changed during cleanup.")
+            print("REMOVED_STRAY_TIBIAGO_PROCESSES " + " ".join(map(str, strays)))
+            return
+
+    raise RuntimeError(
+        "Stray TibiaGo processes did not stop after SIGTERM: "
+        + " ".join(map(str, remaining))
+    )
+
+
+def stop_all_server_processes(client) -> None:
+    pids = get_server_candidate_pids(client)
+    if not pids:
+        print("TIBIAGO_ALREADY_STOPPED")
+        return
+
+    for pid in pids:
+        run_remote(client, f"kill -TERM {pid}")
+
+    for _ in range(15):
+        time.sleep(1)
+        remaining = get_server_candidate_pids(client)
+        if not remaining:
+            print("TIBIAGO_STOPPED_ALL " + " ".join(map(str, pids)))
+            return
+
+    raise RuntimeError(
+        "TibiaGo processes did not stop after SIGTERM: "
+        + " ".join(map(str, remaining))
+    )
+
+
+def maintenance_on(client) -> None:
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    backup = posixpath.join(
+        REMOTE_BACKUP_DIR,
+        f"crontab-pre-maintenance-{timestamp}.txt",
+    )
+    filtered = posixpath.join(
+        REMOTE_BACKUP_DIR,
+        f"crontab-maintenance-{timestamp}.txt",
+    )
+    run_remote(
+        client,
+        f"mkdir -p {REMOTE_BACKUP_DIR}; "
+        f"crontab -l > {backup} 2>/dev/null || true; "
+        f"grep -v 'server-production\\.js' {backup} > {filtered} || true; "
+        f"crontab {filtered}",
+    )
+    stop_all_server_processes(client)
+    print(f"MAINTENANCE_MODE_ON CRONTAB_BACKUP={backup}")
+
+
+def maintenance_off(client) -> None:
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    merged = posixpath.join(
+        REMOTE_BACKUP_DIR,
+        f"crontab-restored-{timestamp}.txt",
+    )
+    run_remote(
+        client,
+        f"crontab -l > {merged} 2>/dev/null || true; "
+        f"grep -q 'server-production\\.js' {merged} || "
+        f"printf '%s\\n' '{TIBIAGO_CRON_LINE}' >> {merged}; "
+        f"crontab {merged}",
+    )
+    print("MAINTENANCE_MODE_OFF")
 
 
 def stop_server(client) -> None:
@@ -192,12 +308,90 @@ def snapshot(client, config, remote_root: str) -> None:
     print(f"SNAPSHOT_OK {filename} {size_mib:.1f} MiB SHA256={local_hash}")
 
 
+def restore_pgdata(
+    client,
+    remote_root: str,
+    archive_name: str | None,
+    confirmation: str | None,
+) -> None:
+    if confirmation != "RESTORE_PGDATA":
+        raise RuntimeError("Pass --confirm RESTORE_PGDATA to restore PGlite.")
+    if archive_name is None or SNAPSHOT_NAME_PATTERN.fullmatch(archive_name) is None:
+        raise RuntimeError("Invalid or missing snapshot archive name.")
+
+    if get_listening_pid(client) is not None or get_server_candidate_pids(client):
+        raise RuntimeError("Refusing to restore PGlite while a TibiaGo process exists.")
+
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    archive = posixpath.join(REMOTE_BACKUP_DIR, archive_name)
+    staging = f"/home/zelek/tibiago-pgdata-restore-{timestamp}"
+    current = posixpath.join(remote_root, "data", "pgdata")
+    preserved = posixpath.join(
+        remote_root,
+        "data",
+        f"pgdata-corrupt-{timestamp}",
+    )
+
+    run_remote(
+        client,
+        "set -e; "
+        f"test -f {archive}; "
+        f"tar -tzf {archive} >/dev/null; "
+        f"mkdir -p {staging}; "
+        f"tar -xzf {archive} -C {staging} tibiago/data/pgdata; "
+        f"test -d {staging}/tibiago/data/pgdata; "
+        f"test -d {current}; "
+        f"mv {current} {preserved}; "
+        f"mv {staging}/tibiago/data/pgdata {current}; "
+        f"echo PRESERVED_CORRUPT_PGDATA={preserved}",
+    )
+    print(f"PGDATA_RESTORED_FROM {archive_name}")
+
+
+def verify_pgdata(client, remote_root: str) -> None:
+    if get_listening_pid(client) is not None or get_server_candidate_pids(client):
+        raise RuntimeError("Refusing an isolated PGlite check while TibiaGo is running.")
+
+    javascript = (
+        'const { PGlite } = require("@electric-sql/pglite"); '
+        '(async () => { '
+        'const db = new PGlite("data/pgdata"); '
+        'const result = await db.query('
+        '"select count(*)::int as count from accounts"'
+        '); '
+        'console.log(JSON.stringify(result.rows)); '
+        'await db.close(); '
+        '})().catch(error => { console.error(error); process.exit(1); });'
+    )
+    output = run_remote(
+        client,
+        f"cd {remote_root} && node -e '{javascript}'",
+    )
+    print(f"PGDATA_OK {output}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "command",
-        choices=("status", "processes", "storage", "stop", "snapshot", "start"),
+        choices=(
+            "status",
+            "processes",
+            "cleanup-strays",
+            "hosting",
+            "maintenance-on",
+            "maintenance-off",
+            "telemetry",
+            "storage",
+            "stop",
+            "snapshot",
+            "restore-pgdata",
+            "verify-pgdata",
+            "start",
+        ),
     )
+    parser.add_argument("--archive", help="Snapshot archive name for a restore")
+    parser.add_argument("--confirm", help="Required explicit restore confirmation")
     args = parser.parse_args()
 
     deploy = load_deploy_module()
@@ -207,14 +401,56 @@ def main() -> int:
         if args.command == "status":
             status = process_status(client)
             print(status if status else "TIBIAGO_STOPPED")
+        elif args.command == "cleanup-strays":
+            cleanup_stray_processes(client)
+        elif args.command == "hosting":
+            print(
+                run_remote(
+                    client,
+                    "echo DEVIL_WWW; devil www list 2>&1 || true; "
+                    "echo DEVIL_DAEMON; devil daemon list 2>&1 || true; "
+                    "echo CRONTAB; crontab -l 2>&1 || true",
+                )
+            )
+        elif args.command == "maintenance-on":
+            maintenance_on(client)
+        elif args.command == "maintenance-off":
+            maintenance_off(client)
         elif args.command == "processes":
             status = process_status(client)
             sockets = run_remote(
                 client,
                 "sockstat -4 -l 2>&1 | grep ':2436' || true",
             )
+            candidates = run_remote(
+                client,
+                "pgrep -fl 'node.*server-production\\.js' || true",
+            )
             print(status if status else "NO_PROCESS_ON_PORT_2436")
             print(sockets if sockets else "NO_SOCKET_ON_PORT_2436")
+            if candidates:
+                for line in candidates.splitlines():
+                    candidate_pid = line.split(maxsplit=1)[0]
+                    if candidate_pid.isdigit():
+                        print(
+                            run_remote(
+                                client,
+                                f"ps -ww -p {candidate_pid} "
+                                "-o pid,ppid,rss,etime,args 2>/dev/null || true",
+                            )
+                        )
+            else:
+                print("NO_SERVER_PRODUCTION_CANDIDATES")
+        elif args.command == "telemetry":
+            print(
+                run_remote(
+                    client,
+                    f"echo MEMORY_TELEMETRY; "
+                    f"tail -n 5 {remote_root}/logs/memory.jsonl 2>&1 || true; "
+                    f"echo SERVER_LOG; "
+                    f"tail -n 40 {remote_root}/logs/server.log 2>&1 || true",
+                )
+            )
         elif args.command == "storage":
             print(
                 run_remote(
@@ -229,6 +465,15 @@ def main() -> int:
             stop_server(client)
         elif args.command == "snapshot":
             snapshot(client, config, remote_root)
+        elif args.command == "restore-pgdata":
+            restore_pgdata(
+                client,
+                remote_root,
+                args.archive,
+                args.confirm,
+            )
+        elif args.command == "verify-pgdata":
+            verify_pgdata(client, remote_root)
         elif args.command == "start":
             start_server(client, remote_root)
     finally:

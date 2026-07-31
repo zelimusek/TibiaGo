@@ -50,3 +50,18 @@ nohup node server-production.js >> logs/server.log 2>&1 &
 ```
 
 Do not remove the failed release until login and gameplay have been verified.
+
+## Restore only PGlite
+
+Use this only after testing the selected snapshot locally. The command refuses
+to run while any TibiaGo process exists and preserves the current database as
+`data/pgdata-corrupt-TIMESTAMP`.
+
+```powershell
+python scripts/tibiago-ops.py restore-pgdata `
+  --archive tibiago-pre-memory-YYYYMMDD-HHMMSS.tar.gz `
+  --confirm RESTORE_PGDATA
+```
+
+Start the server separately after the restore and verify that an invalid
+account login returns HTTP 401 rather than crashing the process.

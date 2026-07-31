@@ -192,6 +192,13 @@ LoginServer.prototype.__getAccount = function (queryObject, response) {
 
   this.accountDatabase.getAccountCredentials(queryObject.account, function (error, result) {
 
+    // A database failure must never fall through to result.hash below. Return
+    // a controlled server error instead of crashing the whole game process.
+    if (error !== null) {
+      response.statusCode = 500;
+      return response.end();
+    }
+
     // Does not exist
     if (result === undefined) {
       response.statusCode = 401;
