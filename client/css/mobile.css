@@ -624,6 +624,19 @@ screen and (max-width: 768px) {
     text-shadow: 1px 1px 1px black;
 }
 
+.mobile-slot-duration {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+    pointer-events: none;
+}
+
 /* ======================================
    Action Buttons (Right Side)
    ====================================== */
@@ -675,6 +688,67 @@ screen and (max-width: 768px) {
 .mobile-action-btn.chat {
     background: linear-gradient(145deg, #22aaaa, #117777);
     border-color: #44dddd;
+}
+
+/* ======================================
+   Movable Mobile Controls
+   ====================================== */
+.mobile-layout-control {
+    touch-action: none !important;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.mobile-layout-control.mobile-control-positioned {
+    transform: translate3d(
+        var(--mobile-control-x, 0px),
+        var(--mobile-control-y, 0px),
+        0
+    ) !important;
+}
+
+.mobile-layout-control.mobile-control-held,
+.mobile-layout-control.mobile-control-dragging {
+    z-index: 20050 !important;
+    outline: 3px solid #5ffcff;
+    outline-offset: 3px;
+    filter: brightness(1.3) saturate(1.25);
+    box-shadow:
+        0 0 8px rgba(95, 252, 255, 0.95),
+        0 0 18px rgba(95, 252, 255, 0.72),
+        0 4px 12px rgba(0, 0, 0, 0.75) !important;
+}
+
+.mobile-layout-control.mobile-control-dragging {
+    opacity: 0.92;
+    outline-color: #fff178;
+    box-shadow:
+        0 0 10px rgba(255, 241, 120, 0.95),
+        0 0 22px rgba(95, 252, 255, 0.76),
+        0 5px 14px rgba(0, 0, 0, 0.8) !important;
+}
+
+.mobile-layout-settings-row {
+    display: none;
+}
+
+@media screen and (max-height: 500px),
+screen and (max-width: 768px) {
+    .mobile-layout-settings-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    #reset-mobile-controls {
+        min-height: 36px;
+        padding: 7px 12px;
+        color: #dfffff;
+        border: 1px solid #44dddd;
+        background: rgba(20, 75, 80, 0.75);
+        font-weight: bold;
+    }
 }
 
 /* ======================================

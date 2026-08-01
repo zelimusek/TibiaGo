@@ -102,6 +102,10 @@ function createButton() {
       interface: {
         setCancelMessage: (message) => { cancelMessage = message; }
       }
+    },
+    MobileControlLayout: function () {
+      this.register = function () {};
+      this.reset = function () {};
     }
   };
 
@@ -134,6 +138,56 @@ function createButton() {
   context.gameClient.player.equipment = { getSlotItem: () => null };
   touch.__handleInventoryButton(event);
   assert.strictEqual(cancelMessage, "You are not wearing a backpack.");
+})();
+
+(function testMobileHotbarTapAndEdit() {
+  const opened = [];
+  const pressed = [];
+  const slots = [
+    { spell: null, text: null, item: null },
+    { spell: { sid: 1 }, text: null, item: null },
+    { spell: null, text: "hi", item: null },
+    { spell: null, text: null, item: { id: 3155 } }
+  ];
+  const context = {
+    console,
+    navigator: { maxTouchPoints: 0, vibrate() {} },
+    window: {
+      innerWidth: 1200,
+      innerHeight: 800,
+      addEventListener() {}
+    },
+    document: { querySelector: () => null },
+    MobileControlLayout: function () {
+      this.register = function () {};
+      this.reset = function () {};
+    },
+    gameClient: {
+      interface: {
+        hotbarManager: {
+          slots,
+          handleKeyPress: (key) => pressed.push(key)
+        },
+        modalManager: {
+          open: (id, index) => opened.push({ id, index })
+        }
+      }
+    }
+  };
+
+  const Touch = loadConstructor("client/src/input/touch.js", "Touch", context);
+  const touch = new Touch();
+
+  touch.__handleHotbarSlotTap(0);
+  assert.deepStrictEqual(opened, [{ id: "hotbar-config-modal", index: 0 }]);
+
+  touch.__handleHotbarSlotTap(1);
+  touch.__handleHotbarSlotTap(2);
+  touch.__handleHotbarSlotTap(3);
+  assert.deepStrictEqual(pressed, [113, 114, 115]);
+
+  touch.__openHotbarSlotEditor(2);
+  assert.deepStrictEqual(opened[1], { id: "hotbar-config-modal", index: 2 });
 })();
 
 console.log("Client mobile controls tests passed.");

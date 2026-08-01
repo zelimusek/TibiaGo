@@ -28,10 +28,32 @@ const Settings = function (element) {
   document.getElementById("show-performance").addEventListener("change", this.__togglePerformance);
   document.getElementById("fps-mode").addEventListener("change", this.__setFPSMode);
 
+  let resetMobileControls = document.getElementById("reset-mobile-controls");
+  if (resetMobileControls) {
+    resetMobileControls.addEventListener("click", this.__resetMobileControls);
+  }
+
   this.__init();
 
   // Apply state to the DOM to keep it in sync
   Object.keys(this.__state).forEach(this.__applyState.bind(this));
+
+}
+
+Settings.prototype.__resetMobileControls = function (event) {
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (
+    typeof gameClient !== "undefined" &&
+    gameClient &&
+    gameClient.touch &&
+    typeof gameClient.touch.resetMobileControlLayout === "function"
+  ) {
+    gameClient.touch.resetMobileControlLayout();
+    gameClient.interface.setCancelMessage("Mobile control layout reset.");
+  }
 
 }
 

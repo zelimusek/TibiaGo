@@ -10,7 +10,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "build:client": "node scripts/build-client.js",
-    "test:client-ui": "node tests/test-client-mobile-controls.js",
+    "test:client-ui": "node tests/test-client-mobile-controls.js && node tests/test-mobile-control-layout.js",
     "test:combat": "node tests/test-equipment-combat.js",
     "test:pvp": "node tests/test-pvp-policy.js && node tests/test-pvp-system.js && node tests/test-combat-feedback.js && node tests/test-death-cleanup.js"
   },

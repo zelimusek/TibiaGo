@@ -43,6 +43,11 @@ const Touch = function () {
     // taps available for walking, looking and using objects.
     this.itemDrag = null;
 
+    // Long-press positioning for the four action buttons and the complete
+    // mobile hotbar. This manager also prevents a drag gesture from firing the
+    // control's normal tap action.
+    this.controlLayout = new MobileControlLayout();
+
     // Mobile keyboard layout is bound once even when __initialize() runs again
     // after rotating or resizing the device.
     this.__mobileChatViewportBound = false;
@@ -111,22 +116,13 @@ Touch.prototype.__initialize = function () {
         this.joystickZone.addEventListener('touchcancel', this.__handleJoystickEnd.bind(this), { passive: false });
     }
 
-    // Bind action button events
-    if (this.attackBtn) {
-        this.attackBtn.addEventListener('touchstart', this.__handleAttackButton.bind(this), { passive: false });
-    }
+    // The four movable action buttons execute on touch release. This leaves a
+    // 500 ms hold window in which the layout manager can safely start dragging
+    // without opening a window or triggering combat first.
     if (this.menuBtn) {
         this.menuBtn.addEventListener('touchstart', this.__handleMenuButton.bind(this), { passive: false });
     }
-    if (this.inventoryBtn) {
-        this.inventoryBtn.addEventListener('touchstart', this.__handleInventoryButton.bind(this), { passive: false });
-    }
-    if (this.equipmentBtn) {
-        this.equipmentBtn.addEventListener('touchstart', this.__handleEquipmentButton.bind(this), { passive: false });
-    }
-    if (this.chatBtn) {
-        this.chatBtn.addEventListener('touchstart', this.__handleChatButton.bind(this), { passive: false });
-    }
+    this.__bindMovableActionButtons();
     if (this.chatExpandBtn) {
         this.chatExpandBtn.addEventListener('touchstart', this.__handleChatExpandButton.bind(this), { passive: false });
     }
@@ -1203,20 +1199,57 @@ Touch.prototype.__handleMobileOpenChat = function (event) {
 
 }
 
+Touch.prototype.__bindMovableActionButtons = function () {
+
+    let controls = [
+        [this.equipmentBtn, "equipment", this.__handleEquipmentButton],
+        [this.inventoryBtn, "inventory", this.__handleInventoryButton],
+        [this.attackBtn, "attack", this.__handleAttackButton],
+        [this.chatBtn, "chat", this.__handleChatButton]
+    ];
+
+    controls.forEach(function (entry) {
+        if (!entry[0]) {
+            return;
+        }
+
+        this.controlLayout.register(entry[0], entry[1], {
+            onTap: entry[2].bind(this)
+        });
+    }, this);
+
+}
+
 Touch.prototype.__bindHotbarSlots = function () {
 
     /*
      * Function Touch.__bindHotbarSlots
-     * Bind touch events to mobile hotbar slots
+     * Bind tap/edit/drag gestures to the complete mobile hotbar.
      */
 
-    let slots = document.querySelectorAll('.mobile-hotbar-slot');
+    let hotbar = document.getElementById('mobile-hotbar');
 
-    slots.forEach((slot, index) => {
-        slot.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.__handleHotbarSlotTap(index);
-        }, { passive: false });
+    if (!hotbar) {
+        return;
+    }
+
+    this.controlLayout.register(hotbar, "hotbar", {
+        onTap: function (event, target) {
+            let slot = target && target.closest ? target.closest('.mobile-hotbar-slot') : null;
+            if (!slot || !hotbar.contains(slot)) {
+                return;
+            }
+
+            this.__handleHotbarSlotTap(Number(slot.getAttribute('data-slot')));
+        }.bind(this),
+        onLongPress: function (event, target) {
+            let slot = target && target.closest ? target.closest('.mobile-hotbar-slot') : null;
+            if (!slot || !hotbar.contains(slot)) {
+                return;
+            }
+
+            this.__openHotbarSlotEditor(Number(slot.getAttribute('data-slot')));
+        }.bind(this)
     });
 
 }
@@ -1225,21 +1258,54 @@ Touch.prototype.__handleHotbarSlotTap = function (slotIndex) {
 
     /*
      * Function Touch.__handleHotbarSlotTap
-     * Handle tap on mobile hotbar slot - trigger corresponding F-key action
+     * Use a configured slot. Empty slots open the same editor used by the
+     * desktop Add/Edit context-menu action.
      */
 
     if (!gameClient || !gameClient.interface) return;
+
+    let manager = gameClient.interface.hotbarManager;
+
+    if (!manager || !manager.slots || !manager.slots[slotIndex]) {
+        return;
+    }
+
+    let slot = manager.slots[slotIndex];
+
+    if (slot.spell === null && slot.text === null && slot.item === null) {
+        this.__openHotbarSlotEditor(slotIndex);
+        return;
+    }
 
     // Map slot index (0-3) to F1-F4 keys (112-115)
     let fKeyCode = 112 + slotIndex;
 
     // Use the hotbar manager to handle the key press
-    if (gameClient.interface.hotbarManager) {
-        gameClient.interface.hotbarManager.handleKeyPress(fKeyCode);
-    }
+    manager.handleKeyPress(fKeyCode);
 
     // Vibrate feedback
     if (navigator.vibrate) navigator.vibrate(20);
+
+}
+
+Touch.prototype.__openHotbarSlotEditor = function (slotIndex) {
+
+    if (
+        !Number.isInteger(slotIndex) ||
+        slotIndex < 0 ||
+        slotIndex > 3 ||
+        !gameClient ||
+        !gameClient.interface ||
+        !gameClient.interface.modalManager
+    ) {
+        return;
+    }
+
+    gameClient.interface.modalManager.open("hotbar-config-modal", slotIndex);
+
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
 
 }
 
@@ -1255,14 +1321,15 @@ Touch.prototype.syncMobileHotbar = function () {
 
     let desktopSlots = gameClient.interface.hotbarManager.slots;
     let mobileSlots = document.querySelectorAll('.mobile-hotbar-slot');
-    let icons = gameClient.interface.hotbarManager.ICONS;
-
-    // Only sync first 4 slots (F1-F4)
+    // The desktop manager is the source of truth. Copy its already-rendered
+    // canvas so mobile receives spells, item sprites, text icons and cooldowns
+    // instead of maintaining a second incomplete renderer.
     mobileSlots.forEach((mobileSlot, index) => {
         if (index >= desktopSlots.length) return;
 
         let desktopSlot = desktopSlots[index];
         let canvas = mobileSlot.querySelector('canvas');
+        let duration = mobileSlot.querySelector('.mobile-slot-duration');
 
         if (!canvas) return;
 
@@ -1275,25 +1342,18 @@ Touch.prototype.syncMobileHotbar = function () {
         // Clear canvas
         ctx.clearRect(0, 0, 32, 32);
 
-        // Draw spell icon if available
-        if (desktopSlot.spell) {
-            ctx.drawImage(
-                icons,
-                32 * desktopSlot.spell.icon.x,
-                32 * desktopSlot.spell.icon.y,
-                32, 32,
-                0, 0,
-                32, 32
-            );
-        } else if (desktopSlot.text) {
-            // Draw text slot indicator
-            ctx.fillStyle = '#333';
-            ctx.fillRect(0, 0, 32, 32);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 10px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('TXT', 16, 16);
+        if (desktopSlot.canvas && desktopSlot.canvas.canvas) {
+            ctx.drawImage(desktopSlot.canvas.canvas, 0, 0, 32, 32);
+        }
+
+        mobileSlot.title = desktopSlot.canvas.canvas.parentNode.title || '';
+        mobileSlot.classList.toggle(
+            'active',
+            desktopSlot.canvas.canvas.parentNode.classList.contains('active')
+        );
+
+        if (duration) {
+            duration.textContent = desktopSlot.duration ? desktopSlot.duration.textContent : '';
         }
     });
 
@@ -1310,6 +1370,14 @@ Touch.prototype.__bindGlobalEvents = function () {
     document.body.addEventListener('touchmove', this.__handleGlobalTouchMove.bind(this), { passive: false });
     document.body.addEventListener('touchend', this.__handleGlobalTouchEnd.bind(this), { passive: false });
     document.body.addEventListener('touchcancel', this.__handleGlobalTouchCancel.bind(this), { passive: false });
+
+}
+
+Touch.prototype.resetMobileControlLayout = function () {
+
+    if (this.controlLayout) {
+        this.controlLayout.reset();
+    }
 
 }
 

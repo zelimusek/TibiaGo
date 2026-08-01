@@ -37,7 +37,7 @@
 <link rel="stylesheet" type="text/css" href="./css/change-outfit-modal.css">
 <link rel="stylesheet" type="text/css" href="./css/context-menu.css">
 <link rel="stylesheet" type="text/css" href="./css/achievement.css">
-<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260731.6">
+<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260801.2">
 <link rel="stylesheet" type="text/css" href="./css/fight-mode.css">
 <link rel="stylesheet" type="text/css" href="./css/tooltip.css">
 <link rel="stylesheet" type="text/css" href="./css/questlog.css">
@@ -539,10 +539,10 @@
 
       <!-- Mobile Hotbar - 4 skill slots -->
       <div id="mobile-hotbar">
-        <div class="mobile-hotbar-slot" data-slot="0"><canvas></canvas><span class="mobile-slot-key">1</span></div>
-        <div class="mobile-hotbar-slot" data-slot="1"><canvas></canvas><span class="mobile-slot-key">2</span></div>
-        <div class="mobile-hotbar-slot" data-slot="2"><canvas></canvas><span class="mobile-slot-key">3</span></div>
-        <div class="mobile-hotbar-slot" data-slot="3"><canvas></canvas><span class="mobile-slot-key">4</span></div>
+        <div class="mobile-hotbar-slot" data-slot="0"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">1</span></div>
+        <div class="mobile-hotbar-slot" data-slot="1"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">2</span></div>
+        <div class="mobile-hotbar-slot" data-slot="2"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">3</span></div>
+        <div class="mobile-hotbar-slot" data-slot="3"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">4</span></div>
       </div>
 
       <!-- Action Buttons -->
@@ -766,6 +766,11 @@
                 <div class="checkboxes">
                   <label class="checkbox-label" for="enable-resolution"><input type="checkbox" id="enable-resolution">
                     Custom Resolution</label>
+                </div>
+
+                <div class="settings-row mobile-layout-settings-row">
+                  <label>Mobile Controls:</label>
+                  <button id="reset-mobile-controls" type="button">Reset Layout</button>
                 </div>
               </div>
             </div>
@@ -1487,7 +1492,7 @@
 
           reloading = true;
           let target = new URL(window.location.href);
-          target.searchParams.set("build", "20260731.6");
+          target.searchParams.set("build", "20260801.2");
           window.location.replace(target.href);
         });
 
@@ -1514,7 +1519,7 @@
 
   <!-- Protocol to speak to the NodeJS Server -->
   <!-- Launcher script to handle loading with progress screen -->
-  <script src="src/launcher.js?v=20260801.1"></script>
+  <script src="src/launcher.js?v=20260801.2"></script>
 
   <!-- Custom SVG filter for post-processing -->
   <!-- This example filters all colors and truncates green to 0 or 1 -->
