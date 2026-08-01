@@ -29,7 +29,7 @@ const PARTY_READABLE_POSITIONS = {
     return "       Welcome to:\n"
       + "CYRK'S PARTY ZONE!\n"
       + "Currently we have " + onlinePlayers + " players online\n"
-      + partyPlayers + " of them are in the dance hall!";
+      + "and " + partyPlayers + " of them in the dance hall!";
   },
   "32517,32357,7": function (onlinePlayers, partyPlayers) {
     return "The party is on!\n"

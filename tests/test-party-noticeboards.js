@@ -51,7 +51,7 @@ assert.strictEqual(
   "       Welcome to:\n"
     + "CYRK'S PARTY ZONE!\n"
     + "Currently we have 5 players online\n"
-    + "2 of them are in the dance hall!"
+    + "and 2 of them in the dance hall!"
 );
 
 assert.strictEqual(
