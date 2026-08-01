@@ -571,7 +571,7 @@ Player.prototype.handleDeath = function (source = null) {
   let pvpManager = gameServer.world.combatHandler.getPvPManager();
   pvpManager.handlePlayerDeath(this, source);
   let dropAllCarriedItems = pvpManager.shouldDropAllCarriedItems(this);
-  this.combatLock.unlock();
+  pvpManager.clearCombatStateOnDeath(this);
 
   // Other players must immediately stop attacking this character. The dead
   // player remains referenced until the socket is removed, so waiting for the
@@ -602,6 +602,11 @@ Player.prototype.handleDeath = function (source = null) {
     chunk.monsters.forEach(dropTarget);
     chunk.neighbours.forEach(neighbour => neighbour.monsters.forEach(dropTarget));
   }
+
+  // Keep the player/socket alive for the death modal, but immediately release
+  // the occupied SQM so the corpse tile can be entered and no dead player is
+  // serialized back to nearby clients.
+  gameServer.world.creatureHandler.detachCreaturePosition(this);
 
   // Create the player corpse at the death location
   let corpse = gameServer.database.createThing(this.getCorpse());

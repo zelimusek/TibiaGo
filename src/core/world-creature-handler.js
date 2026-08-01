@@ -52,6 +52,10 @@ const CreatureHandler = function () {
   // Reference all connected players
   this.__playerMap = new Map();
 
+  // Dead players keep their socket until the death modal is acknowledged,
+  // but must no longer occupy a world tile or an active chunk meanwhile.
+  this.__detachedCreaturePositions = new WeakSet();
+
   // Explicitly active sectors for action NPCs
   this.sceneNPCs = new Set();
 
@@ -584,6 +588,12 @@ CreatureHandler.prototype.removeCreature = function (creature) {
 
   creature.broadcast(new CreatureForgetPacket(creature.getId()));
 
+  // The death flow may already have released the creature's tile and chunk
+  // while intentionally keeping its socket/player references alive.
+  if (this.__detachedCreaturePositions.delete(creature)) {
+    return;
+  }
+
   // Get the current chunk
   let chunk = creature.getChunk();
   let tile = creature.getTile();
@@ -597,6 +607,22 @@ CreatureHandler.prototype.removeCreature = function (creature) {
   tile.emit("exit", tile, creature);
 
 }
+
+CreatureHandler.prototype.detachCreaturePosition = function (creature) {
+  if (!this.exists(creature) || this.__detachedCreaturePositions.has(creature)) {
+    return false;
+  }
+
+  let chunk = creature.getChunk();
+  let tile = creature.getTile();
+  if (chunk === null || tile === null) return false;
+
+  chunk.removeCreature(creature);
+  tile.removeCreature(creature);
+  tile.emit("exit", tile, creature);
+  this.__detachedCreaturePositions.add(creature);
+  return true;
+};
 
 CreatureHandler.prototype.clearPlayerTargetsForCreature = function (creature) {
 

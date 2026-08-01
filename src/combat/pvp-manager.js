@@ -11,6 +11,8 @@ const PvPManager = function (repository) {
   this.__processedDeaths = new Set();
   this.__lastTickSecond = -1;
   this.__visibleSkulls = new Map();
+  this.__pendingPersistenceByPlayer = new Map();
+  this.__pendingDeathClears = new Map();
 };
 
 PvPManager.prototype.__timestamp = function (value) {
@@ -82,9 +84,37 @@ PvPManager.prototype.__safePersist = function (promise) {
   });
 };
 
+PvPManager.prototype.__trackPersistence = function (promise, playerIds) {
+  let ids = Array.from(new Set((playerIds || []).filter(Number.isInteger)));
+  ids.forEach(function (playerId) {
+    if (!this.__pendingPersistenceByPlayer.has(playerId)) {
+      this.__pendingPersistenceByPlayer.set(playerId, new Set());
+    }
+    this.__pendingPersistenceByPlayer.get(playerId).add(promise);
+  }, this);
+
+  let cleanup = function () {
+    ids.forEach(function (playerId) {
+      let pending = this.__pendingPersistenceByPlayer.get(playerId);
+      if (!pending) return;
+      pending.delete(promise);
+      if (pending.size === 0) this.__pendingPersistenceByPlayer.delete(playerId);
+    }, this);
+  }.bind(this);
+  promise.then(cleanup, cleanup);
+  this.__safePersist(promise);
+  return promise;
+};
+
 PvPManager.prototype.hydratePlayer = async function (player) {
   let id = this.__id(player);
   if (id === null || this.repository === null) return;
+
+  // An immediate reconnect after acknowledging the death modal must not race
+  // the asynchronous penalty cleanup from the previous player instance.
+  let pendingDeathClear = this.__pendingDeathClears.get(id);
+  if (pendingDeathClear) await pendingDeathClear;
+
   let loaded = await this.repository.loadPlayer(id, new Date());
   let penalty = loaded.penalty || {};
   this.__states.set(id, {
@@ -108,6 +138,51 @@ PvPManager.prototype.hydratePlayer = async function (player) {
   if (remaining > 0 && player.combatLock) {
     player.combatLock.activate(Math.ceil(remaining / 1000));
   }
+};
+
+PvPManager.prototype.clearCombatStateOnDeath = function (player) {
+  let playerId = this.__id(player);
+  if (playerId === null) return Promise.resolve();
+
+  let state = this.__state(playerId);
+  state.pzLockUntil = 0;
+
+  // Death ends every pair-specific fight involving this character. Global
+  // red/black/white penalties remain untouched, but yellow/self-defence
+  // relations must not reappear after the temple respawn.
+  this.__relations.forEach(function (relation, key) {
+    if (relation.attackerId === playerId || relation.targetId === playerId) {
+      this.__relations.delete(key);
+    }
+  }, this);
+
+  if (player.combatLock && typeof player.combatLock.unlock === "function") {
+    player.combatLock.unlock();
+  }
+
+  let earlierWrites = Array.from(this.__pendingPersistenceByPlayer.get(playerId) || []);
+  let pending = Promise.all(earlierWrites.map(function (promise) {
+    // The original write already reports its own error. Death cleanup still
+    // has to run afterwards so a failed stale write cannot preserve combat.
+    return promise.catch(function () { return null; });
+  })).then(function () {
+    if (!this.repository) return [];
+    let operations = [this.repository.savePenalty(playerId, state)];
+    if (typeof this.repository.deleteRelationsForPlayer === "function") {
+      operations.push(this.repository.deleteRelationsForPlayer(playerId));
+    }
+    return Promise.all(operations);
+  }.bind(this));
+  this.__pendingDeathClears.set(playerId, pending);
+  let clearPending = function () {
+    if (this.__pendingDeathClears.get(playerId) === pending) {
+      this.__pendingDeathClears.delete(playerId);
+    }
+  }.bind(this);
+  pending.then(clearPending, clearPending);
+  this.__safePersist(pending);
+  this.broadcastSkullChanges();
+  return pending;
 };
 
 PvPManager.prototype.getGlobalSkull = function (player, now) {
@@ -197,8 +272,14 @@ PvPManager.prototype.registerAggression = function (attacker, target, now) {
   if (attacker.combatLock) attacker.combatLock.activate(PvPConfig.AGGRESSION_MS / 1000);
   if (target.combatLock) target.combatLock.activate(PvPConfig.AGGRESSION_MS / 1000);
   if (this.repository) {
-    this.__safePersist(this.repository.saveRelation(relation));
-    this.__safePersist(this.repository.savePenalty(attackerId, state));
+    this.__trackPersistence(
+      this.repository.saveRelation(relation),
+      [attackerId, targetId]
+    );
+    this.__trackPersistence(
+      this.repository.savePenalty(attackerId, state),
+      [attackerId]
+    );
   }
   this.broadcastSkullChanges(attacker, target);
   return true;
@@ -316,7 +397,12 @@ PvPManager.prototype.handlePlayerDeath = function (victim, source, now) {
     justified: justified,
     participants: participants,
   };
-  if (this.repository) this.__safePersist(this.repository.recordDeath(event, justified ? null : state));
+  if (this.repository) {
+    this.__trackPersistence(
+      this.repository.recordDeath(event, justified ? null : state),
+      [killerId, victimId]
+    );
+  }
   this.broadcastSkullChanges(killer, victim);
   return event;
 };

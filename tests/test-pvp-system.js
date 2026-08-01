@@ -19,6 +19,7 @@ function combatLock() {
       this.seconds = Math.max(this.seconds, seconds || 3);
       this.locked = true;
     },
+    unlock() { this.locked = false; },
     isLocked() { return this.locked; }
   };
 }
@@ -53,6 +54,11 @@ MemoryRepository.prototype.saveRelation = async function (relation) {
 };
 MemoryRepository.prototype.savePenalty = async function (playerId, state) {
   this.penalties.push({ playerId: playerId, state: Object.assign({}, state) });
+};
+MemoryRepository.prototype.deleteRelationsForPlayer = async function (playerId) {
+  this.relations = this.relations.filter(function (relation) {
+    return relation.attackerId !== playerId && relation.targetId !== playerId;
+  });
 };
 MemoryRepository.prototype.recordDeath = async function (event) {
   if (this.eventIds.has(event.eventId)) return false;
@@ -108,6 +114,55 @@ async function run() {
   assert.strictEqual(manager.isPzLocked(attacker, now + 89_999), true);
   assert.strictEqual(manager.isPzLocked(attacker, now + 90_001), false);
   assert.strictEqual(manager.getGlobalSkull(attacker, now + 90_001), PvPConfig.SKULL.NONE);
+
+  // Death ends combat immediately and persists a zero PZ lock. Pair-specific
+  // relations involving the dead player are removed before a fast reconnect.
+  let dyingPlayer = player("DyingPlayer");
+  let deathOpponent = player("DeathOpponent");
+  manager.registerAggression(dyingPlayer, deathOpponent, now + 100_000);
+  assert.strictEqual(manager.isPzLocked(dyingPlayer, now + 100_001), true);
+  await manager.clearCombatStateOnDeath(dyingPlayer);
+  assert.strictEqual(dyingPlayer.combatLock.isLocked(), false);
+  assert.strictEqual(manager.isPzLocked(dyingPlayer, now + 100_001), false);
+  assert.strictEqual(manager.__getRelation(dyingPlayer, deathOpponent, now + 100_001), null);
+  assert.strictEqual(repository.penalties.at(-1).state.pzLockUntil, 0);
+
+  // A slow relation write from the final hit must finish before death cleanup
+  // deletes it. A reconnect started in the meantime waits for that cleanup.
+  let raceRepository = new MemoryRepository();
+  let releaseRelationSave = null;
+  raceRepository.saveRelation = function (relation) {
+    return new Promise(function (resolve) {
+      releaseRelationSave = function () {
+        raceRepository.relations.push(Object.assign({}, relation));
+        resolve();
+      };
+    });
+  };
+  raceRepository.loadPlayer = async function (playerId) {
+    let penalty = this.penalties.filter(function (entry) {
+      return entry.playerId === playerId;
+    }).at(-1);
+    return {
+      penalty: penalty ? penalty.state : null,
+      relations: this.relations.filter(function (relation) {
+        return relation.attackerId === playerId || relation.targetId === playerId;
+      }),
+      fragTimestamps: []
+    };
+  };
+  let raceManager = new PvPManager(raceRepository);
+  let racePlayer = player("RacePlayer");
+  let raceOpponent = player("RaceOpponent");
+  raceManager.registerAggression(racePlayer, raceOpponent, now + 110_000);
+  let deathCleanup = raceManager.clearCombatStateOnDeath(racePlayer);
+  let reconnectedPlayer = player("RacePlayerReconnect");
+  reconnectedPlayer.accountId = racePlayer.accountId;
+  let hydration = raceManager.hydratePlayer(reconnectedPlayer);
+  releaseRelationSave();
+  await Promise.all([deathCleanup, hydration]);
+  assert.strictEqual(raceManager.isPzLocked(reconnectedPlayer, now + 110_001), false);
+  assert.strictEqual(raceRepository.relations.length, 0);
 
   // A later short PvE/combat lock may not erase a pending PvP extension.
   let genericLock = new GenericLock();

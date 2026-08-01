@@ -72,6 +72,14 @@ PvPRepository.prototype.saveRelation = async function (relation) {
   });
 };
 
+PvPRepository.prototype.deleteRelationsForPlayer = async function (playerId) {
+  await waitForSchema();
+  await this.db.delete(pvpRelations).where(or(
+    eq(pvpRelations.attackerId, playerId),
+    eq(pvpRelations.targetId, playerId)
+  ));
+};
+
 PvPRepository.prototype.recordDeath = async function (event, state) {
   await waitForSchema();
   return this.db.transaction(async function (tx) {
