@@ -751,9 +751,9 @@ const ItemInformationPacket = function (thing, includeDetails, descriptionOverri
 
   // Safely check if methods exist before calling them (Tiles don't have these methods)
   let isDistanceReadable = thing.isDistanceReadable ? thing.isDistanceReadable() : false;
-  let distanceContent = isDistanceReadable && thing.getContent
-    ? (contentOverride !== null ? contentOverride : thing.getContent())
-    : null;
+  let distanceContent = contentOverride !== null
+    ? contentOverride
+    : (isDistanceReadable && thing.getContent ? thing.getContent() : null);
   let articleText = thing.getArticle ? thing.getArticle() : "";
   let nameText = thing.getName ? thing.getName() : "unknown";
   let descriptionText = descriptionOverride !== null

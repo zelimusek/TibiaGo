@@ -5,6 +5,7 @@ const assert = require("assert");
 require("../require");
 
 const CreatureHandler = requireModule("core/world-creature-handler");
+const { ItemInformationPacket } = requireModule("network/protocol");
 const Position = requireModule("utils/position");
 
 const handler = Object.create(CreatureHandler.prototype);
@@ -72,5 +73,39 @@ assert.strictEqual(
   "map text",
   "ordinary readable items must keep their map content"
 );
+
+const originalGlobalGameServer = global.gameServer;
+const originalProcessGameServer = process.gameServer;
+global.gameServer = process.gameServer = {
+  database: {
+    getClientId: id => id
+  }
+};
+
+try {
+  const signText = handler.getReadableContent({
+    getPosition: () => new Position(32517, 32391, 7)
+  });
+  const signPacket = new ItemInformationPacket({
+    id: 1438,
+    count: 0,
+    isDistanceReadable: () => false,
+    getArticle: () => "a",
+    getName: () => "street sign",
+    getDescription: () => null,
+    isPickupable: () => false
+  }, true, null, signText);
+
+  const encodedTextLength = signPacket.buffer.readUInt16LE(9);
+  const encodedText = signPacket.buffer.toString("utf8", 11, 11 + encodedTextLength);
+  assert.strictEqual(
+    encodedText,
+    signText.escapeHTML(),
+    "a dynamic street sign must carry text even without the distance-readable item flag"
+  );
+} finally {
+  global.gameServer = originalGlobalGameServer;
+  process.gameServer = originalProcessGameServer;
+}
 
 console.log("Party noticeboard tests passed.");
