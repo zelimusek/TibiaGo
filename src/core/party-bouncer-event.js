@@ -74,7 +74,7 @@ const TEXT = {
     failedSecond: "Zapraszamy na koniec kolejki.",
     timeout: "Za wolno. Kontrola zakończona.",
     open: "Witamy w CYRK'S PARTY ZONE!",
-    spin: "Pokaż nam obrót! Po prostu: DANCE!",
+    spin: "Pokaż nam Twoje ruchy! Po prostu tańcz!",
     spinAccepted: "Niezły obrót!",
     access: [
       ["Dobra odpowiedź!", "Możesz wchodzić. Miłej zabawy!"],
@@ -116,6 +116,75 @@ const QUESTIONS = [
   }
 ];
 
+const ATTENDANCE_MESSAGES = {
+  en: {
+    empty: [
+      "You may enter. You will be the first one on the dance floor!",
+      "You may enter. Be the first to get this party started!",
+      "You may enter. The dance floor is waiting for its first guest!"
+    ],
+    one: [
+      "You may enter. One player is already getting the party started!",
+      "You may enter. Someone is already waiting for you on the dance floor!",
+      "You may enter. One player is already partying inside!"
+    ],
+    small: [
+      count => "You may enter. " + count + " players are already partying inside!",
+      count => "You may enter. Join the " + count + " players already on the dance floor!",
+      count => "You may enter. There are already " + count + " players in the club!"
+    ],
+    growing: [
+      count => "You may enter. The party is heating up — " + count + " players are already inside!",
+      count => "You may enter. It is getting lively — " + count + " players are already here!",
+      count => "You may enter. Join the crowd of " + count + " players on the dance floor!"
+    ],
+    busy: [
+      count => "You may enter. What a crowd! " + count + " players are already partying inside!",
+      count => "You may enter. The club is buzzing with " + count + " players already inside!",
+      count => "You may enter. The dance floor already has " + count + " players on it!"
+    ],
+    packed: [
+      count => "You may enter. The roof is about to come off — " + count + " players are already inside!",
+      count => "You may enter. It is packed — " + count + " players are already partying!",
+      count => "You may enter. Join the huge party of " + count + " players inside!"
+    ],
+    milestone: count => "You may enter. We already have " + count + " players inside — this party is in full swing!"
+  },
+  pl: {
+    empty: [
+      "Możesz wchodzić. Będziesz pierwszy na parkiecie!",
+      "Droga wolna. Jako pierwszy rozkręć tę imprezę!",
+      "Wchodź! Sala czeka na pierwszego imprezowicza!"
+    ],
+    one: [
+      "Możesz wchodzić. Jedna osoba już rozkręca imprezę!",
+      "Droga wolna. Ktoś już czeka na Ciebie na parkiecie!",
+      "Wchodź! Jedna osoba już bawi się w środku!"
+    ],
+    small: [
+      count => "Możesz wchodzić. Frekwencja w środku: " + count + "!",
+      count => "Droga wolna. Na parkiecie mamy już " + count + "!",
+      count => "Wchodź! Klubowa ekipa liczy już " + count + "!"
+    ],
+    growing: [
+      count => "Możesz wchodzić. Impreza się rozkręca — frekwencja: " + count + "!",
+      count => "Droga wolna. Robi się gorąco — na sali mamy już " + count + "!",
+      count => "Wchodź! Klubowa ekipa liczy już " + count + "!"
+    ],
+    busy: [
+      count => "Możesz wchodzić. Ale dziś tłok! Frekwencja: " + count + "!",
+      count => "Droga wolna. Klub pęka w szwach — mamy już " + count + "!",
+      count => "Wchodź! Parkietowa ekipa liczy już " + count + "!"
+    ],
+    packed: [
+      count => "Możesz wchodzić. Dach zaraz odleci — frekwencja: " + count + "!",
+      count => "Droga wolna. Ale tłum! Mamy już " + count + "!",
+      count => "Wchodź! Wielka impreza trwa — na sali mamy już " + count + "!"
+    ],
+    milestone: count => "Możesz wchodzić. Mamy już " + count + " na sali — impreza idzie pełną parą!"
+  }
+};
+
 const PartyBouncerEvent = function (creatureHandler, options) {
   options = options || {};
   this.__creatureHandler = creatureHandler;
@@ -132,6 +201,7 @@ const PartyBouncerEvent = function (creatureHandler, options) {
   this.__cooldowns = new WeakMap();
   this.__mustLeaveQueue = new WeakSet();
   this.__gateMessageCooldowns = new WeakMap();
+  this.__lastQuestionIndex = null;
 };
 
 PartyBouncerEvent.prototype.getConfig = function () {
@@ -443,10 +513,70 @@ PartyBouncerEvent.prototype.__startChallenge = function () {
     return;
   }
 
-  active.question = QUESTIONS[Math.floor(this.__random() * QUESTIONS.length)];
+  active.question = this.__selectQuestion();
   active.stage = "await_answer";
   active.expiresAt = this.__now() + BOUNCER_CONFIG.answerTimeoutMs;
   this.__say("first", player, active.question[this.getLanguage(player)]);
+};
+
+PartyBouncerEvent.prototype.__selectQuestion = function () {
+  let available = QUESTIONS
+    .map((question, index) => ({ question, index }))
+    .filter(entry => entry.index !== this.__lastQuestionIndex);
+  let selected = available[Math.floor(this.__random() * available.length)];
+
+  this.__lastQuestionIndex = selected.index;
+  return selected.question;
+};
+
+PartyBouncerEvent.prototype.__getPartyPlayerCount = function () {
+  if (typeof this.__creatureHandler.getPartyRadioPlayerCount !== "function") {
+    return 0;
+  }
+
+  let count = Number(this.__creatureHandler.getPartyRadioPlayerCount());
+  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+};
+
+PartyBouncerEvent.prototype.__formatPolishPlayerCount = function (count) {
+  if (count === 1) {
+    return "1 osoba";
+  }
+
+  let lastDigit = count % 10;
+  let lastTwoDigits = count % 100;
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
+    return count + " osoby";
+  }
+
+  return count + " osób";
+};
+
+PartyBouncerEvent.prototype.__getAttendanceMessage = function (player) {
+  let count = this.__getPartyPlayerCount();
+  let language = this.getLanguage(player);
+  let messages = ATTENDANCE_MESSAGES[language];
+
+  if ([10, 20, 30].includes(count)) {
+    let milestoneCount = language === "pl" ? this.__formatPolishPlayerCount(count) : count;
+    return messages.milestone(milestoneCount);
+  }
+
+  let bucket = count === 0 ? "empty"
+    : count === 1 ? "one"
+      : count <= 5 ? "small"
+        : count <= 10 ? "growing"
+          : count <= 20 ? "busy"
+            : "packed";
+  let variants = messages[bucket];
+  let variant = variants[Math.floor(this.__random() * variants.length)];
+
+  if (typeof variant === "function") {
+    let formattedCount = language === "pl" ? this.__formatPolishPlayerCount(count) : count;
+    return variant(formattedCount);
+  }
+
+  return variant;
 };
 
 PartyBouncerEvent.prototype.__beginGrant = function (firstMessage, secondMessage) {
@@ -458,7 +588,7 @@ PartyBouncerEvent.prototype.__beginGrant = function (firstMessage, secondMessage
 
 PartyBouncerEvent.prototype.__grant = function () {
   let active = this.__active;
-  this.__say("second", active.player, active.secondMessage);
+  this.__say("second", active.player, this.__getAttendanceMessage(active.player));
   active.stage = "authorized";
   active.expiresAt = this.__now() + BOUNCER_CONFIG.accessTimeoutMs;
 };

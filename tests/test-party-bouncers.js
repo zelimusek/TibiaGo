@@ -42,6 +42,7 @@ const makePlayer = function (countryCode, mobile) {
 };
 
 let players = new Map();
+let partyPlayerCount = 0;
 let creatures = new Map([
   [1, makeNPC("Różal")],
   [2, makeNPC("Pudzian")]
@@ -50,6 +51,9 @@ let handler = {
   __creatureMap: creatures,
   getConnectedPlayers() {
     return players;
+  },
+  getPartyRadioPlayerCount() {
+    return partyPlayerCount;
   },
   teleportCreature(player, position) {
     player.position = position;
@@ -95,6 +99,19 @@ let mobile = makePlayer("PL", true);
 event.__active = { player: mobile, stage: "starting", attempts: 0, spinDirections: new Set() };
 event.__startChallenge();
 assert.strictEqual(event.__active.stage, "await_answer", "mobile clients must only receive questions");
+let firstQuestion = event.__active.question;
+event.__active = { player: mobile, stage: "starting", attempts: 0, spinDirections: new Set() };
+event.__startChallenge();
+assert.notStrictEqual(
+  event.__active.question,
+  firstQuestion,
+  "the same question must not be selected twice in a row"
+);
+
+let polishDesktop = makePlayer("PL", false);
+event.__active = { player: polishDesktop, stage: "starting", attempts: 0, spinDirections: new Set() };
+event.__startChallenge();
+assert.strictEqual(spoken.at(-1).message, "Pokaż nam Twoje ruchy! Po prostu tańcz!");
 
 let desktop = makePlayer("GB", false);
 event.__active = { player: desktop, stage: "starting", attempts: 0, spinDirections: new Set() };
@@ -150,6 +167,31 @@ assert.strictEqual(openEvent.__active.stage, "authorized");
 assert.strictEqual(spoken.at(-1).name, "Pudzian");
 assert.match(spoken.at(-1).message, /wchodź|możesz/i);
 
+partyPlayerCount = 1;
+openEvent.__active = { player: queued, stage: "grant_pending" };
+openEvent.__grant();
+assert.match(spoken.at(-1).message, /Jedna osoba/);
+
+partyPlayerCount = 12;
+openEvent.__active = { player: queued, stage: "grant_pending" };
+openEvent.__grant();
+assert.match(spoken.at(-1).message, /12 osób/);
+
+partyPlayerCount = 22;
+openEvent.__active = { player: queued, stage: "grant_pending" };
+openEvent.__grant();
+assert.match(spoken.at(-1).message, /22 osoby/);
+
+partyPlayerCount = 20;
+openEvent.__active = { player: queued, stage: "grant_pending" };
+openEvent.__grant();
+assert.match(spoken.at(-1).message, /20 osób.*pełną parą/);
+
+for (let version of [740, 760]) {
+  let definitions = require("../data/" + version + "/npcs/definitions.json");
+  assert.deepStrictEqual(definitions.pudzian.position, { x: 32516, y: 32358, z: 7 });
+}
+
 global.gameServer.world.creatureHandler = { partyBouncers: openEvent };
 let gm = makePlayer("PL", false);
 gm.isGM = () => true;
@@ -161,4 +203,4 @@ assert.match(gm.messages.at(-1), /payment \(500 gold\)/i);
 
 global.gameServer = process.gameServer = originalGameServer;
 
-console.log("PASS: party bouncer languages, answers, mobile-safe challenges, gate passes and GeoIP work.");
+console.log("PASS: party bouncer languages, attendance, non-repeating challenges, gate passes and GeoIP work.");
