@@ -296,6 +296,10 @@ GameClient.prototype.handleAcceptLogin = function (packet) {
   // This triggers the start of the game loop
   this.gameLoop.init();
 
+  // Tell the server which control layout is actually active. The party
+  // bouncers only offer keyboard-turn challenges to desktop players.
+  this.sendClientCapabilities();
+
   // Apply deferred settings now that gameClient is fully initialized
   let fpsMode = document.getElementById("fps-mode").value;
   this.gameLoop.setFPSMode(fpsMode);
@@ -306,6 +310,15 @@ GameClient.prototype.handleAcceptLogin = function (packet) {
 
   // Load the configuration
 }
+
+GameClient.prototype.sendClientCapabilities = function () {
+  if (!this.player || !this.isConnected()) {
+    return;
+  }
+  this.send(new ClientCapabilitiesPacket(
+    Boolean(this.touch && this.touch.isMobileMode)
+  ));
+};
 
 GameClient.prototype.isConnected = function () {
 

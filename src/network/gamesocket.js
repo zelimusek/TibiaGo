@@ -14,7 +14,7 @@ const {
   ContainerAddPacket
 } = requireModule("network/protocol");
 
-const GameSocket = function (socket, account) {
+const GameSocket = function (socket, account, connectionDetails) {
 
   /*
    * Class GameSocket
@@ -24,13 +24,15 @@ const GameSocket = function (socket, account) {
   // Wrap the websocket
   this.socket = socket;
   this.account = account;
+  connectionDetails = connectionDetails || {};
 
   // Each websocket should reference a player in the gameworld
   this.player = null;
   this.__controller = false;
 
   // Keep the address
-  this.__address = this.getAddress().address;
+  this.__address = connectionDetails.address || this.getAddress().address;
+  this.__countryCode = connectionDetails.countryCode || null;
 
   // Time of initial connection
   this.__connected = Date.now();
@@ -175,7 +177,12 @@ GameSocket.prototype.getAddress = function () {
    * Returns IPV4,6 address parameters from the wrapped socket
    */
 
-  return this.socket._socket.address();
+  let socket = this.socket._socket;
+  return {
+    address: socket.remoteAddress || (socket.address && socket.address().address) || "",
+    family: socket.remoteFamily || (socket.address && socket.address().family) || "",
+    port: socket.remotePort || 0
+  };
 
 }
 

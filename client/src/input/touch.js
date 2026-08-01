@@ -180,6 +180,10 @@ Touch.prototype.__initialize = function () {
 
     console.log("Touch controls initialized for mobile mode");
 
+    if (typeof gameClient !== "undefined" && gameClient && gameClient.sendClientCapabilities) {
+        gameClient.sendClientCapabilities();
+    }
+
 }
 
 Touch.prototype.__handleResize = function () {
@@ -197,6 +201,9 @@ Touch.prototype.__handleResize = function () {
     } else if (!shouldBeMobile && this.isMobileMode) {
         this.isMobileMode = false;
         this.__cleanup();
+        if (typeof gameClient !== "undefined" && gameClient && gameClient.sendClientCapabilities) {
+            gameClient.sendClientCapabilities();
+        }
     } else if (shouldBeMobile) {
         this.__prepareMobileChat();
         this.__syncMobileChatViewport();

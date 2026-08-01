@@ -79,5 +79,23 @@
     },
     "enabled": true,
     "definition": "dj_thomas.json"
+  },
+  "rozal": {
+    "position": {
+      "x": 32514,
+      "y": 32358,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "rozal.json"
+  },
+  "pudzian": {
+    "position": {
+      "x": 32517,
+      "y": 32358,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "pudzian.json"
   }
 }

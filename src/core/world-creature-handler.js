@@ -7,6 +7,7 @@ const Condition = requireModule("combat/condition");
 const Position = requireModule("utils/position");
 const FloorLavaEvent = requireModule("core/floor-lava-event");
 const BombermanEvent = requireModule("core/bomberman-event");
+const PartyBouncerEvent = requireModule("core/party-bouncer-event");
 const fs = require("fs");
 const path = require("path");
 
@@ -94,6 +95,9 @@ const CreatureHandler = function () {
 
   // Safe, score-based Bomberman event on the same disco dance floor.
   this.bomberman = new BombermanEvent(this);
+
+  // Two coordinated door bouncers, their physical queue and per-player passes.
+  this.partyBouncers = new PartyBouncerEvent(this);
 
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
@@ -844,6 +848,9 @@ CreatureHandler.prototype.tick = function () {
   this.__tickClubDance();
   this.floorLava.tick();
   this.bomberman.tick();
+  if (this.partyBouncers) {
+    this.partyBouncers.tick();
+  }
 
   // Handle always active NPCs
   this.sceneNPCs.forEach(npc => npc.cutsceneHandler.think());
@@ -1151,6 +1158,9 @@ CreatureHandler.prototype.updateCreaturePosition = function (creature, position)
   // Always check containers after moving
   creature.containerManager.checkContainers();
   this.__syncRadioZone(creature, oldPosition);
+  if (this.partyBouncers) {
+    this.partyBouncers.handlePlayerMoved(creature);
+  }
 
 }
 
@@ -1281,6 +1291,13 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
    * Function World.moveCreature
    * Moves a creature from one position to a new position
    */
+
+  if (creature.isPlayer() && this.partyBouncers) {
+    let bouncerDecision = this.partyBouncers.handleDestination(creature, position);
+    if (bouncerDecision === false) {
+      return false;
+    }
+  }
 
   if (creature.isPlayer()) {
     let floorLavaRedirect = this.floorLava.handleDestination(creature, position);

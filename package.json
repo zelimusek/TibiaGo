@@ -18,6 +18,7 @@
     "bcryptjs": "^2.4.3",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
+    "geoip-lite": "1.4.10",
     "jsonschema": "^1.4.1",
     "pg": "^8.16.3",
     "ws": "^8.14.2",

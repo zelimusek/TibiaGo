@@ -52,6 +52,14 @@ DefaultChannel.prototype.send = function (player, packet) {
   // Write to the default game screen and the default chat channel
   player.speechHandler.internalCreatureSay(message, color);
 
+  // The two party bouncers share one queue and one active conversation.
+  // Let their coordinator evaluate the answer before ordinary NPC scripts.
+  if (typeof gameServer !== "undefined"
+    && gameServer.world
+    && gameServer.world.creatureHandler.partyBouncers) {
+    gameServer.world.creatureHandler.partyBouncers.handleSpeech(player, message);
+  }
+
   // NPCs listen to all messages in the default channels
   this.__NPCListen(player, message.toLowerCase());
 

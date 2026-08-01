@@ -405,6 +405,14 @@ const SecureModePacket = function (enabled) {
 SecureModePacket.prototype = Object.create(PacketWriter.prototype);
 SecureModePacket.prototype.constructor = SecureModePacket;
 
+const ClientCapabilitiesPacket = function (isMobile) {
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.CLIENT_CAPABILITIES, 1);
+  this.writeBoolean(Boolean(isMobile));
+};
+
+ClientCapabilitiesPacket.prototype = Object.create(PacketWriter.prototype);
+ClientCapabilitiesPacket.prototype.constructor = ClientCapabilitiesPacket;
+
 const WriteTextPacket = function (itemId, content) {
 
   /*

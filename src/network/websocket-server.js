@@ -3,6 +3,7 @@
 const GameSocket = requireModule("network/gamesocket");
 const WebsocketSocketHandler = requireModule("network/websocket-server-socket-handler");
 const AccountDatabase = requireModule("auth/account-database");
+const IPCountry = requireModule("utils/ip-country");
 
 const { Server } = require("ws");
 
@@ -112,7 +113,11 @@ WebsocketServer.prototype.__handleConnection = function (
    */
 
   // Create a new class that wraps the connected socket
-  let gameSocket = new GameSocket(socket, accountName);
+  let gameSocket = new GameSocket(socket, accountName, {
+    address: IPCountry.getRequestIPAddress(request, socket),
+    countryCode: null
+  });
+  gameSocket.__countryCode = IPCountry.getCountryCode(gameSocket.__address, request);
 
   // The server is full
   if (this.socketHandler.isOverpopulated()) {

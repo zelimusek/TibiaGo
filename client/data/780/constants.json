@@ -40,7 +40,9 @@
       "FIGHT_MODE": 21,
       "CHASE_MODE": 22,
       "WRITE_TEXT": 23,
-      "QUEST_LOG": 24
+      "QUEST_LOG": 24,
+      "SECURE_MODE": 25,
+      "CLIENT_CAPABILITIES": 26
     },
     "SERVER": {
       "LATENCY": 0,

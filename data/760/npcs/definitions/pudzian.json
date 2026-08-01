@@ -1,0 +1,29 @@
+{
+  "creatureStatistics": {
+    "name": "Pudzian",
+    "health": 1000,
+    "maxHealth": 1000,
+    "mana": 0,
+    "maxMana": 0,
+    "attack": 1,
+    "attackSlowness": 40,
+    "defense": 50,
+    "speed": 0,
+    "direction": 2,
+    "outfit": {
+      "id": 134,
+      "details": { "head": 94, "body": 114, "legs": 114, "feet": 76 }
+    }
+  },
+  "behaviour": {
+    "wanderRange": 0,
+    "openDoors": false,
+    "ignoreCharacters": true
+  },
+  "conversation": {
+    "hearingRange": 6,
+    "keywords": {},
+    "farewells": ["bye"],
+    "greetings": ["hi"]
+  }
+}

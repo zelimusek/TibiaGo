@@ -59,6 +59,12 @@ SocketHandler.prototype.attachController = function(gameSocket) {
   // Reference
   this.__controllingSocket = gameSocket;
 
+  // Connection-local metadata is deliberately not persisted with the
+  // character. It is refreshed whenever a controller reconnects.
+  this.player.__remoteAddress = gameSocket.__address || null;
+  this.player.__countryCode = gameSocket.__countryCode || null;
+  this.player.__isMobileClient = false;
+
   // A controller is automatically a spectator too
   this.addSpectator(gameSocket);
 

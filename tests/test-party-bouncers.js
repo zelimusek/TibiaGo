@@ -1,0 +1,164 @@
+"use strict";
+
+const assert = require("assert");
+
+require("../require");
+
+const PartyBouncerEvent = requireModule("core/party-bouncer-event");
+const IPCountry = requireModule("utils/ip-country");
+const Position = requireModule("utils/position");
+const CommandHandler = requireModule("utils/command-handler");
+
+let now = 1000;
+let spoken = [];
+
+const makeNPC = function (name) {
+  return {
+    name,
+    isPlayer: () => false,
+    getProperty: () => name,
+    speechHandler: {
+      privateSay(player, message) {
+        spoken.push({ name, player, message });
+      }
+    }
+  };
+};
+
+const makePlayer = function (countryCode, mobile) {
+  return {
+    position: new Position(32515, 32358, 7),
+    __countryCode: countryCode,
+    __isMobileClient: mobile,
+    messages: [],
+    isGM: () => false,
+    sendCancelMessage(message) {
+      this.messages.push(message);
+    },
+    payWithResource() {
+      return true;
+    }
+  };
+};
+
+let players = new Map();
+let creatures = new Map([
+  [1, makeNPC("Różal")],
+  [2, makeNPC("Pudzian")]
+]);
+let handler = {
+  __creatureMap: creatures,
+  getConnectedPlayers() {
+    return players;
+  },
+  teleportCreature(player, position) {
+    player.position = position;
+    return true;
+  }
+};
+
+const originalGameServer = global.gameServer;
+global.gameServer = process.gameServer = {
+  world: {
+    getTileFromWorldPosition() {
+      return {
+        id: 1,
+        isOccupiedCharacters: () => false
+      };
+    }
+  }
+};
+
+let event = new PartyBouncerEvent(handler, {
+  now: () => now,
+  random: () => 0,
+  settingsPath: false
+});
+
+let polish = makePlayer("PL", false);
+let english = makePlayer("DE", false);
+assert.strictEqual(event.getLanguage(polish), "pl");
+assert.strictEqual(event.getLanguage(english), "en");
+
+event.__active = {
+  player: polish,
+  stage: "await_answer",
+  attempts: 0,
+  question: { answers: ["oczywiście", "jak najbardziej", "niebieskiego"] },
+  spinDirections: new Set()
+};
+assert.strictEqual(event.handleSpeech(polish, "OCZYWISCIE!!!"), true);
+assert.strictEqual(event.__active.stage, "grant_pending");
+assert.match(spoken.at(-1).message, /odpowiedź|zgadza|zaliczona/i);
+
+let mobile = makePlayer("PL", true);
+event.__active = { player: mobile, stage: "starting", attempts: 0, spinDirections: new Set() };
+event.__startChallenge();
+assert.strictEqual(event.__active.stage, "await_answer", "mobile clients must only receive questions");
+
+let desktop = makePlayer("GB", false);
+event.__active = { player: desktop, stage: "starting", attempts: 0, spinDirections: new Set() };
+event.__startChallenge();
+assert.strictEqual(event.__active.stage, "await_spin");
+assert.strictEqual(spoken.at(-1).message, "Show us a spin! Simply: DANCE!");
+event.handleTurn(desktop, CONST.DIRECTION.NORTH);
+event.handleTurn(desktop, CONST.DIRECTION.EAST);
+event.handleTurn(desktop, CONST.DIRECTION.SOUTH);
+event.handleTurn(desktop, CONST.DIRECTION.WEST);
+assert.strictEqual(event.__active.stage, "grant_pending");
+
+event.__active = null;
+assert.strictEqual(
+  event.handleDestination(desktop, new Position(32515, 32357, 7)),
+  false,
+  "an uncleared player must not step onto the gate"
+);
+event.__active = {
+  player: desktop,
+  stage: "authorized",
+  expiresAt: now + 1000
+};
+assert.strictEqual(event.handleDestination(desktop, new Position(32515, 32357, 7)), true);
+
+let modeResult = event.setMode("payment", "250");
+assert.strictEqual(modeResult.ok, true);
+assert.match(event.getStatus(desktop), /payment \(250 gold\)/);
+
+assert.strictEqual(IPCountry.normalizeIPAddress("::ffff:83.0.0.1"), "83.0.0.1");
+assert.strictEqual(IPCountry.getCountryCode("83.0.0.1"), "PL");
+assert.strictEqual(
+  IPCountry.getCountryCode("8.8.8.8", { headers: { "cf-ipcountry": "PL" } }),
+  "PL"
+);
+
+spoken = [];
+now = 5000;
+let queued = makePlayer("PL", false);
+queued.position = new Position(32515, 32361, 7);
+players.set("Queued", queued);
+let openEvent = new PartyBouncerEvent(handler, {
+  now: () => now,
+  random: () => 0,
+  settingsPath: false
+});
+openEvent.tick();
+assert.ok(queued.position.equals(new Position(32515, 32358, 7)), "the physical queue must advance automatically");
+assert.strictEqual(openEvent.__active.stage, "open_pending");
+now += openEvent.getConfig().dialogueDelayMs;
+openEvent.tick();
+assert.strictEqual(openEvent.__active.stage, "authorized");
+assert.strictEqual(spoken.at(-1).name, "Pudzian");
+assert.match(spoken.at(-1).message, /wchodź|możesz/i);
+
+global.gameServer.world.creatureHandler = { partyBouncers: openEvent };
+let gm = makePlayer("PL", false);
+gm.isGM = () => true;
+let commands = new CommandHandler();
+assert.strictEqual(commands.handle(gm, "/bouncers payment 500"), true);
+assert.match(gm.messages.at(-1), /payment.*500/i);
+commands.handle(gm, "/bouncers status");
+assert.match(gm.messages.at(-1), /payment \(500 gold\)/i);
+
+global.gameServer = process.gameServer = originalGameServer;
+
+console.log("PASS: party bouncer languages, answers, mobile-safe challenges, gate passes and GeoIP work.");

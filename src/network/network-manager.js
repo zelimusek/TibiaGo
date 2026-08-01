@@ -180,7 +180,11 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
     }
 
     case CONST.PROTOCOL.CLIENT.TURN: {
-      return gameSocket.player.setDirection(packet.readUInt8());
+      let direction = packet.readUInt8();
+      if (gameServer.world.creatureHandler.partyBouncers) {
+        gameServer.world.creatureHandler.partyBouncers.handleTurn(gameSocket.player, direction);
+      }
+      return gameSocket.player.setDirection(direction);
     }
 
     case CONST.PROTOCOL.CLIENT.CONTAINER_CLOSE: {
@@ -230,6 +234,11 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
 
     case CONST.PROTOCOL.CLIENT.SECURE_MODE: {
       return gameSocket.player.setSecureMode(packet.readBoolean());
+    }
+
+    case CONST.PROTOCOL.CLIENT.CLIENT_CAPABILITIES: {
+      gameSocket.player.__isMobileClient = packet.readBoolean();
+      return;
     }
 
     // Use item on creature (from battle list)

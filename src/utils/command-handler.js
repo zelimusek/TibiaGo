@@ -457,6 +457,28 @@ CommandHandler.prototype.handleCommandBomb = function (player) {
 
 };
 
+CommandHandler.prototype.handleCommandBouncers = function (player, message) {
+  let action = String(message[1] || "status").toLowerCase();
+  let bouncers = gameServer.world.creatureHandler.partyBouncers;
+
+  if (action === "status") {
+    return player.sendCancelMessage(bouncers.getStatus(player));
+  }
+
+  if (action === "language") {
+    let languageResult = bouncers.setPlayerLanguage(player, message[2]);
+    player.sendCancelMessage(languageResult.message);
+    return languageResult.ok;
+  }
+
+  let value = action === "password"
+    ? message.slice(2).join(" ")
+    : message[2];
+  let result = bouncers.setMode(action, value);
+  player.sendCancelMessage(result.message);
+  return result.ok;
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -590,6 +612,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/bomber") {
     return this.handleCommandBomberman(player, message);
+  }
+
+  if (message[0] === "/bouncers") {
+    return this.handleCommandBouncers(player, message);
   }
 
   if (message[0] === "/teleport") {
