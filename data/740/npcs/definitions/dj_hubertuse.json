@@ -1,0 +1,39 @@
+{
+  "creatureStatistics": {
+    "name": "DJ Hubertuse",
+    "health": 100,
+    "maxHealth": 100,
+    "mana": 0,
+    "maxMana": 0,
+    "attack": 1,
+    "attackSlowness": 40,
+    "defense": 5,
+    "speed": 0,
+    "direction": 2,
+    "outfit": {
+      "id": 128,
+      "details": {
+        "head": 79,
+        "body": 88,
+        "legs": 114,
+        "feet": 79
+      }
+    }
+  },
+  "behaviour": {
+    "wanderRange": 0,
+    "openDoors": false,
+    "ignoreCharacters": true
+  },
+  "conversation": {
+    "hearingRange": 5,
+    "keywords": {},
+    "farewells": ["bye"],
+    "greetings": ["hi", "hello"],
+    "sayings": {
+      "texts": ["DJ Hubertuse is ready to start the party!"],
+      "rate": 300,
+      "chance": 0
+    }
+  }
+}
