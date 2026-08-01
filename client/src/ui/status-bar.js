@@ -22,6 +22,7 @@ StatusBar.prototype.STATUS.set(11, { "title": "You are wearing a magic shield.",
 StatusBar.prototype.STATUS.set(13, { "title": "You are hungry.", "src": "/png/status/status-hungry.png" });
 StatusBar.prototype.STATUS.set(14, { "title": "You are hasted.", "src": "/png/status/status-haste.png" });
 StatusBar.prototype.STATUS.set(16, { "title": "You are paralyzed.", "src": "/png/status/status-bleeding.png" });
+StatusBar.prototype.STATUS.set(17, { "title": "You are in a fight.", "src": "/png/status/status-combat.png" });
 
 StatusBar.prototype.update = function () {
 

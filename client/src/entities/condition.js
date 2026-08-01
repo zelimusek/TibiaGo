@@ -84,3 +84,5 @@ ConditionManager.prototype.SATED = 13;
 ConditionManager.prototype.HASTE = 14;
 ConditionManager.prototype.ARENA = 15;
 ConditionManager.prototype.PARALYZED = 16;
+// Client-only condition toggled by the dedicated COMBAT_LOCK packet.
+ConditionManager.prototype.COMBAT_LOCK = 17;

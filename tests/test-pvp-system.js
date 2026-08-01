@@ -14,9 +14,12 @@ let nextPlayerId = 1;
 function combatLock() {
   return {
     seconds: 0,
+    locked: false,
     activate(seconds) {
       this.seconds = Math.max(this.seconds, seconds || 3);
-    }
+      this.locked = true;
+    },
+    isLocked() { return this.locked; }
   };
 }
 
@@ -87,6 +90,18 @@ async function run() {
   assert.strictEqual(manager.isJustifiedAttack(witness, attacker, now + 4), true);
   assert.strictEqual(manager.getSkullFor(attacker, witness, now + 4), PvPConfig.SKULL.YELLOW);
   assert.strictEqual(manager.getSkullFor(victim, witness, now + 4), PvPConfig.SKULL.NONE);
+
+  // Yellow skull cannot disappear before the legal attacker's combat lock.
+  // Once that lock ends, the already expired relation is removed normally.
+  assert.strictEqual(
+    manager.getSkullFor(attacker, witness, now + PvPConfig.SELF_DEFENSE_MS + 4),
+    PvPConfig.SKULL.YELLOW
+  );
+  witness.combatLock.locked = false;
+  assert.strictEqual(
+    manager.getSkullFor(attacker, witness, now + PvPConfig.SELF_DEFENSE_MS + 5),
+    PvPConfig.SKULL.NONE
+  );
 
   // Refresh and expiry use the latest aggressive action.
   manager.registerAggression(attacker, victim, now + 30_000);

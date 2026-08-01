@@ -220,9 +220,10 @@ PacketHandler.prototype.handleItemLook = function (player, packet) {
     return;
   }
 
-  // Looking at a creature on the tile
-  if (packet.which.constructor.name === "Tile" && packet.which.getCreature()) {
-    return player.write(new CreatureInformationPacket(packet.which.getCreature()));
+  // Looking at a living creature on the tile
+  let creature = this.__getLookCreature(packet.which);
+  if (creature !== null) {
+    return player.write(new CreatureInformationPacket(creature));
   }
 
   // Get the item at the requested index
@@ -249,6 +250,20 @@ PacketHandler.prototype.handleItemLook = function (player, packet) {
   ));
 
 }
+
+PacketHandler.prototype.__getLookCreature = function (which) {
+  if (!which || which.constructor.name !== "Tile") return null;
+
+  let creature = which.getCreature();
+  if (creature === null) return null;
+
+  // A dead player remains attached to the server tile until the death window
+  // is acknowledged. The corpse is already present by then, so Look must skip
+  // the stale creature reference and resolve the clicked stack item instead.
+  if (creature.isDead) return null;
+  if (typeof creature.isZeroHealth === "function" && creature.isZeroHealth()) return null;
+  return creature;
+};
 
 PacketHandler.prototype.handleContainerClose = function (player, containerId) {
 

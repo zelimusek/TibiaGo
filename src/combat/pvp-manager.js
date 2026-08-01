@@ -28,6 +28,38 @@ PvPManager.prototype.__relationKey = function (attackerId, targetId) {
   return attackerId + ":" + targetId;
 };
 
+PvPManager.prototype.__isCombatLocked = function (player) {
+  return Boolean(
+    player &&
+    player.combatLock &&
+    typeof player.combatLock.isLocked === "function" &&
+    player.combatLock.isLocked()
+  );
+};
+
+PvPManager.prototype.__findConnectedPlayer = function (playerId) {
+  if (!global.gameServer || !gameServer.world || !gameServer.world.creatureHandler) return null;
+  let players = gameServer.world.creatureHandler.getConnectedPlayers();
+  if (!players || typeof players.forEach !== "function") return null;
+
+  let match = null;
+  players.forEach(function (player) {
+    if (player && player.accountId === playerId) match = player;
+  });
+  return match;
+};
+
+PvPManager.prototype.__isRelationActive = function (relation, attacker, now) {
+  if (relation === null) return false;
+  if (relation.retaliationExpiresAt > now) return true;
+
+  // A yellow skull represents an attack that was legal when this pair's
+  // fight began. Keep that observer-relative marker for at least as long as
+  // the attacker still has the in-fight lock, even if the nominal relation
+  // timer reaches its boundary a fraction earlier.
+  return relation.justifiedAtStart && this.__isCombatLocked(attacker);
+};
+
 PvPManager.prototype.__state = function (playerOrId) {
   let id = Number.isInteger(playerOrId) ? playerOrId : this.__id(playerOrId);
   if (id === null) return null;
@@ -94,7 +126,10 @@ PvPManager.prototype.__getRelation = function (attacker, target, now) {
   if (attackerId === null || targetId === null) return null;
   let key = this.__relationKey(attackerId, targetId);
   let relation = this.__relations.get(key) || null;
-  if (relation && relation.retaliationExpiresAt <= (now || Date.now())) {
+  let attackerPlayer = Number.isInteger(attacker)
+    ? this.__findConnectedPlayer(attackerId)
+    : attacker;
+  if (relation && !this.__isRelationActive(relation, attackerPlayer, now || Date.now())) {
     this.__relations.delete(key);
     return null;
   }
@@ -103,7 +138,7 @@ PvPManager.prototype.__getRelation = function (attacker, target, now) {
 
 PvPManager.prototype.hasSelfDefenseRight = function (player, against, now) {
   let relation = this.__getRelation(against, player, now);
-  return Boolean(relation && relation.retaliationExpiresAt > (now || Date.now()));
+  return relation !== null;
 };
 
 PvPManager.prototype.isJustifiedAttack = function (attacker, target, now) {
@@ -120,8 +155,7 @@ PvPManager.prototype.isJustifiedAttack = function (attacker, target, now) {
   let activeAttack = this.__getRelation(attacker, target, now);
   return Boolean(
     activeAttack &&
-    activeAttack.justifiedAtStart &&
-    activeAttack.retaliationExpiresAt > now
+    activeAttack.justifiedAtStart
   );
 };
 
@@ -132,7 +166,7 @@ PvPManager.prototype.getSkullFor = function (observer, subject, now) {
 
   // A legal attacker of a marked player is yellow only for that marked player.
   let relation = this.__getRelation(subject, observer, now);
-  if (relation && relation.justifiedAtStart && relation.retaliationExpiresAt > now) {
+  if (relation && relation.justifiedAtStart) {
     return PvPConfig.SKULL.YELLOW;
   }
   return PvPConfig.SKULL.NONE;
@@ -328,7 +362,8 @@ PvPManager.prototype.tick = function (now) {
   this.__lastTickSecond = second;
 
   this.__relations.forEach(function (relation, key) {
-    if (relation.retaliationExpiresAt <= now) this.__relations.delete(key);
+    let attacker = this.__findConnectedPlayer(relation.attackerId);
+    if (!this.__isRelationActive(relation, attacker, now)) this.__relations.delete(key);
   }, this);
 
   this.__participants.forEach(function (participants, victimId) {
