@@ -23,6 +23,26 @@ const RADIO_EFFECT_STYLES = {
   lightning: [CONST.EFFECT.MAGIC.ENERGYHIT, CONST.EFFECT.MAGIC.LOSEENERGY, CONST.EFFECT.MAGIC.SOUND_WHITE]
 };
 
+const PARTY_DANCE_FLOOR_CENTER = { x: 32515, y: 32346, z: 7 };
+const PARTY_READABLE_POSITIONS = {
+  "32517,32391,7": function (onlinePlayers, partyPlayers) {
+    return "       Welcome to:\n"
+      + "CYRK'S PARTY ZONE!\n"
+      + "Currently we have " + onlinePlayers + " players online\n"
+      + partyPlayers + " of them are in the dance hall!";
+  },
+  "32517,32357,7": function (onlinePlayers, partyPlayers) {
+    return "The party is on!\n"
+      + partyPlayers + " players are already inside.\n"
+      + "Join them and hit the dance floor!";
+  },
+  "32513,32357,7": function (onlinePlayers, partyPlayers) {
+    return "Join the party!\n"
+      + "Two amazing DJs, awesome beats, fun games and "
+      + partyPlayers + " players on the dance floor!";
+  }
+};
+
 const {
   CreatureForgetPacket,
   CreatureTeleportPacket,
@@ -313,6 +333,71 @@ CreatureHandler.prototype.__isInsideRadioCore = function (zone, position) {
     && position.x <= Math.max(zone.from.x, zone.to.x)
     && position.y >= Math.min(zone.from.y, zone.to.y)
     && position.y <= Math.max(zone.from.y, zone.to.y);
+
+}
+
+CreatureHandler.prototype.getPartyRadioPlayerCount = function () {
+
+  /*
+   * Counts connected players inside the active /radio core that covers the
+   * disco dance floor. Other radio zones elsewhere in the world must not
+   * inflate the party noticeboards.
+   */
+
+  let zones = Array.isArray(this.__radioZones)
+    ? this.__radioZones.filter(function (zone) {
+      return zone.enabled !== false
+        && this.__isInsideRadioCore(zone, PARTY_DANCE_FLOOR_CENTER);
+    }, this)
+    : [];
+
+  if (zones.length === 0) {
+    return 0;
+  }
+
+  let count = 0;
+  this.getConnectedPlayers().forEach(function (player) {
+    if (player && player.position && zones.some(function (zone) {
+      return this.__isInsideRadioCore(zone, player.position);
+    }, this)) {
+      count++;
+    }
+  }, this);
+
+  return count;
+
+}
+
+CreatureHandler.prototype.getReadableContent = function (item) {
+
+  /*
+   * Resolves live text for the three party noticeboards. Every other readable
+   * keeps the text stored in the map file.
+   */
+
+  let originalContent = item && typeof item.getContent === "function"
+    ? item.getContent()
+    : null;
+
+  if (!item || typeof item.getPosition !== "function") {
+    return originalContent;
+  }
+
+  let position = item.getPosition();
+  if (!position) {
+    return originalContent;
+  }
+
+  let formatter = PARTY_READABLE_POSITIONS[
+    position.x + "," + position.y + "," + position.z
+  ];
+
+  if (!formatter) {
+    return originalContent;
+  }
+
+  let onlinePlayers = this.getConnectedPlayers().size;
+  return formatter(onlinePlayers, this.getPartyRadioPlayerCount());
 
 }
 

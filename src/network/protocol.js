@@ -743,7 +743,7 @@ const CreatureInformationPacket = function (creature) {
 CreatureInformationPacket.prototype = Object.create(PacketWriter.prototype);
 CreatureInformationPacket.prototype.constructor = CreatureInformationPacket;
 
-const ItemInformationPacket = function (thing, includeDetails, descriptionOverride = null) {
+const ItemInformationPacket = function (thing, includeDetails, descriptionOverride = null, contentOverride = null) {
   /*
    * Class ItemInformationPacket
    * Wrapper for thing information sent to the player
@@ -751,7 +751,9 @@ const ItemInformationPacket = function (thing, includeDetails, descriptionOverri
 
   // Safely check if methods exist before calling them (Tiles don't have these methods)
   let isDistanceReadable = thing.isDistanceReadable ? thing.isDistanceReadable() : false;
-  let distanceContent = isDistanceReadable && thing.getContent ? thing.getContent() : null;
+  let distanceContent = isDistanceReadable && thing.getContent
+    ? (contentOverride !== null ? contentOverride : thing.getContent())
+    : null;
   let articleText = thing.getArticle ? thing.getArticle() : "";
   let nameText = thing.getName ? thing.getName() : "unknown";
   let descriptionText = descriptionOverride !== null
@@ -804,8 +806,8 @@ const ItemInformationPacket = function (thing, includeDetails, descriptionOverri
 ItemInformationPacket.prototype = Object.create(PacketWriter.prototype);
 ItemInformationPacket.prototype.constructor = ItemInformationPacket;
 
-const ReadTextPacket = function (item) {
-  let content = this.encodeString(item.getContent());
+const ReadTextPacket = function (item, contentOverride = null) {
+  let content = this.encodeString(contentOverride !== null ? contentOverride : item.getContent());
   let name = this.encodeString(item.getName());
 
   // Check if item is writeable (labels, letters, etc.)

@@ -180,7 +180,11 @@ UseHandler.prototype.handleItemUse = function (packet) {
       return this.__player.sendCancelMessage("You have to move to the other side.");
     }
 
-    return this.__player.write(new ReadTextPacket(item));
+    let content = gameServer.world.creatureHandler.getReadableContent
+      ? gameServer.world.creatureHandler.getReadableContent(item)
+      : item.getContent();
+
+    return this.__player.write(new ReadTextPacket(item, content));
 
   }
 

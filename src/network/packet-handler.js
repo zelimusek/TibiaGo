@@ -242,11 +242,16 @@ PacketHandler.prototype.handleItemLook = function (player, packet) {
   const isGuildExpNoticeboard = position &&
     position.x === 32405 && position.y === 32175 && position.z === 7 &&
     thing.id === 1811;
+  const readableContent = thing.getContent
+    && gameServer.world.creatureHandler.getReadableContent
+    ? gameServer.world.creatureHandler.getReadableContent(thing)
+    : null;
 
   return player.write(new ItemInformationPacket(
     thing,
     includeDetails,
-    isGuildExpNoticeboard ? GuildExpRanking.getDescription() : null
+    isGuildExpNoticeboard ? GuildExpRanking.getDescription() : null,
+    readableContent
   ));
 
 }
