@@ -24,6 +24,9 @@ const Interface = function () {
   // Manager for fight mode selector (Full Attack, Balanced, Full Defense)
   this.fightModeSelector = new FightModeSelector();
 
+  // Secure Mode is a standalone control attached to the game viewport.
+  this.secureModeToggle = new SecureModeToggle();
+
   // Manager for notifications
   this.notificationManager = new NotificationManager();
 

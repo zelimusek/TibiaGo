@@ -23,9 +23,6 @@ const Touch = function () {
         animationFrame: null
     };
 
-    // Action mode (null or 'look')
-    this.actionMode = null;
-
     // Long press detection
     this.longPressTimer = null;
     this.longPressTriggered = false;
@@ -84,7 +81,6 @@ Touch.prototype.__initialize = function () {
     this.virtualJoystick = document.getElementById('virtual-joystick');
 
     // Action buttons
-    this.lookBtn = document.getElementById('mobile-look-btn');
     this.attackBtn = document.getElementById('mobile-attack-btn');
     this.menuBtn = document.getElementById('mobile-menu-btn');
     this.inventoryBtn = document.getElementById('mobile-inventory-btn');
@@ -116,9 +112,6 @@ Touch.prototype.__initialize = function () {
     }
 
     // Bind action button events
-    if (this.lookBtn) {
-        this.lookBtn.addEventListener('touchstart', this.__handleLookButton.bind(this), { passive: false });
-    }
     if (this.attackBtn) {
         this.attackBtn.addEventListener('touchstart', this.__handleAttackButton.bind(this), { passive: false });
     }
@@ -405,8 +398,6 @@ Touch.prototype.__cleanup = function () {
     this.__stopJoystickMovementLoop();
     this.__resetJoystickVisual();
 
-    this.actionMode = null;
-    this.__clearActionButtonHighlights();
     this.__clearItemDrag();
     this.__cancelPendingCanvasWalk();
 
@@ -526,14 +517,6 @@ Touch.prototype.__performCanvasDoubleTapAction = function () {
     let tileObject = gameClient.mouse.getWorldObject(fakeEvent);
 
     if (!tileObject || !tileObject.which) {
-        this.lastCanvasTapTime = 0;
-        this.lastCanvasTapTile = null;
-        return false;
-    }
-
-    // Explicit Look mode always owns this tap and must not accidentally become
-    // the first half of a later Use gesture.
-    if (this.actionMode !== null) {
         this.lastCanvasTapTime = 0;
         this.lastCanvasTapTile = null;
         return false;
@@ -691,7 +674,8 @@ Touch.prototype.__performTapAction = function () {
 
     /*
      * Function Touch.__performTapAction
-     * Perform action based on current mode (look, use, or walk)
+     * Attack a tapped creature or walk to the selected tile.
+     * Looking is handled by the existing long-press gesture.
      */
 
     // Get tile at touch position
@@ -704,29 +688,18 @@ Touch.prototype.__performTapAction = function () {
 
     if (!tileObject || !tileObject.which) return;
 
-    switch (this.actionMode) {
-        case 'look':
-            this.__cancelPendingCanvasWalk();
-            gameClient.mouse.look(tileObject);
-            this.__clearActionMode();
-            break;
+    // A regular tap on a creature toggles combat instead of starting
+    // autowalk to the occupied SQM.
+    let otherCreatures = gameClient.mouse.getOtherCreatures(tileObject.which);
+    if (otherCreatures.size > 0) {
+        this.__cancelPendingCanvasWalk();
+        gameClient.world.targetMonster(otherCreatures);
+        return;
+    }
 
-        default:
-            // A regular tap on a creature toggles combat instead of starting
-            // autowalk to the occupied SQM.
-            let otherCreatures = gameClient.mouse.getOtherCreatures(tileObject.which);
-            if (otherCreatures.size > 0) {
-                this.__cancelPendingCanvasWalk();
-                gameClient.world.targetMonster(otherCreatures);
-                return;
-            }
-
-            // Default: walk to tile
-            let targetTile = gameClient.renderer.screen.getWorldCoordinates(fakeEvent);
-            if (targetTile) {
-                this.__scheduleCanvasWalk(fakeEvent, targetTile);
-            }
-            break;
+    let targetTile = gameClient.renderer.screen.getWorldCoordinates(fakeEvent);
+    if (targetTile) {
+        this.__scheduleCanvasWalk(fakeEvent, targetTile);
     }
 
 }
@@ -991,27 +964,6 @@ Touch.prototype.__moveInDirection = function (direction) {
 
 }
 
-Touch.prototype.__handleLookButton = function (event) {
-
-    /*
-     * Function Touch.__handleLookButton
-     * Toggle Look mode
-     */
-
-    event.preventDefault();
-
-    if (this.actionMode === 'look') {
-        this.__clearActionMode();
-    } else {
-        this.actionMode = 'look';
-        this.__updateActionButtonHighlights();
-    }
-
-    // Vibrate feedback
-    if (navigator.vibrate) navigator.vibrate(30);
-
-}
-
 Touch.prototype.__handleAttackButton = function (event) {
 
     /*
@@ -1062,34 +1014,6 @@ Touch.prototype.__handleMenuButton = function (event) {
 
 }
 
-Touch.prototype.__clearActionMode = function () {
-
-    this.actionMode = null;
-    this.__clearActionButtonHighlights();
-
-}
-
-Touch.prototype.__updateActionButtonHighlights = function () {
-
-    /*
-     * Function Touch.__updateActionButtonHighlights
-     * Update button visual state based on current mode
-     */
-
-    this.__clearActionButtonHighlights();
-
-    if (this.actionMode === 'look' && this.lookBtn) {
-        this.lookBtn.style.boxShadow = '0 0 10px 3px #4444ff';
-    }
-
-}
-
-Touch.prototype.__clearActionButtonHighlights = function () {
-
-    if (this.lookBtn) this.lookBtn.style.boxShadow = '';
-
-}
-
 Touch.prototype.updateStatusBars = function (health, healthMax, mana, manaMax) {
 
     /*
@@ -1123,30 +1047,43 @@ Touch.prototype.__handleInventoryButton = function (event) {
 
     /*
      * Function Touch.__handleInventoryButton
-     * Open inventory / equipment window
+     * Open, show or hide the backpack equipped by the player.
      */
 
     event.preventDefault();
+    event.stopPropagation();
 
     if (!gameClient || !gameClient.player) return;
 
-    // Try to open the first container (backpack) or equipment window
-    let containers = Array.from(gameClient.player.__openedContainers || []);
+    let equipment = gameClient.player.equipment;
+    let backpackItem = equipment ? equipment.getSlotItem(6) : null;
 
-    if (containers.length > 0) {
-        // Toggle visibility of existing containers
-        containers.forEach(container => {
-            if (container.window) {
-                let display = container.window.style.display;
-                container.window.style.display = (display === 'none') ? 'block' : 'none';
-            }
-        });
-    } else {
-        // Show a message that no containers are open
-        gameClient.interface.setCancelMessage("No backpack open. Use a backpack first.");
+    if (backpackItem === null) {
+        gameClient.interface.setCancelMessage("You are not wearing a backpack.");
+        if (navigator.vibrate) navigator.vibrate(30);
+        return;
     }
 
-    // Vibrate feedback
+    // Match the open window to the item currently worn in the backpack slot.
+    // Other bags and nested containers remain untouched.
+    let containers = Array.from(gameClient.player.__openedContainers || []);
+    let backpack = containers.find(function (container) {
+        return container && container.id === backpackItem.id;
+    });
+
+    if (backpack && backpack.window && backpack.window.__element) {
+        let element = backpack.window.__element;
+        let isHidden = window.getComputedStyle(element).display === 'none';
+        element.style.display = isHidden ? 'flex' : 'none';
+    } else {
+        // Use the equipped item exactly like a double tap/right click on its
+        // equipment slot. The server remains responsible for opening it.
+        gameClient.mouse.use({
+            which: equipment,
+            index: 6
+        });
+    }
+
     if (navigator.vibrate) navigator.vibrate(30);
 
 }
@@ -1156,18 +1093,17 @@ Touch.prototype.__handleEquipmentButton = function (event) {
     /*
      * Function Touch.__handleEquipmentButton
      * Toggle equipment panel visibility
-     */
+    */
 
     event.preventDefault();
+    event.stopPropagation();
 
-    if (!gameClient || !gameClient.player || !gameClient.player.equipment) return;
+    if (!gameClient || !gameClient.player) return;
 
-    // Toggle equipment panel visibility
-    let equipmentElement = gameClient.player.equipment.element;
-
-    if (equipmentElement) {
-        let currentDisplay = equipmentElement.style.display;
-        equipmentElement.style.display = (currentDisplay === 'none') ? 'block' : 'none';
+    let equipmentElement = document.querySelector('.equipment.wrapper');
+    if (equipmentElement !== null) {
+        let isHidden = window.getComputedStyle(equipmentElement).display === 'none';
+        equipmentElement.style.display = isHidden ? 'flex' : 'none';
     }
 
     // Vibrate feedback
@@ -1433,7 +1369,6 @@ Touch.prototype.__handleGlobalTouchStart = function (event) {
 Touch.prototype.__prepareItemDrag = function (touch, element, slotElement) {
 
     if (
-        this.actionMode !== null ||
         !gameClient ||
         !gameClient.player ||
         !gameClient.networkManager.isConnected() ||

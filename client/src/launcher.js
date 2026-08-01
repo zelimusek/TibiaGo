@@ -21,6 +21,7 @@
     "src/ui/status-bar.js",
     "src/core/database.js",
     "src/ui/fight-mode-selector.js",
+    "src/ui/secure-mode-toggle.js",
     "src/ui/tooltip.js",
     "src/ui/quest-tracker.js",
     "src/ui/interface.js",

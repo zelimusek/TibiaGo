@@ -549,7 +549,6 @@
       <div id="mobile-actions">
         <button id="mobile-equipment-btn" class="mobile-action-btn equipment" title="Equipment">🛡</button>
         <button id="mobile-inventory-btn" class="mobile-action-btn inventory" title="Inventory">🎒</button>
-        <button id="mobile-look-btn" class="mobile-action-btn look" title="Look">👁</button>
         <button id="mobile-attack-btn" class="mobile-action-btn attack" title="Attack">⚔</button>
         <button id="mobile-chat-btn" class="mobile-action-btn chat" title="Chat">💬</button>
       </div>
@@ -1185,6 +1184,24 @@
           <!-- The Actual Gamescreen -->
           <canvas id="screen" width="480" height="352"></canvas>
 
+          <!-- Secure Mode is a game-screen control, independent of the equipment panel. -->
+          <button
+            id="secure-mode-toggle"
+            class="secure-mode-toggle is-enabled"
+            type="button"
+            data-secure="true"
+            aria-label="Secure Mode: On"
+            aria-pressed="true"
+            title="Secure Mode: On"
+          >
+            <svg class="secure-mode-icon secure-mode-icon-shield" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2 4 5v6c0 5.1 3.4 9.7 8 11 4.6-1.3 8-5.9 8-11V5l-8-3Z" />
+            </svg>
+            <svg class="secure-mode-icon secure-mode-icon-swords" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6.9 3H5v2l6.1 6.1-2 2L3 7v2l5.1 5.1L3 19v2h2l4.9-4.9 2.1 2.1 1.9-1.9L6.9 9.2V3Zm12.2 0-7 7 1.9 1.9L20 6V3h-.9ZM16 14.1l-1.9 1.9 4.9 5h2v-2l-5-4.9Z" />
+            </svg>
+          </button>
+
           <!-- Wrapper for elements on top of the gamescreen -->
           <div id="text-wrapper" class="no-select">
             <span id="server-message"></span>
@@ -1407,11 +1424,7 @@
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                       <path
                         d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7" />
-                    </svg>
-                  </button>
-                  <span class="mode-separator"></span>
-                  <button data-secure="true" title="Secure Mode: On" class="secure-mode-btn active">
-                    &#128274;
+                      </svg>
                   </button>
                 </div>
               </div>
@@ -1501,7 +1514,7 @@
 
   <!-- Protocol to speak to the NodeJS Server -->
   <!-- Launcher script to handle loading with progress screen -->
-  <script src="src/launcher.js?v=20260731.6"></script>
+  <script src="src/launcher.js?v=20260801.1"></script>
 
   <!-- Custom SVG filter for post-processing -->
   <!-- This example filters all colors and truncates green to 0 or 1 -->

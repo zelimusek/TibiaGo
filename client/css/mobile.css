@@ -662,11 +662,6 @@ screen and (max-width: 768px) {
     border-color: #ff5555;
 }
 
-.mobile-action-btn.look {
-    background: linear-gradient(145deg, #2255cc, #113388);
-    border-color: #5588ff;
-}
-
 .mobile-action-btn.inventory {
     background: linear-gradient(145deg, #aa8833, #775522);
     border-color: #ddaa44;
