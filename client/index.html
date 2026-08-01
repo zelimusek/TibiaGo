@@ -37,7 +37,7 @@
 <link rel="stylesheet" type="text/css" href="./css/change-outfit-modal.css">
 <link rel="stylesheet" type="text/css" href="./css/context-menu.css">
 <link rel="stylesheet" type="text/css" href="./css/achievement.css">
-<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260801.3">
+<link rel="stylesheet" type="text/css" href="./css/mobile.css?v=20260802.1">
 <link rel="stylesheet" type="text/css" href="./css/fight-mode.css">
 <link rel="stylesheet" type="text/css" href="./css/tooltip.css">
 <link rel="stylesheet" type="text/css" href="./css/questlog.css">
@@ -490,8 +490,11 @@
         <br>Objects: <span id="data-loaded" style="color: red;">Missing</span>
       </div>
 
-      <!-- Main Background Image-->
-      <img src="/./png/background.png">
+      <!-- Responsive Party Zone background. Legacy images remain in /png for rollback. -->
+      <picture class="login-background" aria-hidden="true">
+        <source media="(max-width: 768px) and (orientation: portrait)" srcset="/png/party-zone-login-mobile.webp">
+        <img src="/png/party-zone-login-desktop.webp" alt="">
+      </picture>
 
       <!-- The Setting buttons at the bottom -->
       <div class="login-settings">
@@ -1492,11 +1495,11 @@
 
           reloading = true;
           let target = new URL(window.location.href);
-          target.searchParams.set("build", "20260801.3");
+          target.searchParams.set("build", "20260802.1");
           window.location.replace(target.href);
         });
 
-        navigator.serviceWorker.register("/service-worker.js?v=25", {
+        navigator.serviceWorker.register("/service-worker.js?v=30", {
           updateViaCache: "none"
         }).then(function (registration) {
           return registration.update().catch(function () {
@@ -1519,7 +1522,7 @@
 
   <!-- Protocol to speak to the NodeJS Server -->
   <!-- Launcher script to handle loading with progress screen -->
-  <script src="src/launcher.js?v=20260801.3"></script>
+  <script src="src/launcher.js?v=20260802.1"></script>
 
   <!-- Custom SVG filter for post-processing -->
   <!-- This example filters all colors and truncates green to 0 or 1 -->

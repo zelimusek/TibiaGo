@@ -2,7 +2,7 @@
 
 (function () {
 
-  const CLIENT_BUILD = "20260801.3";
+  const CLIENT_BUILD = "20260802.1";
 
   // List of all scripts to load in order
   const SCRIPTS = [
@@ -144,6 +144,7 @@
       @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&family=MedievalSharp&display=swap');
 
       .loader-wrapper {
+        --party-zone-loader-art: url('./png/party-zone-loader-desktop.webp');
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
         background-color: #050505;
@@ -157,7 +158,7 @@
       .loader-wrapper::before {
         content: "";
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: url('./png/background.png') no-repeat center center;
+        background: var(--party-zone-loader-art) no-repeat center center;
         background-size: cover;
         opacity: 0.25;
         z-index: -1;
@@ -166,18 +167,20 @@
 
       /* MAIN CONTAINER */
       .loader-content {
-        /* Dimensions adjusted to image ratio */
-        width: 760px; 
-        height: 480px;
-        max-width: 95vw; max-height: 95vh;
-        
-        background: url('./png/launcher-gravak.png') no-repeat center center;
-        background-size: 100% 100%; /* Stretch slightly to fill our specific box if needed, or maintain cover */
+        width: min(960px, 94vw);
+        height: auto;
+        max-height: 92vh;
+        aspect-ratio: 1586 / 992;
+
+        background: var(--party-zone-loader-art) no-repeat center center;
+        background-size: cover;
         
         position: relative;
         display: flex; flex-direction: column;
         justify-content: flex-end; align-items: center;
-        padding-bottom: 25px; /* Bottom padding for progress bar */
+        padding-bottom: 22px;
+        box-sizing: border-box;
+        overflow: hidden;
 
         /* DECORATIVE BORDER AROUND THE WHOLE MODAL */
         border: 2px solid #3d2e1e; /* Dark wood-ish border */
@@ -190,32 +193,26 @@
         animation: fadeIn 0.8s ease-out;
       }
 
-      /* MASCOT */
-      .mascot-image {
-        position: absolute;
-        top: -65px; right: -75px;
-        height: 190px;
-        width: auto;
-        animation: float 4s ease-in-out infinite, slideInMascot 1s ease-out;
-        z-index: 20;
-        filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.7));
-      }
-
-      /* CENTER INFORMATION PANEL (NEWS/UPDATES) to fill the painting's "empty board" */
+      /* Live copy sits over the deliberately quiet section of the artwork. */
       .info-panel {
         position: absolute;
-        top: 48%; /* Moved down significantly to clear the logo */
+        top: 66%;
         left: 50%;
-        transform: translate(-50%, -50%); /* Center it exactly */
-        width: 44%; /* Slightly narrower */
-        height: 25%; /* Fixed height to prevent overflow */
+        transform: translate(-50%, -50%);
+        width: 54%;
+        min-height: 20%;
+        padding: 12px 18px;
+        box-sizing: border-box;
         
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
         text-align: center;
         
-        /* Subtle styling to blend */
-        color: #d4a76a; /* Parchment/Gold text */
+        color: #dbeeff;
+        background: rgba(4, 5, 14, 0.66);
+        border: 1px solid rgba(54, 220, 255, 0.35);
+        border-radius: 6px;
+        box-shadow: 0 0 24px rgba(223, 37, 255, 0.18);
         z-index: 5;
       }
 
@@ -223,7 +220,7 @@
         font-family: 'MedievalSharp', cursive;
         font-size: 24px;
         margin-bottom: 10px;
-        color: #ff9d00;
+        color: #ff55df;
         text-shadow: 0 2px 3px rgba(0,0,0,0.8);
       }
 
@@ -231,7 +228,7 @@
         font-family: 'Cinzel', serif;
         font-size: 14px;
         line-height: 1.6;
-        color: #ccc;
+        color: #e4e9f5;
         text-shadow: 0 1px 2px rgba(0,0,0,1);
       }
 
@@ -239,16 +236,16 @@
       .update-item {
         margin-top: 10px;
         font-size: 12px;
-        color: #88ccee;
+        color: #57e5ff;
       }
 
       /* PROGRESS AREA */
       .launcher-ui-layer {
-        width: 55%; /* Narrower to fit between the pillars of the art image */
+        width: 56%;
         display: flex; flex-direction: column;
         align-items: center;
         gap: 6px;
-        margin-bottom: 45px; /* Push up into the "floor" area of graphic */
+        margin-bottom: 18px;
         position: relative;
         z-index: 5;
       }
@@ -256,7 +253,7 @@
       .loading-label {
         font-family: 'Cinzel', serif;
         font-size: 14px;
-        color: #ffdb7a;
+        color: #62ecff;
         text-transform: uppercase;
         letter-spacing: 1px;
         text-shadow: 0 2px 4px rgba(0,0,0,0.9);
@@ -267,7 +264,7 @@
         width: 100%;
         height: 16px;
         background-color: rgba(10, 10, 10, 0.8);
-        border: 1px solid #5c4128;
+        border: 1px solid #35d9ff;
         border-radius: 3px;
         overflow: hidden;
         box-shadow: 0 0 10px rgba(0,0,0,0.5);
@@ -275,8 +272,8 @@
 
       .progress-bar {
         width: 0%; height: 100%;
-        background: linear-gradient(90deg, #b33904 0%, #f07e13 100%);
-        box-shadow: 0 0 15px rgba(240, 126, 19, 0.4);
+        background: linear-gradient(90deg, #20d8ff 0%, #d936ff 55%, #ffcf45 100%);
+        box-shadow: 0 0 15px rgba(55, 220, 255, 0.55);
         position: relative;
         transition: width 0.1s linear;
       }
@@ -296,14 +293,57 @@
         letter-spacing: 0.5px;
       }
 
-      @keyframes float {
-        0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-8px) rotate(2deg); }
-        100% { transform: translateY(0px) rotate(0deg); }
+      @media screen and (max-width: 768px) and (orientation: portrait) {
+        .loader-wrapper {
+          --party-zone-loader-art: url('./png/party-zone-loader-mobile.webp');
+        }
+
+        .loader-content {
+          width: min(94vw, calc(92dvh * 941 / 1672));
+          max-height: 92dvh;
+          aspect-ratio: 941 / 1672;
+          padding-bottom: 18px;
+        }
+
+        .info-panel {
+          top: 59%;
+          width: 78%;
+          min-height: 19%;
+          padding: 10px 12px;
+        }
+
+        .info-title {
+          font-size: clamp(16px, 4.6vw, 22px);
+          margin-bottom: 6px;
+        }
+
+        .info-text {
+          font-size: clamp(10px, 2.8vw, 13px);
+          line-height: 1.4;
+        }
+
+        .update-item {
+          margin-top: 6px;
+          font-size: clamp(9px, 2.5vw, 12px);
+        }
+
+        .launcher-ui-layer {
+          width: 76%;
+          margin-bottom: 0;
+          gap: 4px;
+        }
+
+        .loading-label {
+          font-size: clamp(11px, 3vw, 14px);
+        }
+
+        .progress-container {
+          height: 13px;
+        }
       }
+
       @keyframes moveStripe { 0% { background-position: 0 0; } 100% { background-position: 15px 15px; } }
       @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-      @keyframes slideInMascot { from { transform: translate(-10px, 10px); opacity: 0; } to { transform: translate(0, 0); opacity: 1; } }
     `;
 
     const style = document.createElement("style");
@@ -328,28 +368,23 @@
     let loader = createElement("div", "loader-wrapper", document.body);
     let content = createElement("div", "loader-content", loader);
 
-    // Mascot
-    let mascot = createElement("img", "mascot-image", content);
-    mascot.src = "./png/mascot-gravak.png";
-    mascot.onerror = () => mascot.style.display = "none";
-
     // --- INFO PANEL (Fills the black board in the middle) ---
     let infoPanel = createElement("div", "info-panel", content);
 
     let title = createElement("div", "info-title", infoPanel);
-    title.innerText = "Welcome to NarkoWar";
+    title.innerText = "Welcome to CYRK'S PARTY ZONE";
 
     let text = createElement("div", "info-text", infoPanel);
-    text.innerHTML = "Doing drugs is not just a game!";
+    text.innerHTML = "DJ Thomas & DJ Hubertuse are warming up the dance floor!";
 
     let update = createElement("div", "update-item", infoPanel);
-    update.innerText = "Latest Update: Added new blunts to the shop";
+    update.innerText = "Tonight: great music, Floor is Lava and Bomberman";
     // ---------------------------------------------------------
 
     // UI Layer (Progress bar)
     let uiLayer = createElement("div", "launcher-ui-layer", content);
     let label = createElement("div", "loading-label", uiLayer);
-    label.innerText = "Loading Assets...";
+    label.innerText = "Loading Party Zone...";
 
     let progressContainer = createElement("div", "progress-container", uiLayer);
     let progressBar = createElement("div", "progress-bar", progressContainer);
@@ -359,10 +394,10 @@
 
     // Random simple tips
     const tips = [
-      "Tip: Eat blunt to heal quickly.",
-      "Tip: Right click on yourself to open a drug menu.",
-      "Tip: Sniff a coke to get stronger.",
-      "Tip: Play and have fun."
+      "Tip: Use /radio to join the party music.",
+      "Tip: Stay off the hot tiles during Floor is Lava.",
+      "Tip: Place bombs with /bomb during Bomberman.",
+      "Tip: The bouncers control entry to the dance hall."
     ];
     // Rotate tip every few seconds? Or just show one randomized
     let randomTip = tips[Math.floor(Math.random() * tips.length)];
