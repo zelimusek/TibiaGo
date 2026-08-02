@@ -16,6 +16,7 @@ let addedThings = [];
 let deletedThings = [];
 let occupiedPositions = new Set();
 let players = new Map();
+let spotlightTargets = [];
 
 const positionKey = (position) => `${position.x}:${position.y}:${position.z}`;
 
@@ -76,6 +77,9 @@ const handler = {
   },
   getConnectedPlayers() {
     return players;
+  },
+  focusSpotlightsOnPlayer(player) {
+    spotlightTargets.push(player.name);
   },
   teleportCreature(player, position, options) {
     assert.strictEqual(options.ignoreBomberman, true);
@@ -262,6 +266,7 @@ try {
   assert.strictEqual(elimination.isRunning(), false);
   assert.strictEqual(bob.position.x, 32507);
   assert.ok(alice.messages.some((message) => /Alice wins Bomberman elimination/i.test(message)));
+  assert.deepStrictEqual(spotlightTargets, ["Alice"]);
 
   // Bomberman haste increases the normal haste bonus by exactly 50%.
   const speedSubject = {

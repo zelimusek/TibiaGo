@@ -1230,6 +1230,10 @@ BombermanEvent.prototype.__finishMayhem = function () {
   this.__state = null;
 
   if (winners.length === 1) {
+    let winner = this.__getConnectedPlayer(winners[0]);
+    if (winner !== null && typeof this.__creatureHandler.focusSpotlightsOnPlayer === "function") {
+      this.__creatureHandler.focusSpotlightsOnPlayer(winner);
+    }
     this.__broadcast(
       "%s wins Bomberman with %s point%s!"
         .format(winners[0], bestScore, bestScore === 1 ? "" : "s")
@@ -1284,6 +1288,10 @@ BombermanEvent.prototype.__finishElimination = function () {
   this.__state = null;
 
   if (survivors.length === 1) {
+    let winner = this.__getConnectedPlayer(survivors[0]);
+    if (winner !== null && typeof this.__creatureHandler.focusSpotlightsOnPlayer === "function") {
+      this.__creatureHandler.focusSpotlightsOnPlayer(winner);
+    }
     this.__broadcast("%s wins Bomberman elimination!".format(survivors[0]));
     if (typeof this.__creatureHandler.announceNpcYell === "function") {
       this.__creatureHandler.announceNpcYell(

@@ -56,6 +56,11 @@ const context = vm.createContext({
   },
   gameClient: {
     touch: null,
+    world: {
+      getCreature() {
+        return null;
+      },
+    },
     renderer: {
       debugger: { __nFrames: 1 },
       getStaticScreenPosition(position) {
@@ -165,6 +170,66 @@ lights.length = 0;
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 assert.strictEqual(lights[0][0], staticTargetX, "Static speed should keep spotlight targets still");
+
+const focusedPosition = new Position(32516, 32348, 7);
+context.gameClient.world.getCreature = function (id) {
+  return id === 777 ? { getPosition: () => focusedPosition } : null;
+};
+weather.setDiscoLights(true, false, 80, 100, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+}, {
+  targetId: 777,
+  targetPosition: { x: 32516, y: 32348, z: 7 },
+  durationMs: 8000,
+  flashDurationMs: 3000,
+  flashCount: 3,
+});
+lights.length = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+let focusedTargets = lights.filter((entry, index) => index % 2 === 0);
+assert.strictEqual(new Set(focusedTargets.map((entry) => entry[0] + ":" + entry[1])).size, 1, "all spotlights should converge on the winner");
+assert.ok(focusedTargets.every((entry) => entry[2] >= 155), "focused targets should use larger pools of light");
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the winner sequence should begin with an intense flash");
+
+now += 450;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, false, "the first flash should visibly switch off");
+
+focusedPosition.x++;
+now += 550;
+lights.length = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+focusedTargets = lights.filter((entry, index) => index % 2 === 0);
+assert.strictEqual(focusedTargets[0][0], (focusedPosition.x - 32508 + 0.5) * 32, "spotlights should follow a moving player");
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
+
+now += 2100;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "flashing should finish after three seconds");
+assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "steady winner lighting should remain until eight seconds");
+
+weather.setDiscoLights(true, false, 80, 100, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+}, {
+  targetId: 777,
+  targetPosition: { x: 32517, y: 32348, z: 7 },
+  elapsedMs: 3100,
+  durationMs: 8000,
+  flashDurationMs: 3000,
+  flashCount: 3,
+});
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "resyncing must not restart the three flashes");
+
+now += 5000;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().focusActive, false, "winner focus should end after eight seconds");
 
 weather.setDiscoLights(false, false, 80, 100, 120, 6, null);
 lights.length = 0;

@@ -14,6 +14,7 @@ let createdThings = [];
 let addedThings = [];
 let deletedThings = [];
 let players = new Map();
+let spotlightTargets = [];
 
 const positionKey = (position) => `${position.x}:${position.y}:${position.z}`;
 
@@ -68,6 +69,9 @@ const createPlayer = (name, position) => ({
 const handler = {
   getConnectedPlayers() {
     return players;
+  },
+  focusSpotlightsOnPlayer(player) {
+    spotlightTargets.push(player.name);
   },
   teleportCreature(player, position, options) {
     assert.strictEqual(options.ignoreFloorLava, true);
@@ -189,6 +193,7 @@ try {
     const player = createPlayer(`Runner ${index + 1}`, new Position(x, y, 7));
     players.set(player.name, player);
   }
+  const spotlightTargetsBeforeFullRound = spotlightTargets.length;
 
   const fullRound = new FloorLavaEvent(handler, {
     now: () => currentTime,
@@ -228,6 +233,11 @@ try {
 
   assert.strictEqual(fullRound.isRunning(), false);
   assert.ok(safetyCounter < 40, "A complete round should always resolve.");
+  assert.strictEqual(
+    spotlightTargets.length,
+    spotlightTargetsBeforeFullRound + 1,
+    "the Lava winner should receive the spotlight sequence"
+  );
 
   console.log(
     "PASS: Floor is Lava locks participants, eliminates on lava and uses the overflow audience."

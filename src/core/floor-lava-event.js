@@ -469,6 +469,9 @@ FloorLavaEvent.prototype.__finishIfResolved = function () {
     if (this.__creatureHandler.partyAchievements) {
       this.__creatureHandler.partyAchievements.recordLavaWin(winner);
     }
+    if (typeof this.__creatureHandler.focusSpotlightsOnPlayer === "function") {
+      this.__creatureHandler.focusSpotlightsOnPlayer(winner);
+    }
     gameServer.world.sendMagicEffect(winner.position, CONST.EFFECT.MAGIC.SOUND_WHITE);
   }
 

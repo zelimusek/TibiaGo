@@ -494,6 +494,27 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
 
 };
 
+CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
+  let targetName = message.slice(1).join(" ").trim();
+
+  if (!targetName) {
+    return player.sendCancelMessage("Usage: /spotlight Player Name or /spotlight off.");
+  }
+
+  if (targetName.toLowerCase() === "off") {
+    let stopped = gameServer.world.creatureHandler.clearSpotlightFocus();
+    return player.sendCancelMessage(stopped.message);
+  }
+
+  let found = this.findCreatureByName(targetName);
+  if (!found.target || typeof found.target.is !== "function" || !found.target.is("Player")) {
+    return player.sendCancelMessage("That player is not online.");
+  }
+
+  let result = gameServer.world.creatureHandler.focusSpotlightsOnPlayer(found.target);
+  return player.sendCancelMessage(result.message);
+};
+
 CommandHandler.prototype.handleCommandBomb = function (player) {
 
   let result = gameServer.world.creatureHandler.bomberman.placeBomb(player);
@@ -689,6 +710,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/bomber") {
     return this.handleCommandBomberman(player, message);
+  }
+
+  if (message[0] === "/spotlight") {
+    return this.handleCommandSpotlight(player, message);
   }
 
   if (message[0] === "/bouncers") {

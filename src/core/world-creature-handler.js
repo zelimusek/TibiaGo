@@ -26,6 +26,9 @@ const RADIO_EFFECT_STYLES = {
 };
 
 const PARTY_DANCE_FLOOR_CENTER = { x: 32515, y: 32346, z: 7 };
+const SPOTLIGHT_FOCUS_DURATION_MS = 8000;
+const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
+const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
 const PARTY_READABLE_POSITIONS = {
   "32517,32391,7": function (onlinePlayers, partyPlayers) {
     return "       Welcome to:\n"
@@ -87,6 +90,7 @@ const CreatureHandler = function () {
   // Browser radio zones
   this.__radioZones = this.__loadRadioZones();
   this.__radioEffectTicks = 0;
+  this.__spotlightFocus = null;
 
   // One short dance contest may run in the club at a time.
   this.__clubDance = null;
@@ -396,6 +400,77 @@ CreatureHandler.prototype.isInsidePartyRadioZone = function (position) {
   }, this);
 }
 
+CreatureHandler.prototype.__resyncRadioAmbience = function () {
+  this.__playerMap.forEach(function (player) {
+    let state = this.__getRadioZoneState(player.position);
+    player.__radioAmbienceKey = null;
+    this.__syncRadioAmbience(player, state ? state.zone : null);
+  }, this);
+}
+
+CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, durationMs) {
+  if (!player || typeof player.getId !== "function" || !player.position) {
+    return { ok: false, message: "That player is not online." };
+  }
+
+  if (!this.isInsidePartyRadioZone(player.position)) {
+    return { ok: false, message: "That player must be inside the dance hall." };
+  }
+
+  let now = Date.now();
+  let duration = Number.isInteger(durationMs) && durationMs > 0
+    ? durationMs
+    : SPOTLIGHT_FOCUS_DURATION_MS;
+  this.__spotlightFocus = {
+    targetId: player.getId(),
+    targetName: player.getProperty(CONST.PROPERTIES.NAME),
+    target: player,
+    startedAt: now,
+    endsAt: now + duration,
+    flashDurationMs: Math.min(SPOTLIGHT_FOCUS_FLASH_DURATION_MS, duration),
+    flashCount: SPOTLIGHT_FOCUS_FLASH_COUNT
+  };
+  this.__resyncRadioAmbience();
+
+  return {
+    ok: true,
+    message: "All spotlights are now following %s for %s seconds."
+      .format(this.__spotlightFocus.targetName, Math.ceil(duration / 1000))
+  };
+}
+
+CreatureHandler.prototype.clearSpotlightFocus = function () {
+  if (this.__spotlightFocus === null) {
+    return { ok: false, message: "The spotlights are not following anyone." };
+  }
+
+  this.__spotlightFocus = null;
+  this.__resyncRadioAmbience();
+  return { ok: true, message: "Spotlight focus stopped." };
+}
+
+CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
+  let focus = this.__spotlightFocus;
+  let now = Date.now();
+  if (!focus || focus.endsAt <= now || !focus.target || !focus.target.position) {
+    return null;
+  }
+
+  return {
+    targetId: focus.targetId,
+    targetName: focus.targetName,
+    targetPosition: {
+      x: focus.target.position.x,
+      y: focus.target.position.y,
+      z: focus.target.position.z
+    },
+    elapsedMs: Math.max(0, now - focus.startedAt),
+    durationMs: focus.endsAt - focus.startedAt,
+    flashDurationMs: focus.flashDurationMs,
+    flashCount: focus.flashCount
+  };
+}
+
 CreatureHandler.prototype.getReadableContent = function (item) {
 
   /*
@@ -449,11 +524,12 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
         : zone.discoCanvasEnabled === true,
       discoCanvasIntensity: Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
       spotlightSpeed: Number.isInteger(zone.spotlightSpeed) && zone.spotlightSpeed >= 0 && zone.spotlightSpeed <= 250 ? zone.spotlightSpeed : 100,
+      spotlightFocus: this.__getSpotlightFocusPayload(),
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser
@@ -879,6 +955,10 @@ CreatureHandler.prototype.tick = function () {
   }
 
   this.__tickClubDance();
+  if (this.__spotlightFocus && this.__spotlightFocus.endsAt <= Date.now()) {
+    this.__spotlightFocus = null;
+    this.__resyncRadioAmbience();
+  }
   this.partyAchievements.tick();
   this.floorLava.tick();
   this.bomberman.tick();
