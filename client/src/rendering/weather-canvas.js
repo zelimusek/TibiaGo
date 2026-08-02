@@ -19,7 +19,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
-  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null, focus: null };
+  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null, focus: null, laserShow: null };
   this.__discoLightFrame = null;
   this.__spotlightFocusVisual = null;
   this.__spotlightFocusTransition = null;
@@ -549,7 +549,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let now = performance.now();
   let show = disco.laserShow;
   let showElapsed = show ? show.elapsedMs + Math.max(0, now - show.receivedAt) : 0;
-  let showActive = show !== null && showElapsed < show.durationMs;
+  let showActive = show != null && showElapsed < show.durationMs;
   if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive) || !disco.center || disco.radius <= 0) {
     return null;
   }

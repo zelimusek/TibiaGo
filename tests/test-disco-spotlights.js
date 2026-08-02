@@ -123,6 +123,8 @@ const lightCanvas = {
   },
 };
 
+assert.strictEqual(weather.__getDiscoLightFrame(), null, "the renderer must stay safe before the first radio ambience packet arrives");
+
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515,
   y: 32346,
