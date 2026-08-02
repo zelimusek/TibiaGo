@@ -418,8 +418,9 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     [1.00, 0.55]
   ];
   let motionTime = now * disco.spotlightSpeed / 100;
-  let focusOrbitAngle = now / 2200;
-  let focusOrbitRadius = focusFlashing && focusFlashOn ? 8 : 14;
+  let focusBaseAngles = [-Math.PI * 0.5, 0, Math.PI, Math.PI * 0.5];
+  let focusSway = Math.sin(now / 1700) * 0.18;
+  let focusOrbitRadius = (focusFlashing && focusFlashOn ? 13 : 22) + Math.sin(now / 620) * 1.5;
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
@@ -430,7 +431,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
         center.z
     );
     let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
-    let orbitAngle = focusOrbitAngle + index * Math.PI * 0.5;
+    let orbitAngle = focusBaseAngles[index] + focusSway;
 
     return {
       color: color,
@@ -484,10 +485,13 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
   let strength = frame.intensity * frame.pulse * mobileScale;
 
   frame.lights.forEach(function(light) {
-    let beamEndWidth = (gameClient.touch && gameClient.touch.isMobileMode ? 30 : 42) + 20 * frame.intensity;
+    let mobile = gameClient.touch && gameClient.touch.isMobileMode;
+    let beamEndWidth = frame.focusActive
+      ? (mobile ? 18 : 24) + 8 * frame.intensity
+      : (mobile ? 30 : 42) + 20 * frame.intensity;
     let targetRadius = Math.min(250, Math.max(155, frame.radius * 28)) * mobileScale;
     if(frame.focusActive) {
-      targetRadius *= frame.focusFlashing && frame.focusFlashOn ? 0.92 : 0.78;
+      targetRadius = (mobile ? 62 : 76) * (frame.focusFlashing && frame.focusFlashOn ? 1.12 : 1);
     }
     let targetStrength = frame.focusActive
       ? Math.min(
@@ -506,7 +510,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
       4,
       beamEndWidth,
       light.color,
-      strength * 0.38,
+      strength * (frame.focusActive ? 0.24 : 0.38),
       frame.clip
     );
 
@@ -558,12 +562,15 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
     let perpendicularX = -dy / length;
     let perpendicularY = dx / length;
-    let endWidth = (mobile ? 34 : 48) + 24 * frame.intensity;
+    let endWidth = frame.focusActive
+      ? (mobile ? 20 : 26) + 8 * frame.intensity
+      : (mobile ? 34 : 48) + 24 * frame.intensity;
     let color = light.color;
+    let beamVisibility = frame.focusActive ? 0.58 : 1;
     let beam = context.createLinearGradient(light.fixtureX, light.fixtureY, light.targetX, light.targetY);
-    beam.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.035 * intensity));
-    beam.addColorStop(0.55, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.065 * intensity));
-    beam.addColorStop(1, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.16 * intensity));
+    beam.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.035 * intensity * beamVisibility));
+    beam.addColorStop(0.55, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.065 * intensity * beamVisibility));
+    beam.addColorStop(1, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.16 * intensity * beamVisibility));
 
     // A widening translucent cone makes the beam visible, particularly in
     // fog and pipe smoke, while the LightCanvas pool does the real lighting.
@@ -576,10 +583,10 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.fillStyle = beam;
     context.fill();
 
-    let haloRadius = (mobile ? 100 : 128) * (frame.focusActive ? 0.82 : 1);
+    let haloRadius = frame.focusActive ? (mobile ? 48 : 62) : (mobile ? 100 : 128);
     let halo = context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
     let haloAlpha = frame.focusActive
-      ? Math.min(0.55, 0.22 * intensity * frame.focusStrength)
+      ? Math.min(0.55, 0.28 * intensity * frame.focusStrength)
       : Math.min(0.92, 0.52 * intensity);
     halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], haloAlpha));
     halo.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
