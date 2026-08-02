@@ -11,6 +11,9 @@ let fills = 0;
 let strokes = 0;
 let roundedCaps = 0;
 let ellipseScales = 0;
+let currentLineStart = null;
+let currentLineLength = null;
+let strokeLengths = [];
 
 function gradient() {
   return { addColorStop() {} };
@@ -22,8 +25,10 @@ const drawingContext = {
   beginPath() {},
   rect() {},
   clip() {},
-  moveTo() {},
-  lineTo() {},
+  moveTo(x, y) { currentLineStart = { x, y }; },
+  lineTo(x, y) {
+    if (currentLineStart) currentLineLength = Math.hypot(x - currentLineStart.x, y - currentLineStart.y);
+  },
   quadraticCurveTo() { roundedCaps++; },
   translate() {},
   scale(x, y) {
@@ -31,7 +36,10 @@ const drawingContext = {
   },
   closePath() {},
   fill() { fills++; },
-  stroke() { strokes++; },
+  stroke() {
+    strokes++;
+    strokeLengths.push(currentLineLength);
+  },
   fillRect() { fills++; },
   createLinearGradient: gradient,
   createRadialGradient: gradient,
@@ -213,11 +221,13 @@ assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the winne
 roundedCaps = 0;
 ellipseScales = 0;
 strokes = 0;
+strokeLengths = [];
 weather.drawDiscoLights();
 assert.strictEqual(roundedCaps, 4, "each focused beam should end with a rounded cap");
 assert.strictEqual(ellipseScales, 4, "each focused target should render as a perspective ellipse");
 assert.strictEqual(strokes, 9, "the active laser fans should remain present when focus begins");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "lasers should begin from their current fan angles");
+assert.ok(strokeLengths.every((length) => length > 700), "laser beams should begin at their normal full-screen length");
 
 now += 650;
 context.gameClient.renderer.debugger.__nFrames++;
@@ -247,6 +257,11 @@ const initialBlueVector = {
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "lasers should complete their turn after 1.3 seconds");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 10, "lasers should converge closer during a winner flash");
+strokes = 0;
+strokeLengths = [];
+weather.drawDiscoLights();
+assert.strictEqual(strokeLengths.length, 9, "focused laser fans should retain all nine beams");
+assert.ok(strokeLengths.every((length) => length < 500), "focused lasers should stop around the winner instead of crossing the entire screen");
 
 now += 450;
 context.gameClient.renderer.debugger.__nFrames++;
