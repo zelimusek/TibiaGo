@@ -508,7 +508,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusAmount: laserFocusAmount,
     laserFocusCenterX: laserFocusCenter ? laserFocusCenter.x : null,
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
-    laserFocusRadius: focusFlashing ? (focusFlashOn ? 10 : 38) : 28,
+    laserFocusRadius: focusFlashing ? (focusFlashOn ? 10 : 38) : 40,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,
@@ -666,10 +666,12 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let focusedLaserRadius = frame.laserFocusRadius;
   let laserOrbitAngle = -Math.PI * 0.5 + frame.now * Math.PI * 2 / 3200;
   let laserBrightness = 1 + (frame.focusStrength - 1) * laserFocusAmount;
+  let laserAlpha = Math.min(1, 0.72 * frame.intensity * legacyPulse * laserBrightness);
+  let focusedEndpoints = [];
 
   context.save();
   context.globalCompositeOperation = "screen";
-  context.globalAlpha = Math.min(1, 0.72 * frame.intensity * legacyPulse * laserBrightness);
+  context.globalAlpha = laserAlpha;
   context.lineWidth = 3;
   legacyFixtures.forEach(function(fixture, index) {
     let color = legacyColors[index];
@@ -703,11 +705,29 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       );
       let angle = normalBeamAngle + angleDifference * laserFocusAmount;
       let visibleBeamLength = beamLength + (focusedBeamLength - beamLength) * laserFocusAmount;
+      let endpointX = x + Math.cos(angle) * visibleBeamLength;
+      let endpointY = y + Math.sin(angle) * visibleBeamLength;
       context.beginPath();
       context.moveTo(x, y);
-      context.lineTo(x + Math.cos(angle) * visibleBeamLength, y + Math.sin(angle) * visibleBeamLength);
+      context.lineTo(endpointX, endpointY);
       context.stroke();
+      if(laserFocusAmount > 0.01) {
+        focusedEndpoints.push({ x: endpointX, y: endpointY, color: color });
+      }
     }
+  });
+
+  context.globalAlpha = Math.min(1, laserAlpha * 1.45) * laserFocusAmount;
+  focusedEndpoints.forEach(function(endpoint) {
+    let color = endpoint.color;
+    let dot = context.createRadialGradient(endpoint.x, endpoint.y, 0, endpoint.x, endpoint.y, 4);
+    dot.addColorStop(0, "rgba(255, 255, 255, 1)");
+    dot.addColorStop(0.42, "rgba(%s, %s, %s, 1)".format(color[0], color[1], color[2]));
+    dot.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
+    context.fillStyle = dot;
+    context.beginPath();
+    context.arc(endpoint.x, endpoint.y, 4, 0, Math.PI * 2);
+    context.fill();
   });
   context.restore();
 

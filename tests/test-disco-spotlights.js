@@ -16,6 +16,8 @@ let currentLineLength = null;
 let currentLineEnd = null;
 let strokeLengths = [];
 let strokeEndpoints = [];
+let arcRadii = [];
+let arcCenters = [];
 
 function gradient() {
   return { addColorStop() {} };
@@ -33,6 +35,10 @@ const drawingContext = {
     if (currentLineStart) currentLineLength = Math.hypot(x - currentLineStart.x, y - currentLineStart.y);
   },
   quadraticCurveTo() { roundedCaps++; },
+  arc(x, y, radius) {
+    arcCenters.push({ x, y });
+    arcRadii.push(radius);
+  },
   translate() {},
   scale(x, y) {
     if (x === 1 && y === 0.68) ellipseScales++;
@@ -231,12 +237,15 @@ ellipseScales = 0;
 strokes = 0;
 strokeLengths = [];
 strokeEndpoints = [];
+arcRadii = [];
+arcCenters = [];
 weather.drawDiscoLights();
 assert.strictEqual(roundedCaps, 4, "each focused beam should end with a rounded cap");
 assert.strictEqual(ellipseScales, 4, "each focused target should render as a perspective ellipse");
 assert.strictEqual(strokes, 9, "the active laser fans should remain present when focus begins");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "lasers should begin from their current fan angles");
 assert.ok(strokeLengths.every((length) => length > 700), "laser beams should begin at their normal full-screen length");
+assert.strictEqual(arcRadii.length, 0, "normal full-length laser fans should not draw focused endpoint dots");
 
 now += 650;
 context.gameClient.renderer.debugger.__nFrames++;
@@ -269,6 +278,8 @@ assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 10, "lasers 
 strokes = 0;
 strokeLengths = [];
 strokeEndpoints = [];
+arcRadii = [];
+arcCenters = [];
 weather.drawDiscoLights();
 assert.strictEqual(strokeLengths.length, 9, "focused laser fans should retain all nine beams");
 assert.ok(strokeLengths.every((length) => length < 500), "focused lasers should stop around the winner instead of crossing the entire screen");
@@ -283,6 +294,14 @@ assert.ok(
     return distance >= 9.9 && distance <= 10.1;
   }),
   "the nine independent laser targets should form a ring around the winner"
+);
+assert.deepStrictEqual(Array.from(arcRadii), Array(9).fill(4), "each focused laser should end with a dot wider than its three-pixel beam");
+assert.ok(
+  arcCenters.every((center, index) =>
+    Math.abs(center.x - strokeEndpoints[index].x) < 0.01
+    && Math.abs(center.y - strokeEndpoints[index].y) < 0.01
+  ),
+  "each bright endpoint dot should be centered on its independently controlled laser"
 );
 
 now += 450;
@@ -382,7 +401,7 @@ assert.ok(weather.__getDiscoLightFrame().laserFocusAmount > 0 && weather.__getDi
 now += 650;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "switching to /spotlights should finish after 1.3 seconds");
-assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 28, "manual focus should use the steady rotating laser cage");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "manual focus should use a larger steady rotating laser ring");
 
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515,
