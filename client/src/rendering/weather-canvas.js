@@ -615,16 +615,12 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.beginPath();
     context.moveTo(light.fixtureX - perpendicularX * 3, light.fixtureY - perpendicularY * 3);
     context.lineTo(light.targetX - perpendicularX * endWidth, light.targetY - perpendicularY * endWidth);
-    if(frame.focusActive) {
-      context.quadraticCurveTo(
-        light.targetX + directionX * endWidth * 0.52,
-        light.targetY + directionY * endWidth * 0.52,
-        light.targetX + perpendicularX * endWidth,
-        light.targetY + perpendicularY * endWidth
-      );
-    } else {
-      context.lineTo(light.targetX + perpendicularX * endWidth, light.targetY + perpendicularY * endWidth);
-    }
+    context.quadraticCurveTo(
+      light.targetX + directionX * endWidth * 0.52,
+      light.targetY + directionY * endWidth * 0.52,
+      light.targetX + perpendicularX * endWidth,
+      light.targetY + perpendicularY * endWidth
+    );
     context.lineTo(light.fixtureX + perpendicularX * 3, light.fixtureY + perpendicularY * 3);
     context.closePath();
     context.fillStyle = beam;
@@ -632,25 +628,18 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
 
     let haloRadius = mobile ? 100 : 128;
     let haloAlpha = Math.min(0.92, 0.52 * intensity * frame.focusStrength);
-    let halo = frame.focusActive
-      ? context.createRadialGradient(0, 0, 0, 0, 0, haloRadius)
-      : context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
+    let halo = context.createRadialGradient(0, 0, 0, 0, 0, haloRadius);
     halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], haloAlpha));
     halo.addColorStop(0.38, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], haloAlpha * 0.58));
     halo.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
     context.globalAlpha = 1;
 
-    if(frame.focusActive) {
-      context.save();
-      context.translate(light.targetX, light.targetY);
-      context.scale(1, 0.68);
-      context.fillStyle = halo;
-      context.fillRect(-haloRadius, -haloRadius, haloRadius * 2, haloRadius * 2);
-      context.restore();
-    } else {
-      context.fillStyle = halo;
-      context.fillRect(light.targetX - haloRadius, light.targetY - haloRadius, haloRadius * 2, haloRadius * 2);
-    }
+    context.save();
+    context.translate(light.targetX, light.targetY);
+    context.scale(1, 0.68);
+    context.fillStyle = halo;
+    context.fillRect(-haloRadius, -haloRadius, haloRadius * 2, haloRadius * 2);
+    context.restore();
     });
 
     context.restore();

@@ -134,8 +134,12 @@ assert.strictEqual(
 assert.ok(lights.filter((entry) => entry[2] >= 120).length === 4, "spotlight targets should have broad pools of light");
 assert.ok(lights.every((entry) => entry[5] && entry[5].width > 0));
 
+roundedCaps = 0;
+ellipseScales = 0;
 weather.drawDiscoLights();
 assert.ok(fills >= 8, "each spotlight should draw a cone and target halo");
+assert.strictEqual(roundedCaps, 4, "ordinary spotlight beams should also end with rounded caps");
+assert.strictEqual(ellipseScales, 4, "ordinary spotlight targets should use the same perspective ellipses as focused lights");
 assert.strictEqual(strokes, 9, "new spotlights have no laser cores; three original three-ray lasers expected");
 
 const firstTargetX = lights[0][0];
