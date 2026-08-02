@@ -434,14 +434,24 @@ button.symbol-button {
 }
 
 .party-achievements-modal {
-  width: min(620px, calc(100vw - 24px));
-  max-height: min(640px, calc(100vh - 36px));
+  box-sizing: border-box;
+  width: min(500px, calc(100% - 24px));
+  height: min(400px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow: hidden;
 }
 
-.party-achievements-modal .modal-body { overflow: hidden; }
+.party-achievements-modal .modal-body {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 22px);
+  min-height: 0;
+  overflow: hidden;
+}
 .achievements-summary { color: #ffd34d; font-weight: 700; margin-bottom: 8px; text-align: center; }
-.achievements-list { max-height: min(500px, calc(100vh - 170px)); overflow-y: auto; display: grid; gap: 6px; }
-.achievement-row { display: flex; width: 100%; gap: 10px; padding: 9px; text-align: left; background: rgba(8, 8, 12, .88); border: 1px solid #555; color: #ddd; cursor: pointer; }
+.achievements-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: grid; align-content: start; gap: 6px; }
+.achievement-row { box-sizing: border-box; display: flex; width: 100%; gap: 10px; margin: 0; padding: 7px; text-align: left; background: rgba(8, 8, 12, .88); border: 1px solid #555; color: #ddd; cursor: pointer; }
 .achievement-row.locked { opacity: .55; cursor: default; }
 .achievement-row.active { box-shadow: 0 0 10px currentColor; border-color: currentColor; }
 .achievement-row strong, .achievement-row span { display: block; }
@@ -488,7 +498,7 @@ button.symbol-button {
 }
 
 @media (max-width: 700px) {
-  .party-achievements-modal { width: calc(100vw - 14px); max-height: calc(100vh - 20px); }
+  .party-achievements-modal { width: calc(100% - 14px); height: min(400px, calc(100% - 14px)); max-height: calc(100% - 14px); }
   .party-achievement-toast { top: 8%; padding: 13px; }
   .party-achievement-name { font-size: 18px; }
 }

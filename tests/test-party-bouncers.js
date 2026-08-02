@@ -16,8 +16,14 @@ let faced = [];
 const makeNPC = function (name) {
   return {
     name,
+    direction: CONST.DIRECTION.SOUTH,
     isPlayer: () => false,
-    getProperty: () => name,
+    getProperty(property) {
+      return property === CONST.PROPERTIES.NAME ? name : this.direction;
+    },
+    setDirection(direction) {
+      this.direction = direction;
+    },
     faceCreature(player) {
       faced.push({ name, player });
     },
@@ -194,6 +200,15 @@ partyPlayerCount = 20;
 openEvent.__active = { player: queued, stage: "grant_pending" };
 openEvent.__grant();
 assert.match(spoken.at(-1).message, /20 osób.*pełną parą/);
+
+players.clear();
+openEvent.__queue = [];
+openEvent.__active = null;
+creatures.forEach(npc => { npc.direction = CONST.DIRECTION.EAST; });
+openEvent.tick();
+creatures.forEach(npc => {
+  assert.strictEqual(npc.direction, CONST.DIRECTION.SOUTH, "idle bouncers must face south");
+});
 
 for (let version of [740, 760]) {
   let definitions = require("../data/" + version + "/npcs/definitions.json");

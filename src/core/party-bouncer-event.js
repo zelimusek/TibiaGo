@@ -365,6 +365,22 @@ PartyBouncerEvent.prototype.__findNPC = function (name) {
   return result;
 };
 
+PartyBouncerEvent.prototype.__faceBouncersSouth = function () {
+  Object.keys(BOUNCER_CONFIG.npcNames).forEach(function (which) {
+    let npc = this.__findNPC(BOUNCER_CONFIG.npcNames[which]);
+    if (!npc || typeof npc.setDirection !== "function") return;
+    if (typeof npc.getProperty !== "function"
+      || npc.getProperty(CONST.PROPERTIES.DIRECTION) !== CONST.DIRECTION.SOUTH) {
+      npc.setDirection(CONST.DIRECTION.SOUTH);
+    }
+  }, this);
+};
+
+PartyBouncerEvent.prototype.__clearActive = function () {
+  this.__active = null;
+  this.__faceBouncersSouth();
+};
+
 PartyBouncerEvent.prototype.__say = function (which, player, message) {
   let npc = this.__findNPC(BOUNCER_CONFIG.npcNames[which]);
   if (npc && npc.speechHandler && typeof npc.speechHandler.privateSay === "function") {
@@ -596,6 +612,7 @@ PartyBouncerEvent.prototype.__grant = function () {
   this.__say("second", active.player, this.__getAttendanceMessage(active.player));
   active.stage = "authorized";
   active.expiresAt = this.__now() + BOUNCER_CONFIG.accessTimeoutMs;
+  active.faceSouthAt = this.__now() + BOUNCER_CONFIG.dialogueDelayMs;
 };
 
 PartyBouncerEvent.prototype.__failToBack = function (firstMessage) {
@@ -607,7 +624,7 @@ PartyBouncerEvent.prototype.__failToBack = function (firstMessage) {
 PartyBouncerEvent.prototype.__finishFailure = function () {
   let player = this.__active.player;
   this.__say("second", player, this.__getText(player).failedSecond);
-  this.__active = null;
+  this.__clearActive();
   this.__cooldowns.set(player, this.__now() + BOUNCER_CONFIG.requeueCooldownMs);
 
   let index = this.__queue.indexOf(player);
@@ -728,7 +745,7 @@ PartyBouncerEvent.prototype.handlePlayerMoved = function (player) {
 
   if (this.__active.stage === "authorized" && player.position.y < BOUNCER_CONFIG.gate.from.y) {
     this.__queue = this.__queue.filter(entry => entry !== player);
-    this.__active = null;
+    this.__clearActive();
     this.__cooldowns.set(player, this.__now() + BOUNCER_CONFIG.requeueCooldownMs);
     return;
   }
@@ -737,7 +754,7 @@ PartyBouncerEvent.prototype.handlePlayerMoved = function (player) {
     && !this.__isGatePosition(player.position)
     && !this.__isEntranceApproachPosition(player.position)) {
     this.__queue = this.__queue.filter(entry => entry !== player);
-    this.__active = null;
+    this.__clearActive();
     this.__cooldowns.set(player, this.__now() + BOUNCER_CONFIG.requeueCooldownMs);
   }
 };
@@ -745,18 +762,24 @@ PartyBouncerEvent.prototype.handlePlayerMoved = function (player) {
 PartyBouncerEvent.prototype.tick = function () {
   this.__refreshQueue();
   if (this.__active && !this.__isPlayerConnected(this.__active.player)) {
-    this.__active = null;
+    this.__clearActive();
   }
   this.__compactQueue();
   this.__startNext();
 
   let active = this.__active;
   if (!active) {
+    this.__faceBouncersSouth();
     return;
   }
 
   let now = this.__now();
   let text = this.__getText(active.player);
+
+  if (active.stage === "authorized" && active.faceSouthAt && now >= active.faceSouthAt) {
+    this.__faceBouncersSouth();
+    active.faceSouthAt = 0;
+  }
 
   if (["await_answer", "await_password", "await_spin"].includes(active.stage) && now >= active.expiresAt) {
     return this.__failToBack(text.timeout);
@@ -774,7 +797,7 @@ PartyBouncerEvent.prototype.tick = function () {
   switch (active.stage) {
     case "closed_pending":
       this.__say("second", active.player, text.closedSecond);
-      this.__active = null;
+      this.__clearActive();
       this.__queue = this.__queue.filter(player => player !== active.player);
       this.__mustLeaveQueue.add(active.player);
       break;
