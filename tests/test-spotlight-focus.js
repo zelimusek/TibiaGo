@@ -50,6 +50,7 @@ try {
   assert.strictEqual(handler.__spotlightFocus.endsAt, null);
   assert.strictEqual(handler.__spotlightFocus.flashDurationMs, 0);
   assert.strictEqual(handler.__spotlightFocus.flashCount, 0);
+  assert.strictEqual(handler.__spotlightFocus.includeLasers, false);
   assert.strictEqual(resyncs, 1);
   assert.ok(/following Party Hero until \/spotlight off/i.test(messages.at(-1)));
 
@@ -64,17 +65,19 @@ try {
   assert.strictEqual(handler.__spotlightFocus, null);
   assert.strictEqual(resyncs, 2);
 
-  commands.handle(gm, "/spotlight Party Hero 10");
+  commands.handle(gm, "/spotlights Party Hero 10");
   assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 10000);
   assert.strictEqual(handler.__spotlightFocus.flashCount, 0);
-  assert.ok(/following Party Hero for 10 seconds/i.test(messages.at(-1)));
-  commands.handle(gm, "/spotlight off");
+  assert.strictEqual(handler.__spotlightFocus.includeLasers, true);
+  assert.ok(/spotlights and lasers are now following Party Hero for 10 seconds/i.test(messages.at(-1)));
+  commands.handle(gm, "/spotlights off");
 
   const celebration = handler.celebratePartyWinner(target);
   assert.strictEqual(celebration.ok, true);
   assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 8000);
   assert.strictEqual(handler.__spotlightFocus.flashDurationMs, 3000);
   assert.strictEqual(handler.__spotlightFocus.flashCount, 3);
+  assert.strictEqual(handler.__spotlightFocus.includeLasers, true);
   handler.clearSpotlightFocus();
 
   handler.isInsidePartyRadioZone = () => false;

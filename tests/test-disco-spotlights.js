@@ -196,6 +196,7 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   durationMs: 8000,
   flashDurationMs: 3000,
   flashCount: 3,
+  includeLasers: true,
 });
 lights.length = 0;
 context.gameClient.renderer.debugger.__nFrames++;
@@ -290,6 +291,7 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   durationMs: 8000,
   flashDurationMs: 3000,
   flashCount: 3,
+  includeLasers: true,
 });
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "resyncing must not restart the three flashes");
@@ -309,13 +311,40 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   durationMs: null,
   flashDurationMs: 0,
   flashCount: 0,
+  includeLasers: false,
 });
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "manual focus should work until explicitly disabled");
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "manual focus must never use winner flashes");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "/spotlight should begin by smoothly releasing previously focused lasers");
+now += 1300;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "/spotlight should leave the laser fans in their normal mode");
 now += 60000;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "persistent manual focus should not expire");
+
+weather.setDiscoLights(true, true, 80, 100, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+}, {
+  targetId: 777,
+  targetPosition: { x: 32517, y: 32348, z: 7 },
+  persistent: true,
+  durationMs: null,
+  flashDurationMs: 0,
+  flashCount: 0,
+  includeLasers: true,
+});
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "/spotlights should begin from the current normal laser fans");
+now += 650;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.ok(weather.__getDiscoLightFrame().laserFocusAmount > 0 && weather.__getDiscoLightFrame().laserFocusAmount < 1, "switching to /spotlights should turn the lasers smoothly");
+now += 650;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "switching to /spotlights should finish after 1.3 seconds");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 28, "manual focus should use the steady rotating laser cage");
 
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
@@ -340,6 +369,7 @@ weather.setDiscoLights(false, false, 80, 100, 120, 6, {
   durationMs: null,
   flashDurationMs: 0,
   flashCount: 0,
+  includeLasers: true,
 });
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame(), null, "focus must not create replacement spotlights when the venue spotlights are disabled");

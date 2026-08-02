@@ -423,6 +423,7 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
     ? options.durationMs
     : null;
   let flashing = options.flashing === true && duration !== null;
+  let includeLasers = options.includeLasers === true;
   this.__spotlightFocus = {
     targetId: player.getId(),
     targetName: player.getProperty(CONST.PROPERTIES.NAME),
@@ -430,16 +431,21 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
     startedAt: now,
     endsAt: duration === null ? null : now + duration,
     flashDurationMs: flashing ? Math.min(SPOTLIGHT_FOCUS_FLASH_DURATION_MS, duration) : 0,
-    flashCount: flashing ? SPOTLIGHT_FOCUS_FLASH_COUNT : 0
+    flashCount: flashing ? SPOTLIGHT_FOCUS_FLASH_COUNT : 0,
+    includeLasers: includeLasers
   };
   this.__resyncRadioAmbience();
 
   return {
     ok: true,
     message: duration === null
-      ? "All spotlights are now following %s until /spotlight off."
+      ? (includeLasers
+        ? "All spotlights and lasers are now following %s until /spotlights off."
+        : "All spotlights are now following %s until /spotlight off.")
         .format(this.__spotlightFocus.targetName)
-      : "All spotlights are now following %s for %s seconds."
+      : (includeLasers
+        ? "All spotlights and lasers are now following %s for %s seconds."
+        : "All spotlights are now following %s for %s seconds.")
         .format(this.__spotlightFocus.targetName, Math.ceil(duration / 1000))
   };
 }
@@ -447,7 +453,8 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
 CreatureHandler.prototype.celebratePartyWinner = function (player) {
   return this.focusSpotlightsOnPlayer(player, {
     durationMs: SPOTLIGHT_FOCUS_DURATION_MS,
-    flashing: true
+    flashing: true,
+    includeLasers: true
   });
 }
 
@@ -480,7 +487,8 @@ CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
     persistent: focus.endsAt === null,
     durationMs: focus.endsAt === null ? null : focus.endsAt - focus.startedAt,
     flashDurationMs: focus.flashDurationMs,
-    flashCount: focus.flashCount
+    flashCount: focus.flashCount,
+    includeLasers: focus.includeLasers === true
   };
 }
 

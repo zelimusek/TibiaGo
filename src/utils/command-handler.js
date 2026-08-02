@@ -495,11 +495,13 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
 };
 
 CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
+  let command = message[0] === "/spotlights" ? "/spotlights" : "/spotlight";
+  let includeLasers = command === "/spotlights";
   let argumentsList = message.slice(1).filter(function (entry) { return entry.length > 0; });
   let targetName = argumentsList.join(" ").trim();
 
   if (!targetName) {
-    return player.sendCancelMessage("Usage: /spotlight Player Name [seconds] or /spotlight off.");
+    return player.sendCancelMessage("Usage: %s Player Name [seconds] or %s off.".format(command, command));
   }
 
   if (targetName.toLowerCase() === "off") {
@@ -526,7 +528,8 @@ CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
 
   let result = gameServer.world.creatureHandler.focusSpotlightsOnPlayer(found.target, {
     durationMs: durationMs,
-    flashing: false
+    flashing: false,
+    includeLasers: includeLasers
   });
   return player.sendCancelMessage(result.message);
 };
@@ -728,7 +731,7 @@ CommandHandler.prototype.handle = function (player, message) {
     return this.handleCommandBomberman(player, message);
   }
 
-  if (message[0] === "/spotlight") {
+  if (message[0] === "/spotlight" || message[0] === "/spotlights") {
     return this.handleCommandSpotlight(player, message);
   }
 

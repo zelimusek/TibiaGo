@@ -314,11 +314,14 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   let previousFocus = this.__discoLights.focus;
   let previousTargetId = previousFocus ? previousFocus.targetId : null;
   let nextTargetId = validFocus ? focus.targetId : null;
+  let previousLaserFocus = previousFocus !== null && previousFocus.includeLasers === true;
+  let nextLaserFocus = validFocus === true && focus.includeLasers === true;
 
-  if(previousTargetId !== nextTargetId && this.__discoLightFrame && this.__discoLightFrame.lights) {
+  if((previousTargetId !== nextTargetId || previousLaserFocus !== nextLaserFocus) && this.__discoLightFrame && this.__discoLightFrame.lights) {
     this.__spotlightFocusTransition = {
       startedAt: performance.now(),
-      leaving: previousTargetId !== null && nextTargetId === null,
+      laserStartAmount: previousLaserFocus ? 1 : 0,
+      laserEndAmount: nextLaserFocus ? 1 : 0,
       focusCenter: this.__spotlightFocusVisual
         ? { x: this.__spotlightFocusVisual.x, y: this.__spotlightFocusVisual.y }
         : null,
@@ -348,6 +351,7 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
       durationMs: focus.persistent === true ? null : focus.durationMs,
       flashDurationMs: Math.max(0, Number(focus.flashDurationMs) || 0),
       flashCount: Math.max(0, Number(focus.flashCount) || 0),
+      includeLasers: focus.includeLasers === true,
       receivedAt: performance.now()
     } : null
   };
@@ -440,9 +444,16 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     : 1;
   let transitionEase = 1 - Math.pow(1 - transitionProgress, 3);
   let laserFocusAmount = focusTransition
-    ? (focusTransition.leaving ? 1 - transitionEase : transitionEase)
-    : (focusActive ? 1 : 0);
+    ? focusTransition.laserStartAmount
+      + (focusTransition.laserEndAmount - focusTransition.laserStartAmount) * transitionEase
+    : (focusActive && focus.includeLasers ? 1 : 0);
   let laserFocusCenter = focusScreen || (focusTransition ? focusTransition.focusCenter : null);
+  if(focusTransition && focusTransition.focusCenter && focusScreen) {
+    laserFocusCenter = {
+      x: focusTransition.focusCenter.x + (focusScreen.x - focusTransition.focusCenter.x) * transitionEase,
+      y: focusTransition.focusCenter.y + (focusScreen.y - focusTransition.focusCenter.y) * transitionEase
+    };
+  }
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
