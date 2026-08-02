@@ -11,12 +11,16 @@ const CommandHandler = requireModule("utils/command-handler");
 
 let now = 1000;
 let spoken = [];
+let faced = [];
 
 const makeNPC = function (name) {
   return {
     name,
     isPlayer: () => false,
     getProperty: () => name,
+    faceCreature(player) {
+      faced.push({ name, player });
+    },
     speechHandler: {
       privateSay(player, message) {
         spoken.push({ name, player, message });
@@ -94,6 +98,8 @@ event.__active = {
 assert.strictEqual(event.handleSpeech(polish, "OCZYWISCIE!!!"), true);
 assert.strictEqual(event.__active.stage, "grant_pending");
 assert.match(spoken.at(-1).message, /odpowiedź|zgadza|zaliczona/i);
+assert.strictEqual(faced.at(-1).player, polish, "the speaking bouncer must face the active player");
+assert.strictEqual(faced.at(-1).name, "Różal");
 
 let mobile = makePlayer("PL", true);
 event.__active = { player: mobile, stage: "starting", attempts: 0, spinDirections: new Set() };
@@ -166,6 +172,8 @@ openEvent.tick();
 assert.strictEqual(openEvent.__active.stage, "authorized");
 assert.strictEqual(spoken.at(-1).name, "Pudzian");
 assert.match(spoken.at(-1).message, /wchodź|możesz/i);
+assert.strictEqual(faced.at(-1).player, queued);
+assert.strictEqual(faced.at(-1).name, "Pudzian", "the second bouncer must also face the admitted player");
 
 partyPlayerCount = 1;
 openEvent.__active = { player: queued, stage: "grant_pending" };

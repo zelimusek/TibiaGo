@@ -368,6 +368,11 @@ PartyBouncerEvent.prototype.__findNPC = function (name) {
 PartyBouncerEvent.prototype.__say = function (which, player, message) {
   let npc = this.__findNPC(BOUNCER_CONFIG.npcNames[which]);
   if (npc && npc.speechHandler && typeof npc.speechHandler.privateSay === "function") {
+    // Face the guest before sending the speech packet so every observer sees
+    // the bouncer address the person who is currently being checked.
+    if (player && typeof npc.faceCreature === "function") {
+      npc.faceCreature(player);
+    }
     npc.speechHandler.privateSay(player, message, CONST.COLOR.LIGHTBLUE);
     return;
   }

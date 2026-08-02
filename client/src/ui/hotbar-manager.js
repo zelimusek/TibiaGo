@@ -391,7 +391,7 @@ HotbarManager.prototype.__findItemObject = function (itemId) {
 HotbarManager.prototype.__getItemModeLabel = function (mode) {
 
   switch (mode) {
-    case "self": return "Use on self";
+    case "self": return "Use / Use on self";
     case "target": return "Use on target";
     case "crosshair": return "Use with crosshair";
     case "equip-ring": return "Move to ring slot";
@@ -438,8 +438,16 @@ HotbarManager.prototype.__useItemSlot = function (slot) {
   }
 
   switch (slot.item.mode) {
-    case "self":
+    case "self": {
+      let item = itemObject.which.peekItem(itemObject.index);
+      // A single convenient hotkey mode covers both classic direct-use
+      // objects (food, switches, water-pipes) and targetable objects such as
+      // runes and fluids. Existing saved "self" slots inherit this behavior.
+      if(item === null || typeof item.isMultiUse !== "function" || !item.isMultiUse()) {
+        return gameClient.send(new ItemUsePacket(itemObject));
+      }
       return gameClient.send(new ItemUseOnCreaturePacket(itemObject, gameClient.player.id));
+    }
     case "target":
       if (!gameClient.player.hasTarget()) {
         return gameClient.interface.setCancelMessage("You have no target.");

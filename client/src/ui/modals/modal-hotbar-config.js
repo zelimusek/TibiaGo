@@ -126,7 +126,7 @@ HotbarConfigModal.prototype.__renderItemModes = function (item) {
   title.innerHTML = "Select use mode:";
   this.__content.appendChild(title);
 
-  this.__addModeButton(item, "Use on Self", "self");
+  this.__addModeButton(item, "Use / Use on Self", "self");
   this.__addModeButton(item, "Use on Target", "target");
   this.__addModeButton(item, "Use on Crosshair", "crosshair");
 
