@@ -559,6 +559,8 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let dx = light.targetX - light.fixtureX;
     let dy = light.targetY - light.fixtureY;
     let length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    let directionX = dx / length;
+    let directionY = dy / length;
     let perpendicularX = -dy / length;
     let perpendicularY = dx / length;
     let endWidth = frame.focusActive
@@ -576,22 +578,44 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.beginPath();
     context.moveTo(light.fixtureX - perpendicularX * 3, light.fixtureY - perpendicularY * 3);
     context.lineTo(light.targetX - perpendicularX * endWidth, light.targetY - perpendicularY * endWidth);
-    context.lineTo(light.targetX + perpendicularX * endWidth, light.targetY + perpendicularY * endWidth);
+    if(frame.focusActive) {
+      context.quadraticCurveTo(
+        light.targetX + directionX * endWidth * 0.52,
+        light.targetY + directionY * endWidth * 0.52,
+        light.targetX + perpendicularX * endWidth,
+        light.targetY + perpendicularY * endWidth
+      );
+    } else {
+      context.lineTo(light.targetX + perpendicularX * endWidth, light.targetY + perpendicularY * endWidth);
+    }
     context.lineTo(light.fixtureX + perpendicularX * 3, light.fixtureY + perpendicularY * 3);
     context.closePath();
     context.fillStyle = beam;
     context.fill();
 
     let haloRadius = frame.focusActive ? (mobile ? 48 : 62) : (mobile ? 100 : 128);
-    let halo = context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
     let haloAlpha = frame.focusActive
       ? Math.min(0.55, 0.28 * intensity * frame.focusStrength)
       : Math.min(0.92, 0.52 * intensity);
+    let halo = frame.focusActive
+      ? context.createRadialGradient(0, 0, 0, 0, 0, haloRadius)
+      : context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
     halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], haloAlpha));
+    halo.addColorStop(0.38, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], haloAlpha * 0.58));
     halo.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
     context.globalAlpha = 1;
-    context.fillStyle = halo;
-    context.fillRect(light.targetX - haloRadius, light.targetY - haloRadius, haloRadius * 2, haloRadius * 2);
+
+    if(frame.focusActive) {
+      context.save();
+      context.translate(light.targetX, light.targetY);
+      context.scale(1, 0.68);
+      context.fillStyle = halo;
+      context.fillRect(-haloRadius, -haloRadius, haloRadius * 2, haloRadius * 2);
+      context.restore();
+    } else {
+      context.fillStyle = halo;
+      context.fillRect(light.targetX - haloRadius, light.targetY - haloRadius, haloRadius * 2, haloRadius * 2);
+    }
     });
 
     context.restore();

@@ -9,6 +9,8 @@ const root = path.join(__dirname, "..");
 let now = 10000;
 let fills = 0;
 let strokes = 0;
+let roundedCaps = 0;
+let ellipseScales = 0;
 
 function gradient() {
   return { addColorStop() {} };
@@ -22,6 +24,11 @@ const drawingContext = {
   clip() {},
   moveTo() {},
   lineTo() {},
+  quadraticCurveTo() { roundedCaps++; },
+  translate() {},
+  scale(x, y) {
+    if (x === 1 && y === 0.68) ellipseScales++;
+  },
   closePath() {},
   fill() { fills++; },
   stroke() { strokes++; },
@@ -201,6 +208,11 @@ const initialBlueVector = {
   y: focusedTargets[0][1] - initialFocusCenterY,
 };
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the winner sequence should begin with an intense flash");
+roundedCaps = 0;
+ellipseScales = 0;
+weather.drawDiscoLights();
+assert.strictEqual(roundedCaps, 4, "each focused beam should end with a rounded cap");
+assert.strictEqual(ellipseScales, 4, "each focused target should render as a perspective ellipse");
 
 now += 450;
 context.gameClient.renderer.debugger.__nFrames++;
