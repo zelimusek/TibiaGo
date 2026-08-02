@@ -177,6 +177,10 @@ lights.length = 0;
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 assert.strictEqual(lights[0][0], staticTargetX, "Static speed should keep spotlight targets still");
+const preFocusTargets = weather.__getDiscoLightFrame().lights.map((light) => ({
+  x: light.targetX,
+  y: light.targetY,
+}));
 
 const focusedPosition = new Position(32516, 32348, 7);
 context.gameClient.world.getCreature = function (id) {
@@ -199,20 +203,42 @@ weather.renderDiscoIllumination(lightCanvas);
 let focusedTargets = lights.filter((entry, index) => index % 2 === 0);
 const initialFocusCenterX = (focusedPosition.x - 32508 + 0.5) * 32;
 const initialFocusCenterY = (focusedPosition.y - 32335 + 0.5) * 32;
-const initialOrbitDistances = focusedTargets.map((entry) => Math.hypot(entry[0] - initialFocusCenterX, entry[1] - initialFocusCenterY));
-assert.strictEqual(new Set(focusedTargets.map((entry) => entry[0] + ":" + entry[1])).size, 4, "focused spotlights should keep four separate colored targets");
-assert.ok(initialOrbitDistances.every((distance) => distance >= 21 && distance <= 23), "focused colors should keep a constant circular radius during winner flashes");
-assert.ok(focusedTargets.every((entry) => entry[2] >= 60 && entry[2] <= 90), "focused targets should use compact colored pools");
-const initialBlueVector = {
-  x: focusedTargets[0][0] - initialFocusCenterX,
-  y: focusedTargets[0][1] - initialFocusCenterY,
-};
+assert.ok(focusedTargets.every((entry, index) =>
+  Math.abs(entry[0] - preFocusTargets[index].x) < 0.01
+  && Math.abs(entry[1] - preFocusTargets[index].y) < 0.01
+), "focus should begin from the spotlights' current dance-floor targets");
+assert.ok(focusedTargets.every((entry) => entry[2] >= 120), "focused targets should retain the full-sized spotlight pools");
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the winner sequence should begin with an intense flash");
 roundedCaps = 0;
 ellipseScales = 0;
 weather.drawDiscoLights();
 assert.strictEqual(roundedCaps, 4, "each focused beam should end with a rounded cap");
 assert.strictEqual(ellipseScales, 4, "each focused target should render as a perspective ellipse");
+
+now += 450;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.ok(
+  weather.__getDiscoLightFrame().lights.some((light, index) =>
+    Math.abs(light.targetX - preFocusTargets[index].x) > 1
+    || Math.abs(light.targetY - preFocusTargets[index].y) > 1
+  ),
+  "the existing spotlights should visibly travel toward the focused player"
+);
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, false, "the first flash should visibly switch off");
+
+now += 550;
+lights.length = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+focusedTargets = lights.filter((entry, index) => index % 2 === 0);
+const initialOrbitDistances = focusedTargets.map((entry) => Math.hypot(entry[0] - initialFocusCenterX, entry[1] - initialFocusCenterY));
+assert.strictEqual(new Set(focusedTargets.map((entry) => entry[0] + ":" + entry[1])).size, 4, "focused spotlights should keep four separate colored targets");
+assert.ok(initialOrbitDistances.every((distance) => distance >= 21 && distance <= 23), "focused colors should settle into a constant circular orbit");
+const initialBlueVector = {
+  x: focusedTargets[0][0] - initialFocusCenterX,
+  y: focusedTargets[0][1] - initialFocusCenterY,
+};
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
 
 now += 450;
 context.gameClient.renderer.debugger.__nFrames++;
@@ -225,7 +251,6 @@ assert.ok(
   initialBlueVector.x * rotatedBlueVector.y - initialBlueVector.y * rotatedBlueVector.x > 0,
   "focused colors should travel clockwise around the player"
 );
-assert.strictEqual(rotatedFrame.focusFlashOn, false, "the first flash should visibly switch off");
 
 focusedPosition.x++;
 now += 550;
@@ -240,9 +265,9 @@ assert.ok(
   followedCenterX > previousFocusedX && followedCenterX < desiredFocusedX,
   "spotlights should glide toward a moving player instead of snapping to the next tile"
 );
-assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the third one-second flash should switch on");
 
-now += 2100;
+now += 1100;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "flashing should finish after three seconds");
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "steady winner lighting should remain until eight seconds");
@@ -266,7 +291,7 @@ now += 5000;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, false, "winner focus should end after eight seconds");
 
-weather.setDiscoLights(false, false, 80, 100, 120, 6, {
+weather.setDiscoLights(true, false, 80, 100, 120, 6, {
   x: 32515,
   y: 32346,
   z: 7,
@@ -284,6 +309,21 @@ assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "manual 
 now += 60000;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "persistent manual focus should not expire");
+
+weather.setDiscoLights(false, false, 80, 100, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+}, {
+  targetId: 777,
+  targetPosition: { x: 32517, y: 32348, z: 7 },
+  persistent: true,
+  durationMs: null,
+  flashDurationMs: 0,
+  flashCount: 0,
+});
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame(), null, "focus must not create replacement spotlights when the venue spotlights are disabled");
 
 weather.setDiscoLights(false, false, 80, 100, 120, 6, null);
 lights.length = 0;

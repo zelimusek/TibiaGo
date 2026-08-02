@@ -22,6 +22,7 @@ const WeatherCanvas = function(screen) {
   this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null, focus: null };
   this.__discoLightFrame = null;
   this.__spotlightFocusVisual = null;
+  this.__spotlightFocusTransition = null;
   this.__pipeSmokeClouds = new Map();
   this.__intoxication = null;
   this.__intoxicationBuffer = document.createElement("canvas");
@@ -310,6 +311,18 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
     && Number.isInteger(focus.targetId)
     && focus.targetPosition
     && (focus.persistent === true || (Number.isFinite(focus.durationMs) && focus.durationMs > 0));
+  let previousFocus = this.__discoLights.focus;
+  let previousTargetId = previousFocus ? previousFocus.targetId : null;
+  let nextTargetId = validFocus ? focus.targetId : null;
+
+  if(previousTargetId !== nextTargetId && this.__discoLightFrame && this.__discoLightFrame.lights) {
+    this.__spotlightFocusTransition = {
+      startedAt: performance.now(),
+      from: this.__discoLightFrame.lights.map(function(light) {
+        return { x: light.targetX, y: light.targetY };
+      })
+    };
+  }
 
   if(!validFocus || !this.__discoLights.focus || this.__discoLights.focus.targetId !== focus.targetId) {
     this.__spotlightFocusVisual = null;
@@ -341,10 +354,7 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
 WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   let disco = this.__discoLights;
-  let focusRequested = disco.focus !== null
-    && (disco.focus.persistent
-      || disco.focus.elapsedMs + performance.now() - disco.focus.receivedAt < disco.focus.durationMs);
-  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !focusRequested) || !disco.center || disco.radius <= 0) {
+  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled) || !disco.center || disco.radius <= 0) {
     return null;
   }
 
@@ -369,7 +379,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let focusFlashing = focusActive && focusElapsed < focus.flashDurationMs && focus.flashCount > 0;
   let focusFlashOn = focusFlashing
     && focusElapsed % (focus.flashDurationMs / focus.flashCount) < Math.min(360, focus.flashDurationMs / focus.flashCount * 0.38);
-  let focusStrength = focusFlashing ? (focusFlashOn ? 1.45 : 0.20) : (focusActive ? 0.88 : 1);
+  let focusStrength = focusFlashing ? (focusFlashOn ? 1.45 : 0.20) : 1;
   let focusScreen = null;
 
   if(focusActive) {
@@ -420,6 +430,11 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let motionTime = now * disco.spotlightSpeed / 100;
   let focusOrbitAngle = -Math.PI * 0.5 + now * Math.PI * 2 / 4500;
   let focusOrbitRadius = 22;
+  let focusTransition = this.__spotlightFocusTransition;
+  let transitionProgress = focusTransition
+    ? Math.min(1, Math.max(0, (now - focusTransition.startedAt) / 850))
+    : 1;
+  let transitionEase = 1 - Math.pow(1 - transitionProgress, 3);
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
@@ -431,19 +446,30 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     );
     let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
     let orbitAngle = focusOrbitAngle + index * Math.PI * 0.5;
+    let desiredTargetX = focusScreen
+      ? focusScreen.x + Math.cos(orbitAngle) * focusOrbitRadius
+      : (targetScreen.x + 0.5) * 32;
+    let desiredTargetY = focusScreen
+      ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius
+      : (targetScreen.y + 0.5) * 32;
+    let transitionStart = focusTransition && focusTransition.from[index];
 
     return {
       color: color,
       fixtureX: centerX + fixtureOffsets[index][0] * radius * 32,
       fixtureY: centerY + fixtureOffsets[index][1] * radius * 32,
-      targetX: focusScreen
-        ? focusScreen.x + Math.cos(orbitAngle) * focusOrbitRadius
-        : (targetScreen.x + 0.5) * 32,
-      targetY: focusScreen
-        ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius
-        : (targetScreen.y + 0.5) * 32
+      targetX: transitionStart
+        ? transitionStart.x + (desiredTargetX - transitionStart.x) * transitionEase
+        : desiredTargetX,
+      targetY: transitionStart
+        ? transitionStart.y + (desiredTargetY - transitionStart.y) * transitionEase
+        : desiredTargetY
     };
   });
+
+  if(focusTransition && transitionProgress >= 1) {
+    this.__spotlightFocusTransition = null;
+  }
 
   this.__discoLightFrame = {
     frameNumber: frameNumber,
@@ -451,7 +477,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     beatBpm: disco.beatBpm,
     pulse: pulse,
     intensity: intensity,
-    spotlightsEnabled: disco.spotlightsEnabled || focusActive,
+    spotlightsEnabled: disco.spotlightsEnabled,
     legacyLasersEnabled: disco.legacyLasersEnabled,
     radius: radius,
     centerX: centerX,
@@ -485,19 +511,9 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
 
   frame.lights.forEach(function(light) {
     let mobile = gameClient.touch && gameClient.touch.isMobileMode;
-    let beamEndWidth = frame.focusActive
-      ? (mobile ? 18 : 24) + 8 * frame.intensity
-      : (mobile ? 30 : 42) + 20 * frame.intensity;
+    let beamEndWidth = (mobile ? 30 : 42) + 20 * frame.intensity;
     let targetRadius = Math.min(250, Math.max(155, frame.radius * 28)) * mobileScale;
-    if(frame.focusActive) {
-      targetRadius = (mobile ? 62 : 76) * (frame.focusFlashing && frame.focusFlashOn ? 1.12 : 1);
-    }
-    let targetStrength = frame.focusActive
-      ? Math.min(
-        frame.focusFlashing && frame.focusFlashOn ? 0.58 : 0.42,
-        strength * 1.25 * frame.focusStrength
-      )
-      : Math.min(1, strength * 2.55);
+    let targetStrength = Math.min(1, strength * 2.55 * frame.focusStrength);
 
     // The complete cone participates in the real light mask. Its lower power
     // keeps the moving target visibly brighter than the path leading to it.
@@ -509,7 +525,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
       4,
       beamEndWidth,
       light.color,
-      strength * (frame.focusActive ? 0.24 : 0.38),
+      strength * 0.38 * frame.focusStrength,
       frame.clip
     );
 
@@ -563,11 +579,9 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let directionY = dy / length;
     let perpendicularX = -dy / length;
     let perpendicularY = dx / length;
-    let endWidth = frame.focusActive
-      ? (mobile ? 20 : 26) + 8 * frame.intensity
-      : (mobile ? 34 : 48) + 24 * frame.intensity;
+    let endWidth = (mobile ? 34 : 48) + 24 * frame.intensity;
     let color = light.color;
-    let beamVisibility = frame.focusActive ? 0.58 : 1;
+    let beamVisibility = frame.focusActive ? frame.focusStrength : 1;
     let beam = context.createLinearGradient(light.fixtureX, light.fixtureY, light.targetX, light.targetY);
     beam.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.035 * intensity * beamVisibility));
     beam.addColorStop(0.55, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.065 * intensity * beamVisibility));
@@ -593,10 +607,8 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.fillStyle = beam;
     context.fill();
 
-    let haloRadius = frame.focusActive ? (mobile ? 48 : 62) : (mobile ? 100 : 128);
-    let haloAlpha = frame.focusActive
-      ? Math.min(0.55, 0.28 * intensity * frame.focusStrength)
-      : Math.min(0.92, 0.52 * intensity);
+    let haloRadius = mobile ? 100 : 128;
+    let haloAlpha = Math.min(0.92, 0.52 * intensity * frame.focusStrength);
     let halo = frame.focusActive
       ? context.createRadialGradient(0, 0, 0, 0, 0, haloRadius)
       : context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
