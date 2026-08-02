@@ -93,7 +93,7 @@ const lightCanvas = {
   },
 };
 
-weather.setDiscoLights(true, 80, 120, 6, {
+weather.setDiscoLights(true, true, 80, 120, 6, {
   x: 32515,
   y: 32346,
   z: 7,
@@ -107,12 +107,12 @@ assert.strictEqual(
   4,
   "all four spotlight colors should be present"
 );
-assert.ok(lights.filter((entry) => entry[2] >= 72).length === 4);
+assert.ok(lights.filter((entry) => entry[2] >= 120).length === 4, "spotlight targets should have broad pools of light");
 assert.ok(lights.every((entry) => entry[5] && entry[5].width > 0));
 
 weather.drawDiscoLights();
 assert.ok(fills >= 8, "each spotlight should draw a cone and target halo");
-assert.strictEqual(strokes, 13, "four spotlight cores and three original three-ray lasers expected");
+assert.strictEqual(strokes, 9, "new spotlights have no laser cores; three original three-ray lasers expected");
 
 const firstTargetX = lights[0][0];
 lights.length = 0;
@@ -123,7 +123,35 @@ weather.renderDiscoIllumination(lightCanvas);
 assert.notStrictEqual(lights[0][0], firstTargetX, "spotlight pool should move between frames");
 assert.strictEqual(lightBeams.length, 4);
 
-weather.setDiscoLights(false, 80, 120, 6, null);
+weather.setDiscoLights(true, false, 80, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+});
+lights.length = 0;
+lightBeams.length = 0;
+strokes = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+weather.drawDiscoLights();
+assert.strictEqual(lightBeams.length, 4, "spotlight-only mode should illuminate four cones");
+assert.strictEqual(strokes, 0, "new spotlights must not draw thin laser beams");
+
+weather.setDiscoLights(false, true, 80, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+});
+lights.length = 0;
+lightBeams.length = 0;
+strokes = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+weather.drawDiscoLights();
+assert.strictEqual(lightBeams.length, 0, "laser-only mode should not render spotlight illumination");
+assert.strictEqual(strokes, 9, "laser-only mode should retain all original rays");
+
+weather.setDiscoLights(false, false, 80, 120, 6, null);
 lights.length = 0;
 lightBeams.length = 0;
 weather.renderDiscoIllumination(lightCanvas);

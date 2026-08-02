@@ -19,7 +19,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
-  this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0, radius: 0, center: null };
+  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, beatBpm: 0, radius: 0, center: null };
   this.__discoLightFrame = null;
   this.__pipeSmokeClouds = new Map();
   this.__intoxication = null;
@@ -303,10 +303,11 @@ WeatherCanvas.prototype.setWeatherType = function(type) {
 
 }
 
-WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm, radius, center) {
+WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, beatBpm, radius, center) {
 
   this.__discoLights = {
-    enabled: enabled === true,
+    spotlightsEnabled: spotlightsEnabled === true,
+    legacyLasersEnabled: legacyLasersEnabled === true,
     intensity: Math.max(10, Math.min(100, Number(intensity) || 60)),
     beatBpm: Number.isInteger(beatBpm) ? beatBpm : 0,
     radius: Math.max(0, Math.min(20, Number(radius) || 0)),
@@ -319,7 +320,7 @@ WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm, r
 WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   let disco = this.__discoLights;
-  if(!disco.enabled || !disco.center || disco.radius <= 0) {
+  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled) || !disco.center || disco.radius <= 0) {
     return null;
   }
 
@@ -355,8 +356,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     let travelX = Math.sin(now / (1350 + index * 170) + phase);
     let travelY = Math.cos(now / (1750 - index * 90) + phase * 1.35);
     let targetWorld = new Position(
-      center.x + travelX * radius * 0.72,
-      center.y + travelY * radius * 0.72,
+      center.x + travelX * radius * 0.46,
+      center.y + travelY * radius * 0.46,
       center.z
     );
     let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
@@ -376,14 +377,16 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     beatBpm: disco.beatBpm,
     pulse: pulse,
     intensity: intensity,
+    spotlightsEnabled: disco.spotlightsEnabled,
+    legacyLasersEnabled: disco.legacyLasersEnabled,
     radius: radius,
     centerX: centerX,
     centerY: centerY,
     clip: {
-      x: centerX - radius * 32,
-      y: centerY - radius * 32,
-      width: radius * 64 + 32,
-      height: radius * 64 + 32
+      x: centerX - radius * 32 - 16,
+      y: centerY - radius * 32 - 16,
+      width: (radius * 2 + 1) * 32,
+      height: (radius * 2 + 1) * 32
     },
     lights: lights
   };
@@ -395,7 +398,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
 
   let frame = this.__getDiscoLightFrame();
-  if(!frame) {
+  if(!frame || !frame.spotlightsEnabled) {
     return;
   }
 
@@ -415,7 +418,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
       4,
       beamEndWidth,
       light.color,
-      strength * 0.48,
+      strength * 0.62,
       frame.clip
     );
 
@@ -424,9 +427,9 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
     lightCanvas.renderColorLightBubble(
       light.targetX,
       light.targetY,
-      Math.min(128, Math.max(72, frame.radius * 13)) * mobileScale,
+      Math.min(190, Math.max(120, frame.radius * 22)) * mobileScale,
       light.color,
-      Math.min(1, strength * 1.65),
+      Math.min(1, strength * 2.1),
       frame.clip
     );
 
@@ -454,13 +457,14 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let intensity = frame.intensity * frame.pulse;
   let mobile = gameClient.touch && gameClient.touch.isMobileMode;
 
-  context.save();
-  context.globalCompositeOperation = "screen";
-  context.beginPath();
-  context.rect(frame.clip.x, frame.clip.y, frame.clip.width, frame.clip.height);
-  context.clip();
+  if(frame.spotlightsEnabled) {
+    context.save();
+    context.globalCompositeOperation = "screen";
+    context.beginPath();
+    context.rect(frame.clip.x, frame.clip.y, frame.clip.width, frame.clip.height);
+    context.clip();
 
-  frame.lights.forEach(function(light) {
+    frame.lights.forEach(function(light) {
     let dx = light.targetX - light.fixtureX;
     let dy = light.targetY - light.fixtureY;
     let length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
@@ -484,28 +488,25 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.fillStyle = beam;
     context.fill();
 
-    context.globalAlpha = 0.72 * intensity;
-    context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
-    context.lineWidth = mobile ? 1.5 : 2.2;
-    context.beginPath();
-    context.moveTo(light.fixtureX, light.fixtureY);
-    context.lineTo(light.targetX, light.targetY);
-    context.stroke();
-
-    let haloRadius = mobile ? 46 : 62;
+    let haloRadius = mobile ? 76 : 96;
     let halo = context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
-    halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.24 * intensity));
+    halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.36 * intensity));
     halo.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
     context.globalAlpha = 1;
     context.fillStyle = halo;
     context.fillRect(light.targetX - haloRadius, light.targetY - haloRadius, haloRadius * 2, haloRadius * 2);
-  });
+    });
 
-  context.restore();
+    context.restore();
+  }
 
   // Preserve the original three wall-mounted laser fans. These are separate
   // from the four illuminating spotlights and retain their former positions,
   // sweep and three-ray pattern.
+  if(!frame.legacyLasersEnabled) {
+    return;
+  }
+
   let legacyColors = [[42, 120, 255], [232, 48, 255], [35, 255, 194]];
   let legacyFixtures = [
     [0, -frame.radius],

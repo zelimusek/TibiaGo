@@ -16,7 +16,8 @@ const RadioEditorModal = function (element) {
   this.__beatBpm = document.getElementById("radio-editor-beat-bpm");
   this.__weather = document.getElementById("radio-editor-weather");
   this.__light = document.getElementById("radio-editor-light");
-  this.__discoCanvas = document.getElementById("radio-editor-disco-canvas");
+  this.__spotlights = document.getElementById("radio-editor-spotlights");
+  this.__legacyLasers = document.getElementById("radio-editor-legacy-lasers");
   this.__discoIntensity = document.getElementById("radio-editor-disco-intensity");
 
 }
@@ -42,7 +43,8 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   this.__beatBpm.value = Number.isInteger(config.beatBpm) ? config.beatBpm : 0;
   this.__weather.value = config.weather || "none";
   this.__light.value = config.light || "none";
-  this.__discoCanvas.checked = config.discoCanvasEnabled === true;
+  this.__spotlights.checked = config.spotlightsEnabled === true;
+  this.__legacyLasers.checked = config.legacyLasersEnabled === true;
   this.__discoIntensity.value = Number.isInteger(config.discoCanvasIntensity) ? config.discoCanvasIntensity : 60;
 
   setTimeout(function () {
@@ -65,7 +67,8 @@ RadioEditorModal.prototype.handleConfirm = function () {
   let beatBpm = Number(this.__beatBpm.value);
   let weather = this.__weather.value;
   let light = this.__light.value;
-  let discoCanvasEnabled = this.__discoCanvas.checked ? 1 : 0;
+  let spotlightsEnabled = this.__spotlights.checked ? 1 : 0;
+  let legacyLasersEnabled = this.__legacyLasers.checked ? 1 : 0;
   let discoCanvasIntensity = Number(this.__discoIntensity.value);
 
   try {
@@ -118,7 +121,7 @@ RadioEditorModal.prototype.handleConfirm = function () {
   gameClient.send(new ChannelMessagePacket(
     CONST.CHANNEL.DEFAULT,
     1,
-    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, discoCanvasEnabled, discoCanvasIntensity)
+    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity)
   ));
 
   return true;

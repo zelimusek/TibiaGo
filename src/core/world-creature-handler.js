@@ -262,13 +262,18 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
     weather: zone && ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"].indexOf(zone.weather) !== -1 ? zone.weather : "none",
     light: zone && ["none", "night", "blue", "purple", "red"].indexOf(zone.light) !== -1 ? zone.light : "none",
-    discoCanvasEnabled: zone && zone.discoCanvasEnabled === true,
+    spotlightsEnabled: zone && zone.spotlightsEnabled !== undefined
+      ? zone.spotlightsEnabled === true
+      : zone && zone.discoCanvasEnabled === true,
+    legacyLasersEnabled: zone && zone.legacyLasersEnabled !== undefined
+      ? zone.legacyLasersEnabled === true
+      : zone && zone.discoCanvasEnabled === true,
     discoCanvasIntensity: zone && Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60
   };
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, discoCanvasEnabled, discoCanvasIntensity, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -291,7 +296,11 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     beatBpm: beatBpm,
     weather: weather,
     light: light,
-    discoCanvasEnabled: discoCanvasEnabled === true,
+    // Keep the old aggregate flag so cached clients and older saved zones
+    // remain compatible while the two effects can now be toggled separately.
+    discoCanvasEnabled: spotlightsEnabled === true || legacyLasersEnabled === true,
+    spotlightsEnabled: spotlightsEnabled === true,
+    legacyLasersEnabled: legacyLasersEnabled === true,
     discoCanvasIntensity: discoCanvasIntensity,
     fadeMetric: "chebyshev",
     owner: owner,
@@ -430,12 +439,18 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       weather: zone.weather || "none",
       light: zone.light || "none",
       discoCanvasEnabled: zone.discoCanvasEnabled === true,
+      spotlightsEnabled: zone.spotlightsEnabled !== undefined
+        ? zone.spotlightsEnabled === true
+        : zone.discoCanvasEnabled === true,
+      legacyLasersEnabled: zone.legacyLasersEnabled !== undefined
+        ? zone.legacyLasersEnabled === true
+        : zone.discoCanvasEnabled === true,
       discoCanvasIntensity: Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, discoCanvasIntensity: 60, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser

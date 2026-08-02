@@ -204,7 +204,7 @@ LightCanvas.prototype.renderColorLightBubble = function(x, y, size, color, stren
 
   let radius = Math.max(16, Number(size) || 16);
   let gradient = this.context.createRadialGradient(x, y, 0, x, y, radius);
-  let coreAlpha = Math.floor(210 * alpha);
+  let coreAlpha = Math.floor(245 * alpha);
 
   gradient.addColorStop(0.00, new RGBA(color[0], color[1], color[2], coreAlpha).toString());
   gradient.addColorStop(0.28, new RGBA(color[0], color[1], color[2], Math.floor(coreAlpha * 0.64)).toString());
@@ -246,7 +246,7 @@ LightCanvas.prototype.renderColorLightBeam = function(x1, y1, x2, y2, startWidth
   let perpendicularX = -dy / length;
   let perpendicularY = dx / length;
   let gradient = this.context.createLinearGradient(x1, y1, x2, y2);
-  let baseAlpha = Math.floor(150 * alpha);
+  let baseAlpha = Math.floor(195 * alpha);
 
   gradient.addColorStop(0.00, new RGBA(color[0], color[1], color[2], Math.floor(baseAlpha * 0.35)).toString());
   gradient.addColorStop(0.55, new RGBA(color[0], color[1], color[2], Math.floor(baseAlpha * 0.72)).toString());

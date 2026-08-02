@@ -350,8 +350,19 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let beatBpm = Number(message[9]);
   let weather = message[10] || "none";
   let light = message[11] || "none";
-  let discoCanvasEnabled = message[12] === "1";
-  let discoCanvasIntensity = message[13] === undefined ? 60 : Number(message[13]);
+  let spotlightsEnabled = message[12] === "1";
+  let legacyLasersEnabled;
+  let discoCanvasIntensity;
+
+  // Cached clients still send the former aggregate checkbox followed by the
+  // intensity. Treat it as enabling both effects until they refresh.
+  if (message[14] === undefined) {
+    legacyLasersEnabled = spotlightsEnabled;
+    discoCanvasIntensity = message[13] === undefined ? 60 : Number(message[13]);
+  } else {
+    legacyLasersEnabled = message[13] === "1";
+    discoCanvasIntensity = Number(message[14]);
+  }
   let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
   let validWeather = ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"];
   let validLight = ["none", "night", "blue", "purple", "red"];
@@ -411,7 +422,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     beatBpm,
     weather,
     light,
-    discoCanvasEnabled,
+    spotlightsEnabled,
+    legacyLasersEnabled,
     discoCanvasIntensity,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
