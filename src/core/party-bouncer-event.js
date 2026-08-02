@@ -198,6 +198,7 @@ const PartyBouncerEvent = function (creatureHandler, options) {
   this.__settings = this.__loadSettings();
   this.__queue = [];
   this.__active = null;
+  this.__invitedPlayer = null;
   this.__cooldowns = new WeakMap();
   this.__mustLeaveQueue = new WeakSet();
   this.__gateMessageCooldowns = new WeakMap();
@@ -327,6 +328,13 @@ PartyBouncerEvent.prototype.__isQueuePosition = function (position) {
     && position.y <= BOUNCER_CONFIG.queue.to.y;
 };
 
+PartyBouncerEvent.prototype.__isControlPosition = function (position) {
+  return position && position.z === BOUNCER_CONFIG.queue.from.z
+    && position.x === BOUNCER_CONFIG.queue.from.x
+    && position.y >= BOUNCER_CONFIG.queue.from.y
+    && position.y <= BOUNCER_CONFIG.queue.from.y + 1;
+};
+
 PartyBouncerEvent.prototype.__isGatePosition = function (position) {
   return position && position.z === BOUNCER_CONFIG.gate.from.z
     && position.y === BOUNCER_CONFIG.gate.from.y
@@ -378,6 +386,7 @@ PartyBouncerEvent.prototype.__faceBouncersSouth = function () {
 
 PartyBouncerEvent.prototype.__clearActive = function () {
   this.__active = null;
+  this.__invitedPlayer = null;
   this.__faceBouncersSouth();
 };
 
@@ -437,10 +446,6 @@ PartyBouncerEvent.prototype.__refreshQueue = function () {
   this.__queue.push.apply(this.__queue, additions);
 };
 
-PartyBouncerEvent.prototype.__queuePosition = function (index) {
-  return new Position(BOUNCER_CONFIG.queue.from.x, BOUNCER_CONFIG.queue.from.y + index, BOUNCER_CONFIG.queue.from.z);
-};
-
 PartyBouncerEvent.prototype.__isFreePosition = function (position, player) {
   let tile = gameServer.world.getTileFromWorldPosition(position);
   if (tile === null || tile.id === 0) {
@@ -462,26 +467,21 @@ PartyBouncerEvent.prototype.__teleportQueuePlayer = function (player, position) 
   });
 };
 
-PartyBouncerEvent.prototype.__compactQueue = function () {
-  if (this.__active !== null) {
-    return;
-  }
-  this.__queue.slice(0, 5).forEach(function (player, index) {
-    let destination = this.__queuePosition(index);
-    if (!player.position.equals(destination)) {
-      this.__teleportQueuePlayer(player, destination);
-    }
-  }, this);
-};
-
 PartyBouncerEvent.prototype.__startNext = function () {
   if (this.__active !== null || this.__queue.length === 0) {
+    if (this.__queue.length === 0) this.__invitedPlayer = null;
     return;
   }
   let player = this.__queue[0];
-  if (!player.position.equals(this.__queuePosition(0))) {
+  if (!this.__isControlPosition(player.position)) {
+    if (this.__invitedPlayer !== player) {
+      this.__invitedPlayer = player;
+      this.__say("first", player, this.__getText(player).next);
+    }
     return;
   }
+
+  this.__invitedPlayer = null;
 
   let now = this.__now();
   let text = this.__getText(player);
@@ -639,7 +639,6 @@ PartyBouncerEvent.prototype.__finishFailure = function () {
   if (temporary) {
     this.__teleportQueuePlayer(player, temporary);
   }
-  this.__compactQueue();
 };
 
 PartyBouncerEvent.prototype.handleSpeech = function (player, message) {
@@ -764,12 +763,11 @@ PartyBouncerEvent.prototype.tick = function () {
   if (this.__active && !this.__isPlayerConnected(this.__active.player)) {
     this.__clearActive();
   }
-  this.__compactQueue();
   this.__startNext();
 
   let active = this.__active;
   if (!active) {
-    this.__faceBouncersSouth();
+    if (!this.__invitedPlayer) this.__faceBouncersSouth();
     return;
   }
 

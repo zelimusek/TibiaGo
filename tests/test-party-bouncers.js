@@ -93,6 +93,9 @@ let polish = makePlayer("PL", false);
 let english = makePlayer("DE", false);
 assert.strictEqual(event.getLanguage(polish), "pl");
 assert.strictEqual(event.getLanguage(english), "en");
+assert.strictEqual(event.__isControlPosition(new Position(32515, 32358, 7)), true);
+assert.strictEqual(event.__isControlPosition(new Position(32515, 32359, 7)), true);
+assert.strictEqual(event.__isControlPosition(new Position(32515, 32360, 7)), false);
 
 event.__active = {
   player: polish,
@@ -171,7 +174,11 @@ let openEvent = new PartyBouncerEvent(handler, {
   settingsPath: false
 });
 openEvent.tick();
-assert.ok(queued.position.equals(new Position(32515, 32358, 7)), "the physical queue must advance automatically");
+assert.ok(queued.position.equals(new Position(32515, 32361, 7)), "the physical queue must not teleport forward");
+assert.strictEqual(openEvent.__active, null);
+assert.strictEqual(spoken.at(-1).player, queued, "the first player must be invited to walk forward");
+queued.position = new Position(32515, 32359, 7);
+openEvent.tick();
 assert.strictEqual(openEvent.__active.stage, "open_pending");
 now += openEvent.getConfig().dialogueDelayMs;
 openEvent.tick();
