@@ -70,7 +70,7 @@ const handler = {
   getConnectedPlayers() {
     return players;
   },
-  focusSpotlightsOnPlayer(player) {
+  celebratePartyWinner(player) {
     spotlightTargets.push(player.name);
   },
   teleportCreature(player, position, options) {

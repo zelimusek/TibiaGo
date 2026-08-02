@@ -47,28 +47,42 @@ try {
   commands.handle(gm, "/spotlight Party Hero");
 
   assert.strictEqual(handler.__spotlightFocus.targetId, 777);
-  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 8000);
-  assert.strictEqual(handler.__spotlightFocus.flashDurationMs, 3000);
-  assert.strictEqual(handler.__spotlightFocus.flashCount, 3);
+  assert.strictEqual(handler.__spotlightFocus.endsAt, null);
+  assert.strictEqual(handler.__spotlightFocus.flashDurationMs, 0);
+  assert.strictEqual(handler.__spotlightFocus.flashCount, 0);
   assert.strictEqual(resyncs, 1);
-  assert.ok(/following Party Hero for 8 seconds/i.test(messages.at(-1)));
+  assert.ok(/following Party Hero until \/spotlight off/i.test(messages.at(-1)));
 
   target.position = new Position(32517, 32348, 7);
   const payload = handler.__getSpotlightFocusPayload();
   assert.deepStrictEqual(payload.targetPosition, { x: 32517, y: 32348, z: 7 });
-  assert.strictEqual(payload.durationMs, 8000);
-  assert.ok(payload.elapsedMs >= 0 && payload.elapsedMs < 8000);
+  assert.strictEqual(payload.persistent, true);
+  assert.strictEqual(payload.durationMs, null);
+  assert.ok(payload.elapsedMs >= 0);
 
   commands.handle(gm, "/spotlight off");
   assert.strictEqual(handler.__spotlightFocus, null);
   assert.strictEqual(resyncs, 2);
+
+  commands.handle(gm, "/spotlight Party Hero 10");
+  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 10000);
+  assert.strictEqual(handler.__spotlightFocus.flashCount, 0);
+  assert.ok(/following Party Hero for 10 seconds/i.test(messages.at(-1)));
+  commands.handle(gm, "/spotlight off");
+
+  const celebration = handler.celebratePartyWinner(target);
+  assert.strictEqual(celebration.ok, true);
+  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 8000);
+  assert.strictEqual(handler.__spotlightFocus.flashDurationMs, 3000);
+  assert.strictEqual(handler.__spotlightFocus.flashCount, 3);
+  handler.clearSpotlightFocus();
 
   handler.isInsidePartyRadioZone = () => false;
   commands.handle(gm, "/spotlight Party Hero");
   assert.strictEqual(handler.__spotlightFocus, null);
   assert.ok(/inside the dance hall/i.test(messages.at(-1)));
 
-  console.log("PASS: spotlight focus command tracks a dance-hall player for the eight-second winner sequence.");
+  console.log("PASS: manual spotlight focus is steady and optional-timed while winner celebrations flash for eight seconds.");
 } finally {
   process.gameServer = originalProcessGameServer;
   global.gameServer = originalGlobalGameServer;

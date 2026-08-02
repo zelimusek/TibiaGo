@@ -21,6 +21,7 @@ const WeatherCanvas = function(screen) {
   this.__weatherType = "none";
   this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null, focus: null };
   this.__discoLightFrame = null;
+  this.__spotlightFocusVisual = null;
   this.__pipeSmokeClouds = new Map();
   this.__intoxication = null;
   this.__intoxicationBuffer = document.createElement("canvas");
@@ -308,8 +309,11 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   let validFocus = focus
     && Number.isInteger(focus.targetId)
     && focus.targetPosition
-    && Number.isFinite(focus.durationMs)
-    && focus.durationMs > 0;
+    && (focus.persistent === true || (Number.isFinite(focus.durationMs) && focus.durationMs > 0));
+
+  if(!validFocus || !this.__discoLights.focus || this.__discoLights.focus.targetId !== focus.targetId) {
+    this.__spotlightFocusVisual = null;
+  }
 
   this.__discoLights = {
     spotlightsEnabled: spotlightsEnabled === true,
@@ -323,7 +327,8 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
       targetId: focus.targetId,
       targetPosition: focus.targetPosition,
       elapsedMs: Math.max(0, Number(focus.elapsedMs) || 0),
-      durationMs: focus.durationMs,
+      persistent: focus.persistent === true,
+      durationMs: focus.persistent === true ? null : focus.durationMs,
       flashDurationMs: Math.max(0, Number(focus.flashDurationMs) || 0),
       flashCount: Math.max(0, Number(focus.flashCount) || 0),
       receivedAt: performance.now()
@@ -337,7 +342,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   let disco = this.__discoLights;
   let focusRequested = disco.focus !== null
-    && disco.focus.elapsedMs + performance.now() - disco.focus.receivedAt < disco.focus.durationMs;
+    && (disco.focus.persistent
+      || disco.focus.elapsedMs + performance.now() - disco.focus.receivedAt < disco.focus.durationMs);
   if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !focusRequested) || !disco.center || disco.radius <= 0) {
     return null;
   }
@@ -359,20 +365,45 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let centerY = (centerScreen.y + 0.5) * 32;
   let focus = disco.focus;
   let focusElapsed = focus ? focus.elapsedMs + Math.max(0, now - focus.receivedAt) : 0;
-  let focusActive = focus !== null && focusElapsed < focus.durationMs;
+  let focusActive = focus !== null && (focus.persistent || focusElapsed < focus.durationMs);
   let focusFlashing = focusActive && focusElapsed < focus.flashDurationMs && focus.flashCount > 0;
   let focusFlashOn = focusFlashing
     && focusElapsed % (focus.flashDurationMs / focus.flashCount) < Math.min(360, focus.flashDurationMs / focus.flashCount * 0.38);
   let focusStrength = focusFlashing ? (focusFlashOn ? 2.15 : 0.24) : (focusActive ? 1.18 : 1);
-  let focusPosition = null;
+  let focusScreen = null;
 
   if(focusActive) {
     let creature = gameClient.world && typeof gameClient.world.getCreature === "function"
       ? gameClient.world.getCreature(focus.targetId)
       : null;
-    focusPosition = creature && typeof creature.getPosition === "function"
-      ? creature.getPosition()
-      : focus.targetPosition;
+    let desiredScreen = creature && typeof gameClient.renderer.getCreatureScreenPosition === "function"
+      ? gameClient.renderer.getCreatureScreenPosition(creature)
+      : gameClient.renderer.getStaticScreenPosition(
+        creature && typeof creature.getPosition === "function"
+          ? creature.getPosition()
+          : new Position(focus.targetPosition.x, focus.targetPosition.y, focus.targetPosition.z)
+      );
+    let desiredX = (desiredScreen.x + 0.5) * 32;
+    let desiredY = (desiredScreen.y + 0.5) * 32;
+
+    if(!this.__spotlightFocusVisual || this.__spotlightFocusVisual.targetId !== focus.targetId) {
+      this.__spotlightFocusVisual = {
+        targetId: focus.targetId,
+        x: desiredX,
+        y: desiredY,
+        updatedAt: now
+      };
+    } else {
+      let deltaMs = Math.max(0, Math.min(100, now - this.__spotlightFocusVisual.updatedAt));
+      let followFactor = 1 - Math.exp(-deltaMs / 180);
+      this.__spotlightFocusVisual.x += (desiredX - this.__spotlightFocusVisual.x) * followFactor;
+      this.__spotlightFocusVisual.y += (desiredY - this.__spotlightFocusVisual.y) * followFactor;
+      this.__spotlightFocusVisual.updatedAt = now;
+    }
+
+    focusScreen = this.__spotlightFocusVisual;
+  } else {
+    this.__spotlightFocusVisual = null;
   }
   let colors = [
     [42, 120, 255],
@@ -391,9 +422,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
     let travelY = Math.cos(motionTime / (1750 - index * 90) + phase * 1.35);
-    let targetWorld = focusPosition
-      ? new Position(focusPosition.x, focusPosition.y, focusPosition.z)
-      : new Position(
+    let targetWorld = new Position(
         center.x + travelX * radius * 0.46,
         center.y + travelY * radius * 0.46,
         center.z
@@ -404,8 +433,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
       color: color,
       fixtureX: centerX + fixtureOffsets[index][0] * radius * 32,
       fixtureY: centerY + fixtureOffsets[index][1] * radius * 32,
-      targetX: (targetScreen.x + 0.5) * 32,
-      targetY: (targetScreen.y + 0.5) * 32
+      targetX: focusScreen ? focusScreen.x : (targetScreen.x + 0.5) * 32,
+      targetY: focusScreen ? focusScreen.y : (targetScreen.y + 0.5) * 32
     };
   });
 

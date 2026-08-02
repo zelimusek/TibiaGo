@@ -495,10 +495,11 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
 };
 
 CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
-  let targetName = message.slice(1).join(" ").trim();
+  let argumentsList = message.slice(1).filter(function (entry) { return entry.length > 0; });
+  let targetName = argumentsList.join(" ").trim();
 
   if (!targetName) {
-    return player.sendCancelMessage("Usage: /spotlight Player Name or /spotlight off.");
+    return player.sendCancelMessage("Usage: /spotlight Player Name [seconds] or /spotlight off.");
   }
 
   if (targetName.toLowerCase() === "off") {
@@ -506,12 +507,27 @@ CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
     return player.sendCancelMessage(stopped.message);
   }
 
+  let durationMs = null;
+  let finalArgument = argumentsList.at(-1);
+  if (argumentsList.length > 1 && /^\d+$/.test(finalArgument)) {
+    let durationSeconds = Number(finalArgument);
+    if (!Number.isSafeInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > 86400) {
+      return player.sendCancelMessage("Spotlight time must be from 1 to 86400 seconds.");
+    }
+    durationMs = durationSeconds * 1000;
+    argumentsList.pop();
+    targetName = argumentsList.join(" ").trim();
+  }
+
   let found = this.findCreatureByName(targetName);
   if (!found.target || typeof found.target.is !== "function" || !found.target.is("Player")) {
     return player.sendCancelMessage("That player is not online.");
   }
 
-  let result = gameServer.world.creatureHandler.focusSpotlightsOnPlayer(found.target);
+  let result = gameServer.world.creatureHandler.focusSpotlightsOnPlayer(found.target, {
+    durationMs: durationMs,
+    flashing: false
+  });
   return player.sendCancelMessage(result.message);
 };
 

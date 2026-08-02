@@ -204,7 +204,12 @@ lights.length = 0;
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 focusedTargets = lights.filter((entry, index) => index % 2 === 0);
-assert.strictEqual(focusedTargets[0][0], (focusedPosition.x - 32508 + 0.5) * 32, "spotlights should follow a moving player");
+const previousFocusedX = (focusedPosition.x - 1 - 32508 + 0.5) * 32;
+const desiredFocusedX = (focusedPosition.x - 32508 + 0.5) * 32;
+assert.ok(
+  focusedTargets[0][0] > previousFocusedX && focusedTargets[0][0] < desiredFocusedX,
+  "spotlights should glide toward a moving player instead of snapping to the next tile"
+);
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
 
 now += 2100;
@@ -230,6 +235,25 @@ assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "resynci
 now += 5000;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, false, "winner focus should end after eight seconds");
+
+weather.setDiscoLights(false, false, 80, 100, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+}, {
+  targetId: 777,
+  targetPosition: { x: 32517, y: 32348, z: 7 },
+  persistent: true,
+  durationMs: null,
+  flashDurationMs: 0,
+  flashCount: 0,
+});
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "manual focus should work until explicitly disabled");
+assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "manual focus must never use winner flashes");
+now += 60000;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "persistent manual focus should not expire");
 
 weather.setDiscoLights(false, false, 80, 100, 120, 6, null);
 lights.length = 0;

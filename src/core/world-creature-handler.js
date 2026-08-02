@@ -408,7 +408,7 @@ CreatureHandler.prototype.__resyncRadioAmbience = function () {
   }, this);
 }
 
-CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, durationMs) {
+CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
   if (!player || typeof player.getId !== "function" || !player.position) {
     return { ok: false, message: "That player is not online." };
   }
@@ -417,26 +417,38 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, durationMs
     return { ok: false, message: "That player must be inside the dance hall." };
   }
 
+  options = options || {};
   let now = Date.now();
-  let duration = Number.isInteger(durationMs) && durationMs > 0
-    ? durationMs
-    : SPOTLIGHT_FOCUS_DURATION_MS;
+  let duration = Number.isInteger(options.durationMs) && options.durationMs > 0
+    ? options.durationMs
+    : null;
+  let flashing = options.flashing === true && duration !== null;
   this.__spotlightFocus = {
     targetId: player.getId(),
     targetName: player.getProperty(CONST.PROPERTIES.NAME),
     target: player,
     startedAt: now,
-    endsAt: now + duration,
-    flashDurationMs: Math.min(SPOTLIGHT_FOCUS_FLASH_DURATION_MS, duration),
-    flashCount: SPOTLIGHT_FOCUS_FLASH_COUNT
+    endsAt: duration === null ? null : now + duration,
+    flashDurationMs: flashing ? Math.min(SPOTLIGHT_FOCUS_FLASH_DURATION_MS, duration) : 0,
+    flashCount: flashing ? SPOTLIGHT_FOCUS_FLASH_COUNT : 0
   };
   this.__resyncRadioAmbience();
 
   return {
     ok: true,
-    message: "All spotlights are now following %s for %s seconds."
-      .format(this.__spotlightFocus.targetName, Math.ceil(duration / 1000))
+    message: duration === null
+      ? "All spotlights are now following %s until /spotlight off."
+        .format(this.__spotlightFocus.targetName)
+      : "All spotlights are now following %s for %s seconds."
+        .format(this.__spotlightFocus.targetName, Math.ceil(duration / 1000))
   };
+}
+
+CreatureHandler.prototype.celebratePartyWinner = function (player) {
+  return this.focusSpotlightsOnPlayer(player, {
+    durationMs: SPOTLIGHT_FOCUS_DURATION_MS,
+    flashing: true
+  });
 }
 
 CreatureHandler.prototype.clearSpotlightFocus = function () {
@@ -452,7 +464,7 @@ CreatureHandler.prototype.clearSpotlightFocus = function () {
 CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
   let focus = this.__spotlightFocus;
   let now = Date.now();
-  if (!focus || focus.endsAt <= now || !focus.target || !focus.target.position) {
+  if (!focus || (focus.endsAt !== null && focus.endsAt <= now) || !focus.target || !focus.target.position) {
     return null;
   }
 
@@ -465,7 +477,8 @@ CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
       z: focus.target.position.z
     },
     elapsedMs: Math.max(0, now - focus.startedAt),
-    durationMs: focus.endsAt - focus.startedAt,
+    persistent: focus.endsAt === null,
+    durationMs: focus.endsAt === null ? null : focus.endsAt - focus.startedAt,
     flashDurationMs: focus.flashDurationMs,
     flashCount: focus.flashCount
   };
@@ -955,7 +968,7 @@ CreatureHandler.prototype.tick = function () {
   }
 
   this.__tickClubDance();
-  if (this.__spotlightFocus && this.__spotlightFocus.endsAt <= Date.now()) {
+  if (this.__spotlightFocus && this.__spotlightFocus.endsAt !== null && this.__spotlightFocus.endsAt <= Date.now()) {
     this.__spotlightFocus = null;
     this.__resyncRadioAmbience();
   }

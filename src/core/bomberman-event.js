@@ -1231,8 +1231,8 @@ BombermanEvent.prototype.__finishMayhem = function () {
 
   if (winners.length === 1) {
     let winner = this.__getConnectedPlayer(winners[0]);
-    if (winner !== null && typeof this.__creatureHandler.focusSpotlightsOnPlayer === "function") {
-      this.__creatureHandler.focusSpotlightsOnPlayer(winner);
+    if (winner !== null && typeof this.__creatureHandler.celebratePartyWinner === "function") {
+      this.__creatureHandler.celebratePartyWinner(winner);
     }
     this.__broadcast(
       "%s wins Bomberman with %s point%s!"
@@ -1289,8 +1289,8 @@ BombermanEvent.prototype.__finishElimination = function () {
 
   if (survivors.length === 1) {
     let winner = this.__getConnectedPlayer(survivors[0]);
-    if (winner !== null && typeof this.__creatureHandler.focusSpotlightsOnPlayer === "function") {
-      this.__creatureHandler.focusSpotlightsOnPlayer(winner);
+    if (winner !== null && typeof this.__creatureHandler.celebratePartyWinner === "function") {
+      this.__creatureHandler.celebratePartyWinner(winner);
     }
     this.__broadcast("%s wins Bomberman elimination!".format(survivors[0]));
     if (typeof this.__creatureHandler.announceNpcYell === "function") {
