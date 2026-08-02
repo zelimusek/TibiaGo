@@ -388,6 +388,9 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let focusFlashOn = focusFlashing
     && focusElapsed % (focus.flashDurationMs / focus.flashCount) < Math.min(360, focus.flashDurationMs / focus.flashCount * 0.38);
   let focusStrength = focusFlashing ? (focusFlashOn ? 1.45 : 0.20) : 1;
+  let laserIntroProgress = focusActive ? Math.min(1, focusElapsed / 2400) : 1;
+  let laserIntroEase = laserIntroProgress * laserIntroProgress * (3 - 2 * laserIntroProgress);
+  let laserFocusRadius = 40 + 120 * (1 - laserIntroEase);
   let focusScreen = null;
 
   if(focusActive) {
@@ -508,7 +511,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusAmount: laserFocusAmount,
     laserFocusCenterX: laserFocusCenter ? laserFocusCenter.x : null,
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
-    laserFocusRadius: 40,
+    laserFocusRadius: laserFocusRadius,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,

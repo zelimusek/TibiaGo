@@ -74,7 +74,7 @@ try {
 
   const celebration = handler.celebratePartyWinner(target);
   assert.strictEqual(celebration.ok, true);
-  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 8000);
+  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 11200);
   assert.strictEqual(handler.__spotlightFocus.flashDurationMs, 3000);
   assert.strictEqual(handler.__spotlightFocus.flashCount, 3);
   assert.strictEqual(handler.__spotlightFocus.includeLasers, true);
@@ -85,7 +85,7 @@ try {
   assert.strictEqual(handler.__spotlightFocus, null);
   assert.ok(/inside the dance hall/i.test(messages.at(-1)));
 
-  console.log("PASS: manual spotlight focus is steady and optional-timed while winner celebrations flash for eight seconds.");
+  console.log("PASS: manual spotlight focus is steady and optional-timed while winner celebrations last 11.2 seconds.");
 } finally {
   process.gameServer = originalProcessGameServer;
   global.gameServer = originalGlobalGameServer;

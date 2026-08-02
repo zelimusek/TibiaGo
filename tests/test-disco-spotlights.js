@@ -215,7 +215,7 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
 }, {
   targetId: 777,
   targetPosition: { x: 32516, y: 32348, z: 7 },
-  durationMs: 8000,
+  durationMs: 11200,
   flashDurationMs: 3000,
   flashCount: 3,
   includeLasers: true,
@@ -244,6 +244,7 @@ assert.strictEqual(roundedCaps, 4, "each focused beam should end with a rounded 
 assert.strictEqual(ellipseScales, 4, "each focused target should render as a perspective ellipse");
 assert.strictEqual(strokes, 9, "the active laser fans should remain present when focus begins");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "lasers should begin from their current fan angles");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 160, "focused lasers should begin as a very large ring around the player");
 assert.ok(strokeLengths.every((length) => length > 700), "laser beams should begin at their normal full-screen length");
 assert.strictEqual(arcRadii.length, 0, "normal full-length laser fans should not draw focused endpoint dots");
 
@@ -258,7 +259,8 @@ assert.ok(
 );
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, false, "the first flash should visibly switch off");
 assert.ok(weather.__getDiscoLightFrame().laserFocusAmount > 0 && weather.__getDiscoLightFrame().laserFocusAmount < 1, "lasers should turn toward the player during the 1.3 second transition");
-assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "winner lasers should keep the same large ring between flashes as /spotlights");
+const winnerRadiusAt650 = weather.__getDiscoLightFrame().laserFocusRadius;
+assert.ok(winnerRadiusAt650 > 40 && winnerRadiusAt650 < 160, "the winner laser ring should begin shrinking during its entrance");
 
 now += 650;
 lights.length = 0;
@@ -274,7 +276,8 @@ const initialBlueVector = {
 };
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "lasers should complete their turn after 1.3 seconds");
-assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "winner flashes should retain the same laser ring size as /spotlights");
+const winnerRadiusAt1300 = weather.__getDiscoLightFrame().laserFocusRadius;
+assert.ok(winnerRadiusAt1300 > 40 && winnerRadiusAt1300 < winnerRadiusAt650, "the winner ring should keep shrinking smoothly after the beams arrive");
 strokes = 0;
 strokeLengths = [];
 strokeEndpoints = [];
@@ -291,7 +294,7 @@ assert.strictEqual(
 assert.ok(
   strokeEndpoints.every((endpoint) => {
     let distance = Math.hypot(endpoint.x - initialFocusCenterX, endpoint.y - initialFocusCenterY);
-    return distance >= 39.9 && distance <= 40.1;
+    return distance >= winnerRadiusAt1300 - 0.1 && distance <= winnerRadiusAt1300 + 0.1;
   }),
   "the nine independent laser targets should form a ring around the winner"
 );
@@ -334,7 +337,8 @@ assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the third
 now += 1100;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "flashing should finish after three seconds");
-assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "steady winner lighting should remain until eight seconds");
+assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "steady winner lighting should remain until 11.2 seconds");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "the winner laser entrance should settle at the normal ring size");
 
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515,
@@ -344,7 +348,7 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   targetId: 777,
   targetPosition: { x: 32517, y: 32348, z: 7 },
   elapsedMs: 3100,
-  durationMs: 8000,
+  durationMs: 11200,
   flashDurationMs: 3000,
   flashCount: 3,
   includeLasers: true,
@@ -352,9 +356,9 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "resyncing must not restart the three flashes");
 
-now += 5000;
+now += 8100;
 context.gameClient.renderer.debugger.__nFrames++;
-assert.strictEqual(weather.__getDiscoLightFrame().focusActive, false, "winner focus should end after eight seconds");
+assert.strictEqual(weather.__getDiscoLightFrame().focusActive, false, "winner focus should end after 11.2 seconds");
 
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515,
@@ -395,12 +399,18 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
 });
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "/spotlights should begin from the current normal laser fans");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 160, "/spotlights should begin with a very large laser ring");
 now += 650;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.ok(weather.__getDiscoLightFrame().laserFocusAmount > 0 && weather.__getDiscoLightFrame().laserFocusAmount < 1, "switching to /spotlights should turn the lasers smoothly");
+const manualRadiusAt650 = weather.__getDiscoLightFrame().laserFocusRadius;
+assert.ok(manualRadiusAt650 > 40 && manualRadiusAt650 < 160, "the /spotlights ring should shrink while the lasers turn toward the player");
 now += 650;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "switching to /spotlights should finish after 1.3 seconds");
+assert.ok(weather.__getDiscoLightFrame().laserFocusRadius > 40 && weather.__getDiscoLightFrame().laserFocusRadius < manualRadiusAt650, "the /spotlights ring should continue shrinking after its direction transition");
+now += 1100;
+context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "manual focus should use a larger steady rotating laser ring");
 
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
