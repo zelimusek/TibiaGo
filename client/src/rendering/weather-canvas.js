@@ -369,7 +369,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let focusFlashing = focusActive && focusElapsed < focus.flashDurationMs && focus.flashCount > 0;
   let focusFlashOn = focusFlashing
     && focusElapsed % (focus.flashDurationMs / focus.flashCount) < Math.min(360, focus.flashDurationMs / focus.flashCount * 0.38);
-  let focusStrength = focusFlashing ? (focusFlashOn ? 2.15 : 0.24) : (focusActive ? 1.18 : 1);
+  let focusStrength = focusFlashing ? (focusFlashOn ? 1.45 : 0.20) : (focusActive ? 0.88 : 1);
   let focusScreen = null;
 
   if(focusActive) {
@@ -418,6 +418,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     [1.00, 0.55]
   ];
   let motionTime = now * disco.spotlightSpeed / 100;
+  let focusOrbitAngle = now / 2200;
+  let focusOrbitRadius = focusFlashing && focusFlashOn ? 8 : 14;
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
@@ -426,15 +428,20 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
         center.x + travelX * radius * 0.46,
         center.y + travelY * radius * 0.46,
         center.z
-      );
+    );
     let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
+    let orbitAngle = focusOrbitAngle + index * Math.PI * 0.5;
 
     return {
       color: color,
       fixtureX: centerX + fixtureOffsets[index][0] * radius * 32,
       fixtureY: centerY + fixtureOffsets[index][1] * radius * 32,
-      targetX: focusScreen ? focusScreen.x : (targetScreen.x + 0.5) * 32,
-      targetY: focusScreen ? focusScreen.y : (targetScreen.y + 0.5) * 32
+      targetX: focusScreen
+        ? focusScreen.x + Math.cos(orbitAngle) * focusOrbitRadius
+        : (targetScreen.x + 0.5) * 32,
+      targetY: focusScreen
+        ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius * 0.72
+        : (targetScreen.y + 0.5) * 32
     };
   });
 
@@ -480,8 +487,14 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
     let beamEndWidth = (gameClient.touch && gameClient.touch.isMobileMode ? 30 : 42) + 20 * frame.intensity;
     let targetRadius = Math.min(250, Math.max(155, frame.radius * 28)) * mobileScale;
     if(frame.focusActive) {
-      targetRadius *= frame.focusFlashing && frame.focusFlashOn ? 1.32 : 1.16;
+      targetRadius *= frame.focusFlashing && frame.focusFlashOn ? 0.92 : 0.78;
     }
+    let targetStrength = frame.focusActive
+      ? Math.min(
+        frame.focusFlashing && frame.focusFlashOn ? 0.58 : 0.42,
+        strength * 1.25 * frame.focusStrength
+      )
+      : Math.min(1, strength * 2.55);
 
     // The complete cone participates in the real light mask. Its lower power
     // keeps the moving target visibly brighter than the path leading to it.
@@ -504,7 +517,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
       light.targetY,
       targetRadius,
       light.color,
-      Math.min(1, strength * 2.55 * frame.focusStrength),
+      targetStrength,
       frame.clip
     );
 
@@ -563,9 +576,12 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.fillStyle = beam;
     context.fill();
 
-    let haloRadius = (mobile ? 100 : 128) * (frame.focusActive ? 1.16 : 1);
+    let haloRadius = (mobile ? 100 : 128) * (frame.focusActive ? 0.82 : 1);
     let halo = context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
-    halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], Math.min(0.92, 0.52 * intensity * frame.focusStrength)));
+    let haloAlpha = frame.focusActive
+      ? Math.min(0.55, 0.22 * intensity * frame.focusStrength)
+      : Math.min(0.92, 0.52 * intensity);
+    halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], haloAlpha));
     halo.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
     context.globalAlpha = 1;
     context.fillStyle = halo;

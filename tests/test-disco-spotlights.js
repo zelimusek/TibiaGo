@@ -190,8 +190,12 @@ lights.length = 0;
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 let focusedTargets = lights.filter((entry, index) => index % 2 === 0);
-assert.strictEqual(new Set(focusedTargets.map((entry) => entry[0] + ":" + entry[1])).size, 1, "all spotlights should converge on the winner");
-assert.ok(focusedTargets.every((entry) => entry[2] >= 155), "focused targets should use larger pools of light");
+const initialFocusCenterX = (focusedPosition.x - 32508 + 0.5) * 32;
+const initialFocusCenterY = (focusedPosition.y - 32335 + 0.5) * 32;
+const initialOrbitDistances = focusedTargets.map((entry) => Math.hypot(entry[0] - initialFocusCenterX, entry[1] - initialFocusCenterY));
+assert.strictEqual(new Set(focusedTargets.map((entry) => entry[0] + ":" + entry[1])).size, 4, "focused spotlights should keep four separate colored targets");
+assert.ok(initialOrbitDistances.every((distance) => distance >= 5 && distance <= 9), "winner flashes should tighten the ring without merging its colors");
+assert.ok(focusedTargets.every((entry) => entry[2] >= 110), "focused targets should retain broad pools of light");
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the winner sequence should begin with an intense flash");
 
 now += 450;
@@ -206,8 +210,9 @@ weather.renderDiscoIllumination(lightCanvas);
 focusedTargets = lights.filter((entry, index) => index % 2 === 0);
 const previousFocusedX = (focusedPosition.x - 1 - 32508 + 0.5) * 32;
 const desiredFocusedX = (focusedPosition.x - 32508 + 0.5) * 32;
+const followedCenterX = focusedTargets.reduce((total, entry) => total + entry[0], 0) / focusedTargets.length;
 assert.ok(
-  focusedTargets[0][0] > previousFocusedX && focusedTargets[0][0] < desiredFocusedX,
+  followedCenterX > previousFocusedX && followedCenterX < desiredFocusedX,
   "spotlights should glide toward a moving player instead of snapping to the next tile"
 );
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
