@@ -258,7 +258,7 @@ assert.ok(
 );
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, false, "the first flash should visibly switch off");
 assert.ok(weather.__getDiscoLightFrame().laserFocusAmount > 0 && weather.__getDiscoLightFrame().laserFocusAmount < 1, "lasers should turn toward the player during the 1.3 second transition");
-assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 38, "lasers should spread into a star between winner flashes");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "winner lasers should keep the same large ring between flashes as /spotlights");
 
 now += 650;
 lights.length = 0;
@@ -274,7 +274,7 @@ const initialBlueVector = {
 };
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the second one-second flash should switch on");
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "lasers should complete their turn after 1.3 seconds");
-assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 10, "lasers should converge closer during a winner flash");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 40, "winner flashes should retain the same laser ring size as /spotlights");
 strokes = 0;
 strokeLengths = [];
 strokeEndpoints = [];
@@ -291,7 +291,7 @@ assert.strictEqual(
 assert.ok(
   strokeEndpoints.every((endpoint) => {
     let distance = Math.hypot(endpoint.x - initialFocusCenterX, endpoint.y - initialFocusCenterY);
-    return distance >= 9.9 && distance <= 10.1;
+    return distance >= 39.9 && distance <= 40.1;
   }),
   "the nine independent laser targets should form a ring around the winner"
 );

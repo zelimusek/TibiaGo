@@ -508,7 +508,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusAmount: laserFocusAmount,
     laserFocusCenterX: laserFocusCenter ? laserFocusCenter.x : null,
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
-    laserFocusRadius: focusFlashing ? (focusFlashOn ? 10 : 38) : 40,
+    laserFocusRadius: 40,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,
