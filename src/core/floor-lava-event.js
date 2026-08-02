@@ -466,6 +466,9 @@ FloorLavaEvent.prototype.__finishIfResolved = function () {
   let winner = this.__getConnectedPlayer(survivors[0]);
 
   if (winner !== null) {
+    if (this.__creatureHandler.partyAchievements) {
+      this.__creatureHandler.partyAchievements.recordLavaWin(winner);
+    }
     gameServer.world.sendMagicEffect(winner.position, CONST.EFFECT.MAGIC.SOUND_WHITE);
   }
 

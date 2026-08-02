@@ -61,7 +61,9 @@ PacketReader.prototype.readCharacterInformation = function () {
     "level": this.readUInt16(),
     "sex": this.readUInt8(),
     "vocation": this.readUInt8(),
-    "role": this.readUInt8()
+    "role": this.readUInt8(),
+    "partyTitle": this.readString(),
+    "achievementCount": this.readUInt16()
   });
 
 }
@@ -186,6 +188,23 @@ PacketReader.prototype.readZoneInformation = function () {
     "rain": this.readBoolean()
   });
 
+}
+
+PacketReader.prototype.readPartyAchievement = function () {
+  try {
+    return JSON.parse(this.readString());
+  } catch (error) {
+    console.error("Could not read party achievement payload:", error);
+    return { action: "invalid", data: {} };
+  }
+}
+
+PacketReader.prototype.readCreatureTitle = function () {
+  return {
+    guid: this.readUInt32(),
+    title: this.readString(),
+    rarity: this.readString()
+  };
 }
 
 PacketReader.prototype.readRadioStream = function () {
@@ -836,7 +855,9 @@ PacketReader.prototype.readCreatureInfo = function () {
     "speed": this.readUInt16(),
     "type": this.readUInt8(),
     "name": this.readString(),
-    "conditions": this.readConditions()
+    "conditions": this.readConditions(),
+    "partyTitle": this.readString(),
+    "partyTitleRarity": this.readString()
   });
 
 }
@@ -975,6 +996,8 @@ PacketReader.prototype.readPlayerInfo = function () {
   let maxCapacity = this.readUInt32();
   let conditions = this.readConditions();
   let secureMode = this.readBoolean();
+  let partyTitle = this.readString();
+  let partyTitleRarity = this.readString();
 
   return new Object({
     "id": id,
@@ -999,7 +1022,9 @@ PacketReader.prototype.readPlayerInfo = function () {
     "capacity": capacity,
     "maxCapacity": maxCapacity,
     "conditions": conditions,
-    "secureMode": secureMode
+    "secureMode": secureMode,
+    "partyTitle": partyTitle,
+    "partyTitleRarity": partyTitleRarity
   });
 }
 

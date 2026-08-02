@@ -8,6 +8,7 @@ const Position = requireModule("utils/position");
 const FloorLavaEvent = requireModule("core/floor-lava-event");
 const BombermanEvent = requireModule("core/bomberman-event");
 const PartyBouncerEvent = requireModule("core/party-bouncer-event");
+const PartyAchievementSystem = requireModule("core/party-achievement-system");
 const fs = require("fs");
 const path = require("path");
 
@@ -98,6 +99,9 @@ const CreatureHandler = function () {
 
   // Two coordinated door bouncers, their physical queue and per-player passes.
   this.partyBouncers = new PartyBouncerEvent(this);
+
+  // Persistent party achievements, progress counters and visible titles.
+  this.partyAchievements = new PartyAchievementSystem(this);
 
   // Unique identifier for creatures (first 0xFFFF are reserved)
   this.__UIDCounter = 0xFFFF;
@@ -370,6 +374,15 @@ CreatureHandler.prototype.getPartyRadioPlayerCount = function () {
 
   return count;
 
+}
+
+CreatureHandler.prototype.isInsidePartyRadioZone = function (position) {
+  if (!position || !Array.isArray(this.__radioZones)) return false;
+  return this.__radioZones.some(function (zone) {
+    return zone.enabled !== false
+      && this.__isInsideRadioCore(zone, PARTY_DANCE_FLOOR_CENTER)
+      && this.__isInsideRadioCore(zone, position);
+  }, this);
 }
 
 CreatureHandler.prototype.getReadableContent = function (item) {
@@ -781,6 +794,8 @@ CreatureHandler.prototype.addPlayer = function (player, position) {
    * Adds a newly logged in player to the game world
    */
 
+  this.partyAchievements.preparePlayer(player);
+
   // Attempt to add the player to the position
   if (!this.addCreaturePosition(player, position)) {
     return false;
@@ -846,6 +861,7 @@ CreatureHandler.prototype.tick = function () {
   }
 
   this.__tickClubDance();
+  this.partyAchievements.tick();
   this.floorLava.tick();
   this.bomberman.tick();
   if (this.partyBouncers) {
@@ -945,6 +961,10 @@ CreatureHandler.prototype.createNewPlayer = async function (gameSocket, data) {
 
   // Attach a controller to the player
   player.socketHandler.attachController(gameSocket);
+
+  // The controller must exist before a newly earned login/visit achievement
+  // can display its popup and sound on the client.
+  this.partyAchievements.initializePlayer(player);
 
   // Send viewer-relative skulls after the controller can receive packets.
   gameServer.world.combatHandler.getPvPManager().broadcastSkullChanges();

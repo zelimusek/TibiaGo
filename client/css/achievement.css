@@ -1,32 +1,19 @@
-#achievement {
-  background-color: rgba(200, 200, 10, 0.75);
-  width: 200px;
-  height: 50px;
-  border: 1px solid gold;
-  border-radius: 20px;
-  box-shadow: 0 0 20px gold;
-  padding: 16px;
-  bottom: 16px;
+/* Party achievement presentation lives in new.css. These state selectors are
+ * kept here because this stylesheet loads later in the legacy client. */
+#achievement.party-achievement-toast {
+  width: min(390px, calc(100% - 24px));
+  height: auto;
+  bottom: auto;
+  visibility: visible;
+  background: linear-gradient(145deg, rgba(22, 15, 8, .97), rgba(5, 5, 9, .97));
 }
 
-#achievement.visible {
+#achievement.party-achievement-toast.visible {
   visibility: visible;
   opacity: 1;
-  transition: opacity 0.25s ease-in-out;
-  animation: pulse 0.25s;
 }
 
-#achievement.hidden {
+#achievement.party-achievement-toast.hidden {
   visibility: hidden;
   opacity: 0;
-  transition: visibility 0s 2s, opacity 2s ease-in-out;
-}
-
-@keyframes pulse {
-  0% {
-  	transform: scale(0);
-  }
-  100% {
-  	transform: scale(1);
-  }
 }

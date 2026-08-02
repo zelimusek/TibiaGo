@@ -564,6 +564,55 @@ PacketHandler.prototype.handleEnterZone = function (packet) {
 
 }
 
+PacketHandler.prototype.handlePartyAchievement = function (packet) {
+  if (!packet || !packet.action) return;
+  if (packet.action === "overview") {
+    return gameClient.interface.modalManager.open("achievements-modal", packet.data);
+  }
+  if (packet.action !== "unlock" || !packet.data.achievement) return;
+
+  let achievement = packet.data.achievement;
+  let element = document.getElementById("achievement");
+  element.className = "party-achievement-toast party-achievement-" + achievement.rarity;
+  element.innerHTML = "";
+
+  let heading = document.createElement("div");
+  heading.className = "party-achievement-heading";
+  heading.innerText = "ACHIEVEMENT UNLOCKED!";
+  let title = document.createElement("div");
+  title.className = "party-achievement-name";
+  title.innerText = achievement.title;
+  let description = document.createElement("div");
+  description.className = "party-achievement-description";
+  description.innerText = achievement.description;
+  element.appendChild(heading);
+  element.appendChild(title);
+  element.appendChild(description);
+
+  for (let index = 0; index < 18; index++) {
+    let particle = document.createElement("i");
+    particle.className = "achievement-confetti";
+    particle.style.setProperty("--x", (Math.random() * 260 - 130) + "px");
+    particle.style.setProperty("--delay", (Math.random() * 0.35) + "s");
+    particle.style.setProperty("--color", ["#ffd34d", "#56a8ff", "#c36bff", "#ff6577"][index % 4]);
+    element.appendChild(particle);
+  }
+
+  requestAnimationFrame(function () { element.classList.add("visible"); });
+  if (gameClient.interface.soundManager) gameClient.interface.soundManager.playAchievement();
+  clearTimeout(this.__partyAchievementTimeout);
+  this.__partyAchievementTimeout = setTimeout(function () {
+    element.classList.remove("visible");
+    element.classList.add("hidden");
+  }, 6000);
+}
+
+PacketHandler.prototype.handleCreatureTitle = function (packet) {
+  let creature = gameClient.world.getCreature(packet.guid);
+  if (!creature || !creature.characterElement) return;
+  creature.characterElement.setTitle(packet.title, packet.rarity);
+}
+
 PacketHandler.prototype.handleRadioStream = function (packet) {
 
   /*
@@ -1050,6 +1099,8 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
   }
 
   let message = "You see %s (Level %s). %s".format(packet.name, packet.level, vocationDescription);
+  if (packet.partyTitle) message += " Party title: %s.".format(packet.partyTitle);
+  message += " Achievements: %s/12.".format(packet.achievementCount || 0);
 
   // Show a server message
   gameClient.interface.notificationManager.setServerMessage(

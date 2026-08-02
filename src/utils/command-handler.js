@@ -457,6 +457,25 @@ CommandHandler.prototype.handleCommandBomb = function (player) {
 
 };
 
+CommandHandler.prototype.handleCommandAchievements = function (player) {
+  let system = gameServer.world.creatureHandler.partyAchievements;
+  if (!system) return player.sendCancelMessage("Party achievements are unavailable.");
+  return system.open(player);
+};
+
+CommandHandler.prototype.handleCommandTitle = function (player, message) {
+  let system = gameServer.world.creatureHandler.partyAchievements;
+  if (!system) return player.sendCancelMessage("Party achievements are unavailable.");
+  let requestedTitle = message.slice(1).join(" ").trim();
+  if (!requestedTitle) {
+    return player.sendCancelMessage("Usage: /title Title Name or /title none.");
+  }
+  let result = system.setTitle(player, requestedTitle);
+  player.sendCancelMessage(result.message);
+  if (result.ok) system.open(player);
+  return result.ok;
+};
+
 CommandHandler.prototype.handleCommandBouncers = function (player, message) {
   let action = String(message[1] || "status").toLowerCase();
   let bouncers = gameServer.world.creatureHandler.partyBouncers;
@@ -585,6 +604,15 @@ CommandHandler.prototype.handle = function (player, message) {
   // /bomb is deliberately available to regular players during Bomberman.
   if (message[0] === "/bomb") {
     return this.handleCommandBomb(player);
+  }
+
+  // Party collections and title selection are available to every player.
+  if (message[0] === "/achievements") {
+    return this.handleCommandAchievements(player);
+  }
+
+  if (message[0] === "/title") {
+    return this.handleCommandTitle(player, message);
   }
 
   // Slash commands in this handler are administrative tools (spawning,

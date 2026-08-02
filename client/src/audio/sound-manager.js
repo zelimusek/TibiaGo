@@ -153,6 +153,28 @@ SoundManager.prototype.setVolume = function(id, volume) {
 
 }
 
+SoundManager.prototype.playAchievement = function () {
+  if (this.__masterVolume <= 0) return;
+  let AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  let context = this.__achievementAudioContext || new AudioContextClass();
+  this.__achievementAudioContext = context;
+  let start = context.currentTime;
+  [523.25, 659.25, 783.99, 1046.5].forEach(function (frequency, index) {
+    let oscillator = context.createOscillator();
+    let gain = context.createGain();
+    oscillator.type = "triangle";
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0, start + index * 0.1);
+    gain.gain.linearRampToValueAtTime(0.12 * this.__masterVolume, start + index * 0.1 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + index * 0.1 + 0.28);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(start + index * 0.1);
+    oscillator.stop(start + index * 0.1 + 0.3);
+  }, this);
+}
+
 SoundManager.prototype.setRadioStream = function(url, volume) {
 
   /*

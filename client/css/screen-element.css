@@ -84,3 +84,17 @@
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
+
+.party-title {
+  display: none;
+  margin-top: -1px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-shadow: -1px -1px #000, 1px -1px #000, -1px 1px #000, 1px 1px #000;
+}
+
+.party-title-common { color: #fff; }
+.party-title-rare { color: #56a8ff; }
+.party-title-epic { color: #c36bff; }
+.party-title-legendary { color: #ffd34d; }

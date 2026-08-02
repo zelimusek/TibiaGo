@@ -115,6 +115,18 @@ CharacterElement.prototype.setName = function (name) {
   this.element.querySelector("span").innerHTML = name;
 };
 
+CharacterElement.prototype.setTitle = function (title, rarity) {
+  let element = this.element.querySelector(".party-title");
+  if (!element) return;
+  this.__creature.partyTitle = title || "";
+  this.__creature.partyTitleRarity = rarity || "common";
+  let showTitles = !gameClient.interface.settings
+    || gameClient.interface.settings.showPlayerTitles();
+  element.innerText = title ? "[" + title + "]" : "";
+  element.className = "party-title party-title-" + this.__creature.partyTitleRarity;
+  element.style.display = title && showTitles ? "block" : "none";
+};
+
 CharacterElement.prototype.setTextPosition = function () {
   /*
    * Function CharacterElement.setTextPosition

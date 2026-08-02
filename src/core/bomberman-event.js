@@ -635,6 +635,9 @@ BombermanEvent.prototype.placeBomb = function (player) {
     name,
     (this.__state.activeBombsByPlayer.get(name) || 0) + 1
   );
+  if (this.__creatureHandler.partyAchievements) {
+    this.__creatureHandler.partyAchievements.increment(player, "bombsPlaced", 1);
+  }
   gameServer.world.sendMagicEffect(position, CONST.EFFECT.MAGIC.SOUND_YELLOW);
   return { ok: true, message: "Bomb placed." };
 
@@ -979,6 +982,10 @@ BombermanEvent.prototype.__detonateBombs = function (initialKeys) {
   let queued = new Set(queue);
   let blastEntries = [];
   let destroyedCrateKeys = new Set();
+  let chainStarters = initialKeys.map(function (key) {
+    let bomb = this.__state.bombs.get(key);
+    return bomb ? bomb.ownerName : null;
+  }, this).filter(Boolean);
 
   while (queue.length > 0) {
     let key = queue.shift();
@@ -1008,6 +1015,19 @@ BombermanEvent.prototype.__detonateBombs = function (initialKeys) {
   }
 
   this.__destroyCrates(destroyedCrateKeys);
+
+  if (blastEntries.length >= 5 && this.__creatureHandler.partyAchievements) {
+    new Set(chainStarters).forEach(function (name) {
+      let player = this.__getConnectedPlayer(name);
+      if (player) {
+        this.__creatureHandler.partyAchievements.setMaximum(
+          player,
+          "largestBombChain",
+          blastEntries.length
+        );
+      }
+    }, this);
+  }
 
   let allBlastKeys = new Set();
   blastEntries.forEach(function (entry) {
@@ -1179,6 +1199,7 @@ BombermanEvent.prototype.__pulseArena = function (now) {
 BombermanEvent.prototype.__finishMayhem = function () {
 
   let scores = Array.from(this.__state.scores.entries());
+  let deaths = this.__state.deaths;
   let bestScore = Math.max.apply(null, scores.map(function (entry) {
     return entry[1];
   }));
@@ -1191,6 +1212,13 @@ BombermanEvent.prototype.__finishMayhem = function () {
   winners.forEach(function (name) {
     let player = this.__getConnectedPlayer(name);
     if (player !== null) {
+      if (this.__creatureHandler.partyAchievements) {
+        this.__creatureHandler.partyAchievements.recordBombermanWin(
+          player,
+          "mayhem",
+          deaths.get(name) || 0
+        );
+      }
       gameServer.world.sendMagicEffect(
         player.position,
         CONST.EFFECT.MAGIC.SOUND_WHITE
@@ -1233,10 +1261,18 @@ BombermanEvent.prototype.__finishMayhem = function () {
 BombermanEvent.prototype.__finishElimination = function () {
 
   let survivors = this.__getSurvivorNames();
+  let deaths = this.__state.deaths;
 
   survivors.forEach(function (name) {
     let player = this.__getConnectedPlayer(name);
     if (player !== null) {
+      if (this.__creatureHandler.partyAchievements) {
+        this.__creatureHandler.partyAchievements.recordBombermanWin(
+          player,
+          "elimination",
+          deaths.get(name) || 0
+        );
+      }
       gameServer.world.sendMagicEffect(
         player.position,
         CONST.EFFECT.MAGIC.SOUND_WHITE

@@ -432,3 +432,63 @@ button.symbol-button {
   left: 0px;
   top: 0px;
 }
+
+.party-achievements-modal {
+  width: min(620px, calc(100vw - 24px));
+  max-height: min(640px, calc(100vh - 36px));
+}
+
+.party-achievements-modal .modal-body { overflow: hidden; }
+.achievements-summary { color: #ffd34d; font-weight: 700; margin-bottom: 8px; text-align: center; }
+.achievements-list { max-height: min(500px, calc(100vh - 170px)); overflow-y: auto; display: grid; gap: 6px; }
+.achievement-row { display: flex; width: 100%; gap: 10px; padding: 9px; text-align: left; background: rgba(8, 8, 12, .88); border: 1px solid #555; color: #ddd; cursor: pointer; }
+.achievement-row.locked { opacity: .55; cursor: default; }
+.achievement-row.active { box-shadow: 0 0 10px currentColor; border-color: currentColor; }
+.achievement-row strong, .achievement-row span { display: block; }
+.achievement-state { width: 24px; font-size: 18px; text-align: center; }
+.achievement-content { flex: 1; }
+.achievement-content strong { margin-bottom: 2px; color: currentColor; }
+.achievement-progress { margin-top: 4px; color: #aaa; font-size: 10px; }
+.achievement-common { color: #fff; }
+.achievement-rare { color: #56a8ff; }
+.achievement-epic { color: #c36bff; }
+.achievement-legendary { color: #ffd34d; }
+.achievements-help { color: #aaa; font-size: 10px; text-align: center; margin: 8px 0 0; }
+
+.party-achievement-toast {
+  position: absolute;
+  z-index: 12000;
+  top: 12%;
+  left: 50%;
+  width: min(390px, calc(100% - 24px));
+  padding: 18px 20px;
+  transform: translate(-50%, -25px) scale(.88);
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  color: #ffd34d;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  background: linear-gradient(145deg, rgba(22, 15, 8, .97), rgba(5, 5, 9, .97));
+  box-shadow: 0 0 25px currentColor, inset 0 0 24px rgba(255,255,255,.08);
+  transition: opacity .35s, transform .35s;
+}
+.party-achievement-toast.visible { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.party-achievement-toast.hidden { display: block; opacity: 0; }
+.party-achievement-heading { color: #fff; font-size: 11px; letter-spacing: 2px; }
+.party-achievement-name { margin: 7px 0; font-size: 22px; font-weight: 900; text-shadow: 0 0 10px currentColor; }
+.party-achievement-description { color: #eee; font-size: 12px; }
+.party-achievement-rare { color: #56a8ff; }
+.party-achievement-epic { color: #c36bff; }
+.party-achievement-legendary { color: #ffd34d; }
+.achievement-confetti { position: absolute; left: 50%; top: 45%; width: 5px; height: 9px; background: var(--color); animation: achievement-confetti 1.4s var(--delay) ease-out forwards; }
+@keyframes achievement-confetti {
+  from { transform: translate(0, 0) rotate(0); opacity: 1; }
+  to { transform: translate(var(--x), 140px) rotate(540deg); opacity: 0; }
+}
+
+@media (max-width: 700px) {
+  .party-achievements-modal { width: calc(100vw - 14px); max-height: calc(100vh - 20px); }
+  .party-achievement-toast { top: 8%; padding: 13px; }
+  .party-achievement-name { font-size: 18px; }
+}

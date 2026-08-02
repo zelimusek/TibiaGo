@@ -128,6 +128,14 @@ NetworkManager.prototype.readPacket = function (packet) {
       return this.packetHandler.handleCreatureSkull(packet.readCreatureSkull());
     }
 
+    case CONST.PROTOCOL.SERVER.PARTY_ACHIEVEMENT: {
+      return this.packetHandler.handlePartyAchievement(packet.readPartyAchievement());
+    }
+
+    case CONST.PROTOCOL.SERVER.CREATURE_TITLE: {
+      return this.packetHandler.handleCreatureTitle(packet.readCreatureTitle());
+    }
+
     case CONST.PROTOCOL.SERVER.CREATURE_INFORMATION: {
       return this.packetHandler.handleCharacterInformation(packet.readCharacterInformation());
     }

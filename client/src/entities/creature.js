@@ -24,6 +24,8 @@ const Creature = function (data) {
   this.maxHealth = data.maxHealth;
   this.speed = data.speed;
   this.attackSlowness = data.attackSlowness;
+  this.partyTitle = data.partyTitle || "";
+  this.partyTitleRarity = data.partyTitleRarity || "common";
   this.skull = CONST.SKULL ? CONST.SKULL.NONE : 0;
   this.conditions = new ConditionManager(this, data.conditions);
 
@@ -700,5 +702,6 @@ Creature.prototype.__createCharacterElement = function () {
 
   // Make sure to update it directly
   this.characterElement.setHealthFraction(this.getHealthFraction());
+  this.characterElement.setTitle(this.partyTitle, this.partyTitleRarity);
 
 }

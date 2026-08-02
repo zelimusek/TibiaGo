@@ -138,6 +138,19 @@ Settings.prototype.isClassicControlEnabled = function () {
 
 }
 
+Settings.prototype.showPlayerTitles = function () {
+  return this.__state["show-player-titles"] !== false;
+}
+
+Settings.prototype.__refreshPlayerTitles = function () {
+  if (!gameClient || !gameClient.world || !gameClient.world.activeCreatures) return;
+  Object.values(gameClient.world.activeCreatures).forEach(function (creature) {
+    if (creature.characterElement && creature.characterElement.setTitle) {
+      creature.characterElement.setTitle(creature.partyTitle, creature.partyTitleRarity);
+    }
+  });
+}
+
 Settings.prototype.isWASDMovementEnabled = function () {
 
   /*
@@ -198,6 +211,7 @@ Settings.prototype.__toggle = function (event) {
     case "enable-resolution":
     case "anti-aliasing":
     case "enable-wasd-movement":
+    case "show-player-titles":
       this.__state[event.target.id] = event.target.checked;
       if (event.target.id === "enable-sound") {
         gameClient.interface.soundManager.enableSound(event.target.checked);
@@ -208,6 +222,7 @@ Settings.prototype.__toggle = function (event) {
       if (event.target.id === "enable-wasd-movement" && gameClient && gameClient.keyboard) {
         gameClient.keyboard.setInactive();
       }
+      if (event.target.id === "show-player-titles") this.__refreshPlayerTitles();
       break;
     case "fps-mode":
     case "mouse-control-mode":
@@ -289,6 +304,7 @@ Settings.prototype.__getCleanState = function () {
     "show-performance": document.getElementById("show-performance").checked,
     "anti-aliasing": document.getElementById("anti-aliasing").checked,
     "enable-wasd-movement": document.getElementById("enable-wasd-movement").checked,
+    "show-player-titles": document.getElementById("show-player-titles").checked,
     "fps-mode": document.getElementById("fps-mode").value,
     "mouse-control-mode": document.getElementById("mouse-control-mode").value,
     "enable-resolution": document.getElementById("enable-resolution").checked,
@@ -317,6 +333,7 @@ Settings.prototype.__applyState = function (id) {
     case "enable-resolution":
     case "anti-aliasing":
     case "enable-wasd-movement":
+    case "show-player-titles":
       element.checked = Boolean(this.__state[id]);
       break;
     case "fps-mode":

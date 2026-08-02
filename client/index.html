@@ -197,6 +197,7 @@
   <div id="character-element-prototype" class="prototype text-window">
     <i class="creature-skull"></i>
     <span></span>
+    <div class="party-title"></div>
     <div class="character-element-bar">
       <div class="value-health"></div>
     </div>
@@ -731,6 +732,9 @@
                   <label class="checkbox-label" for="enable-wasd-movement">
                     <input type="checkbox" id="enable-wasd-movement" autocomplete="off" checked> WASD Movement
                   </label>
+                  <label class="checkbox-label" for="show-player-titles">
+                    <input type="checkbox" id="show-player-titles" autocomplete="off" checked> Show Player Titles
+                  </label>
                 </div>
 
                 <hr>
@@ -775,6 +779,17 @@
                   <label>Mobile Controls:</label>
                   <button id="reset-mobile-controls" type="button">Reset Layout</button>
                 </div>
+              </div>
+            </div>
+
+            <!-- Quest Log Modal -->
+            <div id="achievements-modal" class="modal party-achievements-modal">
+              <button class="close-button-transparent symbol-button" action="cancel" value="Cancel">&#10006;</button>
+              <div class="modal-header">Party Achievements</div>
+              <div class="modal-body">
+                <div id="achievements-summary" class="achievements-summary"></div>
+                <div id="achievements-list" class="achievements-list"></div>
+                <p class="achievements-help">Click an unlocked achievement to equip its title. Click the active one to remove it.</p>
               </div>
             </div>
 
@@ -1222,7 +1237,7 @@
           <!-- Notifications etc.. -->
           <div id="notification" class="canvas-notification"></div>
 
-          <div id="achievement" class="canvas-notification hidden"></div>
+          <div id="achievement" class="party-achievement-toast hidden"></div>
 
         </div>
       </div>

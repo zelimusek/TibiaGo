@@ -646,6 +646,9 @@ PartyBouncerEvent.prototype.handleSpeech = function (player, message) {
   }
 
   if (correct) {
+    if (this.__creatureHandler.partyAchievements) {
+      this.__creatureHandler.partyAchievements.increment(player, "bouncerPasses", 1);
+    }
     let pair = this.__getText(player).access.random();
     this.__beginGrant(pair[0], pair[1]);
     return true;
@@ -674,6 +677,9 @@ PartyBouncerEvent.prototype.handleTurn = function (player, direction) {
   active.spinDirections.add(Number(direction));
   if (active.spinDirections.size >= BOUNCER_CONFIG.requiredSpinTurns) {
     let text = this.__getText(player);
+    if (this.__creatureHandler.partyAchievements) {
+      this.__creatureHandler.partyAchievements.increment(player, "bouncerPasses", 1);
+    }
     this.__beginGrant(text.spinAccepted, text.spinAccess);
   }
   return true;

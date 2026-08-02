@@ -61,5 +61,10 @@ module.exports = function useWaterPipe(player, tile, index, item) {
   }
   player.write(intoxicationPacket);
 
+  let handler = process.gameServer.world.creatureHandler;
+  if (handler.partyAchievements) {
+    handler.partyAchievements.increment(player, "pipeUses", 1);
+  }
+
   return true;
 };

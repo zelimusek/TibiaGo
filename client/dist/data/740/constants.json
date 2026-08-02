@@ -40,7 +40,9 @@
       "FIGHT_MODE": 21,
       "CHASE_MODE": 22,
       "WRITE_TEXT": 23,
-      "QUEST_LOG": 24
+      "QUEST_LOG": 24,
+      "SECURE_MODE": 25,
+      "CLIENT_CAPABILITIES": 26
     },
     "SERVER": {
       "LATENCY": 0,
@@ -87,7 +89,10 @@
       "FOOD_TIMER": 51,
       "QUEST_LOG": 52,
       "QUEST_LINE": 53,
-      "RADIO_STREAM": 54
+      "RADIO_STREAM": 54,
+      "CREATURE_SKULL": 56,
+      "PARTY_ACHIEVEMENT": 57,
+      "CREATURE_TITLE": 58
     }
   },
   "DIRECTION": {
@@ -112,6 +117,13 @@
   "CHASE_MODE": {
     "STAND": 0,
     "CHASE": 1
+  },
+  "SKULL": {
+    "NONE": 0,
+    "YELLOW": 1,
+    "WHITE": 2,
+    "RED": 3,
+    "BLACK": 4
   },
   "TYPES": {
     "PLAYER": 0,

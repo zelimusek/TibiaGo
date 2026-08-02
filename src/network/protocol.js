@@ -2,6 +2,10 @@
 
 const PacketWriter = requireModule("network/packet-writer");
 
+function encodePartyString(value) {
+  return new TextEncoder("utf-8").encode(String(value || ""));
+}
+
 const CreaturePropertyPacket = function (id, property, value) {
   /*
    * Class CreaturePropertyPacket
@@ -44,6 +48,38 @@ const StringCreaturePropertyPacket = function (id, property, string) {
 StringCreaturePropertyPacket.prototype = Object.create(PacketWriter.prototype);
 StringCreaturePropertyPacket.prototype.constructor =
   StringCreaturePropertyPacket;
+
+const PartyAchievementPacket = function (action, data) {
+  let payload = encodePartyString(JSON.stringify({ action: action, data: data || {} }));
+  PacketWriter.call(this, CONST.PROTOCOL.SERVER.PARTY_ACHIEVEMENT, payload.getEncodedLength());
+  this.writeBuffer(payload);
+};
+
+PartyAchievementPacket.prototype = Object.create(PacketWriter.prototype);
+PartyAchievementPacket.prototype.constructor = PartyAchievementPacket;
+
+const CreatureTitlePacket = function (creatureId, title, rarity) {
+  let encodedTitle = encodePartyString(title || "");
+  let encodedRarity = encodePartyString(rarity || "common");
+  PacketWriter.call(
+    this,
+    CONST.PROTOCOL.SERVER.CREATURE_TITLE,
+    4 + encodedTitle.getEncodedLength() + encodedRarity.getEncodedLength()
+  );
+  this.writeUInt32(creatureId);
+  this.writeBuffer(encodedTitle);
+  this.writeBuffer(encodedRarity);
+};
+
+CreatureTitlePacket.prototype = Object.create(PacketWriter.prototype);
+CreatureTitlePacket.prototype.constructor = CreatureTitlePacket;
+
+function getCreaturePartyTitle(creature) {
+  let handler = process.gameServer && process.gameServer.world
+    ? process.gameServer.world.creatureHandler : null;
+  if (!handler || !handler.partyAchievements) return { title: "", rarity: "common" };
+  return handler.partyAchievements.getActiveTitle(creature);
+}
 
 const OutfitPacket = function (guid, outfit) {
   /*
@@ -379,12 +415,16 @@ const CreatureStatePacket = function (creature) {
   let stringEncoded = this.encodeString(
     creature.getProperty(CONST.PROPERTIES.NAME)
   );
+  let partyTitle = getCreaturePartyTitle(creature);
+  let titleEncoded = encodePartyString(partyTitle.title);
+  let rarityEncoded = encodePartyString(partyTitle.rarity);
 
   // Inherits from packet writer
   PacketWriter.call(
     this,
     CONST.PROTOCOL.SERVER.CREATURE_STATE,
-    stringEncoded.getEncodedLength() + 35
+    stringEncoded.getEncodedLength() + titleEncoded.getEncodedLength()
+      + rarityEncoded.getEncodedLength() + 35
   );
 
   // The globally unique identifier
@@ -408,6 +448,8 @@ const CreatureStatePacket = function (creature) {
 
   // Condition size
   this.writeUInt8(0);
+  this.writeBuffer(titleEncoded);
+  this.writeBuffer(rarityEncoded);
 };
 
 CreatureStatePacket.prototype = Object.create(PacketWriter.prototype);
@@ -706,11 +748,13 @@ const CreatureInformationPacket = function (creature) {
   let stringEncoded = this.encodeString(
     creature.getProperty(CONST.PROPERTIES.NAME)
   );
+  let partyTitle = getCreaturePartyTitle(creature);
+  let titleEncoded = encodePartyString(partyTitle.title);
 
   PacketWriter.call(
     this,
     CONST.PROTOCOL.SERVER.CREATURE_INFORMATION,
-    stringEncoded.getEncodedLength() + 5
+    stringEncoded.getEncodedLength() + titleEncoded.getEncodedLength() + 7
   );
 
   this.writeBuffer(stringEncoded);
@@ -738,6 +782,11 @@ const CreatureInformationPacket = function (creature) {
     this.writeUInt8(0);
     this.writeUInt8(0);
   }
+  this.writeBuffer(titleEncoded);
+  let handler = process.gameServer && process.gameServer.world
+    ? process.gameServer.world.creatureHandler : null;
+  this.writeUInt16(handler && handler.partyAchievements
+    ? handler.partyAchievements.getUnlockedCount(creature) : 0);
 };
 
 CreatureInformationPacket.prototype = Object.create(PacketWriter.prototype);
@@ -896,6 +945,9 @@ const PlayerStatePacket = function (player) {
   let stringEncoded = this.encodeString(
     player.getProperty(CONST.PROPERTIES.NAME)
   );
+  let partyTitle = getCreaturePartyTitle(player);
+  let titleEncoded = encodePartyString(partyTitle.title);
+  let rarityEncoded = encodePartyString(partyTitle.rarity);
 
   // Inherits from packet writer
   PacketWriter.call(
@@ -967,6 +1019,8 @@ const PlayerStatePacket = function (player) {
 
   // Persisted client combat preference.
   this.writeBoolean(player.secureMode);
+  this.writeBuffer(titleEncoded);
+  this.writeBuffer(rarityEncoded);
 
 };
 
@@ -1081,6 +1135,8 @@ module.exports = {
   PlayerLogoutPacket,
   PlayerStatePacket,
   CreaturePropertyPacket,
+  CreatureTitlePacket,
+  PartyAchievementPacket,
   ReadTextPacket,
   ServerErrorPacket,
   ServerStatePacket,
