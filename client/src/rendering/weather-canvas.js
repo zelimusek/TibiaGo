@@ -134,16 +134,19 @@ WeatherCanvas.prototype.addPipeSmoke = function(smoke) {
     seed: Number(smoke.seed) || 1
   });
 
-  if(gameClient.player && Number(smoke.sourceId) === gameClient.player.id) {
-    let dose = Math.max(1, Math.min(10, Number(smoke.dose) || intensity));
-    this.__intoxication = {
-      intensity: dose,
-      started: now,
-      expires: now + 9000 + dose * 1500,
-      duration: 9000 + dose * 1500,
-      seed: Number(smoke.seed) || 1
-    };
-  }
+}
+
+WeatherCanvas.prototype.setPipeIntoxication = function(dose, seed) {
+
+  dose = Math.max(1, Math.min(10, Number(dose) || 1));
+  let now = performance.now();
+  this.__intoxication = {
+    intensity: dose,
+    started: now,
+    expires: now + 9000 + dose * 1500,
+    duration: 9000 + dose * 1500,
+    seed: Number(seed) || 1
+  };
 
 }
 

@@ -1,23 +1,18 @@
 "use strict";
 
-const { RadioStreamPacket } = requireModule("network/protocol");
+const { EffectMagicPacket } = requireModule("network/protocol");
 
 const MAX_INTENSITY = 10;
 const DECAY_INTERVAL_MS = 2500;
 const USE_COOLDOWN_MS = 650;
+const PIPE_SMOKE_EFFECT_BASE = 199;
+const PIPE_INTOXICATION_EFFECT_BASE = 219;
 const clouds = new Map();
 const playerCooldowns = new Map();
 const playerDoses = new Map();
 
 function getCloudKey(position) {
   return position.x + "," + position.y + "," + position.z;
-}
-
-function getRadius(intensity) {
-  if (intensity >= 9) return 4;
-  if (intensity >= 6) return 3;
-  if (intensity >= 3) return 2;
-  return 1;
 }
 
 module.exports = function useWaterPipe(player, tile, index, item) {
@@ -54,28 +49,17 @@ module.exports = function useWaterPipe(player, tile, index, item) {
   dose = Math.min(MAX_INTENSITY, dose + 1);
   playerDoses.set(playerId, { intensity: dose, lastUsed: now });
 
-  let radius = getRadius(intensity);
-  let duration = 10000 + intensity * 1400;
-  let payload = encodeURIComponent(JSON.stringify({
-    x: position.x,
-    y: position.y,
-    z: position.z,
-    intensity: intensity,
-    radius: radius,
-    duration: duration,
-    sourceId: playerId,
-    dose: dose,
-    seed: (now + position.x * 31 + position.y * 17) >>> 0
-  }));
-  let packet = new RadioStreamPacket(true, "pipe-smoke:" + payload, 0);
+  let smokePacket = new EffectMagicPacket(position, PIPE_SMOKE_EFFECT_BASE + intensity);
+  let intoxicationPacket = new EffectMagicPacket(position, PIPE_INTOXICATION_EFFECT_BASE + dose);
   let chunk = process.gameServer.world.getChunkFromWorldPosition(position);
 
   process.gameServer.world.sendMagicEffect(position, CONST.EFFECT.MAGIC.POFF);
   if (chunk !== null) {
-    chunk.broadcastFloor(position.z, packet);
+    chunk.broadcastFloor(position.z, smokePacket);
   } else {
-    player.write(packet);
+    player.write(smokePacket);
   }
+  player.write(intoxicationPacket);
 
   return true;
 };

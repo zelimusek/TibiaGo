@@ -402,6 +402,30 @@ PacketHandler.prototype.handleSendMagicEffect = function (packet) {
    * Handles incoming packet to send a magic effect to a position
    */
 
+  // Reserved high effect identifiers carry backward-compatible water-pipe
+  // ambience. Older clients safely ignore them as unknown magic effects.
+  if(packet.type >= 200 && packet.type <= 209) {
+    let intensity = packet.type - 199;
+    gameClient.renderer.weatherCanvas.addPipeSmoke({
+      x: packet.position.x,
+      y: packet.position.y,
+      z: packet.position.z,
+      intensity: intensity,
+      radius: intensity >= 9 ? 4 : intensity >= 6 ? 3 : intensity >= 3 ? 2 : 1,
+      duration: 10000 + intensity * 1400,
+      seed: Date.now() + packet.position.x * 31 + packet.position.y * 17
+    });
+    return;
+  }
+
+  if(packet.type >= 220 && packet.type <= 229) {
+    gameClient.renderer.weatherCanvas.setPipeIntoxication(
+      packet.type - 219,
+      Date.now() + packet.position.x * 31 + packet.position.y * 17
+    );
+    return;
+  }
+
   gameClient.renderer.addPositionAnimation(packet);
 
 }
@@ -550,18 +574,6 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
   let editorPrefix = "radio-editor:";
   let ambiencePrefix = "radio-ambience:";
   let clubMenuPrefix = "club-menu:";
-  let pipeSmokePrefix = "pipe-smoke:";
-
-  if(packet.enabled && packet.url.startsWith(pipeSmokePrefix)) {
-    try {
-      let smoke = JSON.parse(decodeURIComponent(packet.url.slice(pipeSmokePrefix.length)));
-      gameClient.renderer.weatherCanvas.addPipeSmoke(smoke);
-    } catch (error) {
-      console.warn("Could not render water-pipe smoke:", error);
-    }
-    return;
-  }
-
   if(packet.enabled && packet.url.startsWith(clubMenuPrefix)) {
     gameClient.interface.modalManager.open("club-bar-modal", JSON.parse(decodeURIComponent(packet.url.slice(clubMenuPrefix.length))));
     return;

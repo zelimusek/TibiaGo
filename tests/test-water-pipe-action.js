@@ -3,17 +3,16 @@
 const assert = require("assert");
 let writes = [];
 
-class RadioStreamPacket {
-  constructor(enabled, url, volume) {
-    this.enabled = enabled;
-    this.url = url;
-    this.volume = volume;
+class EffectMagicPacket {
+  constructor(position, type) {
+    this.position = position;
+    this.type = type;
   }
 }
 
 global.requireModule = function(name) {
   assert.strictEqual(name, "network/protocol");
-  return { RadioStreamPacket: RadioStreamPacket };
+  return { EffectMagicPacket: EffectMagicPacket };
 };
 global.CONST = { EFFECT: { MAGIC: { POFF: 3 } } };
 process.gameServer = {
@@ -41,14 +40,13 @@ const player = {
 const item = { getPosition: function() { return position; } };
 
 assert.strictEqual(useWaterPipe(player, null, 0, item), true);
-let broadcast = writes.find(function(entry) { return entry.packet && entry.packet.url; });
+let broadcast = writes.find(function(entry) { return entry.floor === 7 && entry.packet; });
 assert(broadcast, "missing smoke packet");
 assert.strictEqual(broadcast.floor, 7);
-let payload = JSON.parse(decodeURIComponent(broadcast.packet.url.slice("pipe-smoke:".length)));
-assert.deepStrictEqual([payload.x, payload.y, payload.z], [32515, 32346, 7]);
-assert.strictEqual(payload.intensity, 1);
-assert.strictEqual(payload.dose, 1);
-assert.strictEqual(payload.sourceId, 123);
+assert.deepStrictEqual(broadcast.packet.position, position);
+assert.strictEqual(broadcast.packet.type, 200);
+let privateEffect = writes.find(function(entry) { return entry.packet && entry.packet.type === 220; });
+assert(privateEffect, "missing private intoxication effect");
 assert(writes.some(function(entry) { return entry.effect === 3; }), "missing POFF effect");
 
 console.log("water-pipe action OK");
