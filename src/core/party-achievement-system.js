@@ -1,6 +1,7 @@
 "use strict";
 
 const { PartyAchievementPacket, CreatureTitlePacket } = requireModule("network/protocol");
+const Position = requireModule("utils/position");
 
 const DANCE_FLOOR = {
   from: { x: 32509, y: 32340, z: 7 },
@@ -13,6 +14,21 @@ const RARITY_COLORS = {
   epic: "#c36bff",
   legendary: "#ffd34d"
 };
+
+const WORLD_CONFETTI_EFFECTS = [
+  CONST.EFFECT.MAGIC.SOUND_RED,
+  CONST.EFFECT.MAGIC.SOUND_YELLOW,
+  CONST.EFFECT.MAGIC.SOUND_GREEN,
+  CONST.EFFECT.MAGIC.SOUND_PURPLE,
+  CONST.EFFECT.MAGIC.SOUND_BLUE,
+  CONST.EFFECT.MAGIC.SOUND_WHITE
+];
+
+const WORLD_CONFETTI_WAVES = [
+  [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]],
+  [[-1, -1], [1, -1], [-1, 1], [1, 1], [-2, 0], [2, 0]],
+  [[0, -2], [0, 2], [-2, -1], [2, -1], [-2, 1], [2, 1]]
+];
 
 const PartyAchievementSystem = function (creatureHandler) {
   this.__creatureHandler = creatureHandler;
@@ -132,6 +148,20 @@ PartyAchievementSystem.prototype.__evaluate = function (player) {
   newlyUnlocked.forEach(function (definition) { this.__notifyUnlock(player, definition); }, this);
 };
 
+PartyAchievementSystem.prototype.__showWorldConfetti = function (player) {
+  WORLD_CONFETTI_WAVES.forEach(function (offsets, waveIndex) {
+    setTimeout(function () {
+      if (!player.position || !this.__creatureHandler.isPlayerOnline(player)) return;
+      let center = player.position;
+      offsets.forEach(function (offset, effectIndex) {
+        let position = new Position(center.x + offset[0], center.y + offset[1], center.z);
+        let effect = WORLD_CONFETTI_EFFECTS[(effectIndex + waveIndex * 2) % WORLD_CONFETTI_EFFECTS.length];
+        gameServer.world.sendMagicEffect(position, effect);
+      });
+    }.bind(this), waveIndex * 220);
+  }, this);
+};
+
 PartyAchievementSystem.prototype.__notifyUnlock = function (player, definition) {
   player.write(new PartyAchievementPacket("unlock", { achievement: this.__toClientEntry(player, definition) }));
   player.sendCancelMessage("Achievement unlocked: %s!".format(definition.title));
@@ -145,12 +175,7 @@ PartyAchievementSystem.prototype.__notifyUnlock = function (player, definition) 
     );
   }
   if (!player.position) return;
-  gameServer.world.sendMagicEffect(player.position, CONST.EFFECT.MAGIC.SOUND_YELLOW);
-  setTimeout(function () {
-    if (player.position && this.__creatureHandler.isPlayerOnline(player)) {
-      gameServer.world.sendMagicEffect(player.position, CONST.EFFECT.MAGIC.SOUND_WHITE);
-    }
-  }.bind(this), 350);
+  this.__showWorldConfetti(player);
 };
 
 PartyAchievementSystem.prototype.__toClientEntry = function (player, definition) {
