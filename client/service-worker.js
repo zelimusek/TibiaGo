@@ -1,5 +1,5 @@
-const CACHE_NAME = "tibiago-static-v30";
-const CLIENT_BUILD = "20260802.1";
+const CACHE_NAME = "tibiago-static-v31";
+const CLIENT_BUILD = "20260802.2";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",

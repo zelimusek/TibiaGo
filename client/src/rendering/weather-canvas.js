@@ -20,6 +20,9 @@ const WeatherCanvas = function(screen) {
   this.__isRaining = false;
   this.__weatherType = "none";
   this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0, radius: 0, center: null };
+  this.__pipeSmokeClouds = new Map();
+  this.__intoxication = null;
+  this.__intoxicationBuffer = document.createElement("canvas");
   this.__rainIntensity = 0.025;
   this.__thunderIntensity = 0.0025;
 
@@ -103,6 +106,190 @@ WeatherCanvas.prototype.handleThunder = function() {
   }
 
   this.drawThunder();
+
+}
+
+WeatherCanvas.prototype.addPipeSmoke = function(smoke) {
+
+  let x = Number(smoke.x);
+  let y = Number(smoke.y);
+  let z = Number(smoke.z);
+  let intensity = Math.max(1, Math.min(10, Number(smoke.intensity) || 1));
+  let radius = Math.max(1, Math.min(4, Number(smoke.radius) || 1));
+  let duration = Math.max(4000, Math.min(30000, Number(smoke.duration) || 12000));
+
+  if(!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z)) {
+    return;
+  }
+
+  let now = performance.now();
+  let key = x + "," + y + "," + z;
+  this.__pipeSmokeClouds.set(key, {
+    position: new Position(x, y, z),
+    intensity: intensity,
+    radius: radius,
+    started: now,
+    expires: now + duration,
+    duration: duration,
+    seed: Number(smoke.seed) || 1
+  });
+
+  if(gameClient.player && Number(smoke.sourceId) === gameClient.player.id) {
+    let dose = Math.max(1, Math.min(10, Number(smoke.dose) || intensity));
+    this.__intoxication = {
+      intensity: dose,
+      started: now,
+      expires: now + 9000 + dose * 1500,
+      duration: 9000 + dose * 1500,
+      seed: Number(smoke.seed) || 1
+    };
+  }
+
+}
+
+WeatherCanvas.prototype.__pipeRandom = function(seed, index) {
+
+  let value = Math.sin(seed * 0.017 + index * 91.731) * 43758.5453;
+  return value - Math.floor(value);
+
+}
+
+WeatherCanvas.prototype.drawPipeSmoke = function() {
+
+  if(!gameClient.player || this.__pipeSmokeClouds.size === 0) {
+    return;
+  }
+
+  let context = this.screen.context;
+  let now = performance.now();
+  let mobile = Boolean(gameClient.touch && gameClient.touch.isMobileMode);
+  let playerFloor = gameClient.player.getPosition().z;
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+
+  this.__pipeSmokeClouds.forEach(function(cloud, key) {
+    if(now >= cloud.expires) {
+      this.__pipeSmokeClouds.delete(key);
+      return;
+    }
+
+    if(cloud.position.z !== playerFloor) {
+      return;
+    }
+
+    let screenPosition = gameClient.renderer.getStaticScreenPosition(cloud.position);
+    let centreX = (screenPosition.x + 0.5) * 32;
+    let centreY = (screenPosition.y + 0.5) * 32;
+    let elapsed = now - cloud.started;
+    let remaining = (cloud.expires - now) / cloud.duration;
+    let fadeIn = Math.min(1, elapsed / 700);
+    let fadeOut = Math.min(1, remaining * 4);
+    let opacity = fadeIn * fadeOut;
+    let count = mobile
+      ? Math.round(5 + cloud.intensity * 2.2)
+      : Math.round(8 + cloud.intensity * 4);
+
+    for(let index = 0; index < count; index++) {
+      let angle = this.__pipeRandom(cloud.seed, index) * Math.PI * 2;
+      let distance = Math.sqrt(this.__pipeRandom(cloud.seed + 19, index)) * cloud.radius * 28;
+      let drift = elapsed * (0.004 + this.__pipeRandom(cloud.seed + 43, index) * 0.006);
+      let x = centreX + Math.cos(angle) * distance + Math.sin(elapsed / 900 + index) * 5;
+      let y = centreY + Math.sin(angle) * distance - drift % 34;
+      let size = 18 + cloud.intensity * 2.2 + this.__pipeRandom(cloud.seed + 71, index) * 24;
+      let alpha = opacity * (0.035 + cloud.intensity * 0.008) * (0.65 + this.__pipeRandom(cloud.seed + 97, index) * 0.5);
+      let gradient = context.createRadialGradient(x, y, 0, x, y, size);
+      gradient.addColorStop(0, "rgba(218, 230, 226, " + alpha + ")");
+      gradient.addColorStop(0.45, "rgba(173, 193, 190, " + (alpha * 0.72) + ")");
+      gradient.addColorStop(1, "rgba(116, 137, 139, 0)");
+      context.fillStyle = gradient;
+      context.fillRect(x - size, y - size, size * 2, size * 2);
+    }
+  }, this);
+
+  context.restore();
+
+}
+
+WeatherCanvas.prototype.drawIntoxication = function() {
+
+  let effect = this.__intoxication;
+  if(!effect) {
+    return;
+  }
+
+  let now = performance.now();
+  if(now >= effect.expires) {
+    this.__intoxication = null;
+    return;
+  }
+
+  let context = this.screen.context;
+  let canvas = this.screen.canvas;
+  let buffer = this.__intoxicationBuffer;
+  let remaining = (effect.expires - now) / effect.duration;
+  let fadeIn = Math.min(1, (now - effect.started) / 1100);
+  let fadeOut = Math.min(1, remaining * 4);
+  let strength = (effect.intensity / 10) * fadeIn * fadeOut;
+  let mobile = Boolean(gameClient.touch && gameClient.touch.isMobileMode);
+
+  if(buffer.width !== canvas.width || buffer.height !== canvas.height) {
+    buffer.width = canvas.width;
+    buffer.height = canvas.height;
+  }
+
+  let bufferContext = buffer.getContext("2d");
+  bufferContext.imageSmoothingEnabled = false;
+  bufferContext.clearRect(0, 0, buffer.width, buffer.height);
+  bufferContext.drawImage(canvas, 0, 0);
+
+  let swayX = Math.sin(now / 520) * 3.5 * strength;
+  let swayY = Math.cos(now / 690) * 2.5 * strength;
+  let zoom = 1 + 0.008 * strength;
+
+  context.save();
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.filter = "hue-rotate(" + (Math.sin(now / 850) * 16 * strength) + "deg) saturate(" + (1 + 0.45 * strength) + ")";
+  context.drawImage(
+    buffer,
+    swayX - canvas.width * (zoom - 1) / 2,
+    swayY - canvas.height * (zoom - 1) / 2,
+    canvas.width * zoom,
+    canvas.height * zoom
+  );
+  context.filter = "none";
+
+  if(effect.intensity >= 3) {
+    let split = (mobile ? 1.5 : 2.5) + 4 * strength;
+    context.globalCompositeOperation = "screen";
+    context.globalAlpha = 0.055 + 0.09 * strength;
+    context.drawImage(buffer, split, 0);
+    context.globalAlpha = 0.045 + 0.07 * strength;
+    context.drawImage(buffer, -split, 1);
+  }
+
+  let tint = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+  let pulse = 0.5 + 0.5 * Math.sin(now / 430);
+  tint.addColorStop(0, "rgba(90, 255, 175, " + ((0.025 + pulse * 0.025) * strength) + ")");
+  tint.addColorStop(0.5, "rgba(160, 70, 230, " + (0.045 * strength) + ")");
+  tint.addColorStop(1, "rgba(55, 130, 255, " + ((0.025 + (1 - pulse) * 0.025) * strength) + ")");
+  context.globalAlpha = 1;
+  context.fillStyle = tint;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  if(effect.intensity >= 7) {
+    let sparkles = mobile ? 7 : 13;
+    context.globalCompositeOperation = "screen";
+    context.fillStyle = "rgba(230, 255, 245, " + (0.25 * strength) + ")";
+    for(let index = 0; index < sparkles; index++) {
+      let x = this.__pipeRandom(effect.seed, index) * canvas.width;
+      let y = (this.__pipeRandom(effect.seed + 37, index) * canvas.height - (now / (18 + index)) % canvas.height + canvas.height) % canvas.height;
+      let size = index % 3 === 0 ? 2 : 1;
+      context.fillRect(x, y, size, size);
+    }
+  }
+
+  context.restore();
 
 }
 

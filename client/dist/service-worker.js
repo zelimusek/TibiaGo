@@ -1,4 +1,5 @@
-const CACHE_NAME = "tibiago-static-v9";
+const CACHE_NAME = "tibiago-static-v31";
+const CLIENT_BUILD = "20260802.2";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
@@ -12,11 +13,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
+
+      // Take control without navigating the page here. The HTML bootstrap owns
+      // the single reload and waits for it before asset loading can start.
+      await self.clients.claim();
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -28,10 +33,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // The game is online-only, so its code must always be current. Caching the
-  // launcher or source modules can mix an old client protocol with a newly
-  // deployed server and lead to a black screen after reconnecting.
-  if (request.mode === "navigate" || /\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)) {
+  // The game is online-only, so its code and data must always be current.
+  // Tibia.spr is large and the client already persists it in IndexedDB; teeing
+  // that stream into Cache Storage can stall an installed desktop PWA before
+  // SpriteBuffer receives the complete response.
+  if (
+    request.mode === "navigate" ||
+    requestUrl.pathname.startsWith("/data/") ||
+    /\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)
+  ) {
     event.respondWith(fetch(request));
     return;
   }

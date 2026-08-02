@@ -550,6 +550,17 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
   let editorPrefix = "radio-editor:";
   let ambiencePrefix = "radio-ambience:";
   let clubMenuPrefix = "club-menu:";
+  let pipeSmokePrefix = "pipe-smoke:";
+
+  if(packet.enabled && packet.url.startsWith(pipeSmokePrefix)) {
+    try {
+      let smoke = JSON.parse(decodeURIComponent(packet.url.slice(pipeSmokePrefix.length)));
+      gameClient.renderer.weatherCanvas.addPipeSmoke(smoke);
+    } catch (error) {
+      console.warn("Could not render water-pipe smoke:", error);
+    }
+    return;
+  }
 
   if(packet.enabled && packet.url.startsWith(clubMenuPrefix)) {
     gameClient.interface.modalManager.open("club-bar-modal", JSON.parse(decodeURIComponent(packet.url.slice(clubMenuPrefix.length))));

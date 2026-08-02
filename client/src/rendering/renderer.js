@@ -369,6 +369,10 @@ Renderer.prototype.__renderWorld = function () {
     this.weatherCanvas.drawWeather();
   }
 
+  // Water-pipe smoke is spatial world ambience, independent from the global
+  // weather toggle and therefore cannot overwrite the radio-zone weather.
+  this.weatherCanvas.drawPipeSmoke();
+
   // Finally draw the lightscreen to the canvas and reset it
   if (lightingEnabled) {
 
@@ -387,6 +391,10 @@ Renderer.prototype.__renderWorld = function () {
     this.weatherCanvas.drawDiscoLights();
 
   }
+
+  // Only the game-world canvas is distorted. DOM controls, chat and menus
+  // remain stable and readable on desktop and mobile clients.
+  this.weatherCanvas.drawIntoxication();
 
   this.totalDrawTime = this.totalDrawTime + (performance.now() - start);
 
