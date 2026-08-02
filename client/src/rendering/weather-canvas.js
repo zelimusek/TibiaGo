@@ -509,7 +509,6 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusCenterX: laserFocusCenter ? laserFocusCenter.x : null,
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
     laserFocusRadius: focusFlashing ? (focusFlashOn ? 10 : 38) : 28,
-    laserFocusSpread: focusFlashing ? (focusFlashOn ? 0.07 : 0.18) : 0.11,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,
@@ -676,7 +675,6 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let beamLength = Math.max(this.screen.canvas.width, this.screen.canvas.height) * 1.5;
   let laserFocusAmount = frame.laserFocusAmount || 0;
   let focusedLaserRadius = frame.laserFocusRadius;
-  let focusedLaserSpread = frame.laserFocusSpread;
   let laserOrbitAngle = -Math.PI * 0.5 + frame.now * Math.PI * 2 / 3200;
   let laserBrightness = 1 + (frame.focusStrength - 1) * laserFocusAmount;
 
@@ -691,31 +689,31 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let inwardAngle = Math.atan2(-fixture[1], -fixture[0]);
     let sweep = Math.sin(frame.now / 760 + index * 1.7) * 0.72;
     let normalAngle = inwardAngle + sweep;
-    let focusTargetAngle = laserOrbitAngle + index * Math.PI * 2 / 3;
     let hasFocusCenter = Number.isFinite(frame.laserFocusCenterX) && Number.isFinite(frame.laserFocusCenterY);
-    let focusedTargetX = hasFocusCenter
-      ? frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius
-      : x + Math.cos(normalAngle) * beamLength;
-    let focusedTargetY = hasFocusCenter
-      ? frame.laserFocusCenterY + Math.sin(focusTargetAngle) * focusedLaserRadius
-      : y + Math.sin(normalAngle) * beamLength;
-    let focusedAngle = hasFocusCenter
-      ? Math.atan2(focusedTargetY - y, focusedTargetX - x)
-      : normalAngle;
-    let focusedBeamLength = hasFocusCenter
-      ? Math.hypot(focusedTargetX - x, focusedTargetY - y)
-      : beamLength;
-    let angleDifference = Math.atan2(
-      Math.sin(focusedAngle - normalAngle),
-      Math.cos(focusedAngle - normalAngle)
-    );
-    let baseAngle = normalAngle + angleDifference * laserFocusAmount;
-    let beamSpread = 0.24 + (focusedLaserSpread - 0.24) * laserFocusAmount;
-    let visibleBeamLength = beamLength + (focusedBeamLength - beamLength) * laserFocusAmount;
 
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
     for(let beam = -1; beam <= 1; beam++) {
-      let angle = baseAngle + beam * beamSpread;
+      let beamIndex = index * 3 + beam + 1;
+      let normalBeamAngle = normalAngle + beam * 0.24;
+      let focusTargetAngle = laserOrbitAngle + beamIndex * Math.PI * 2 / 9;
+      let focusedTargetX = hasFocusCenter
+        ? frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius
+        : x + Math.cos(normalBeamAngle) * beamLength;
+      let focusedTargetY = hasFocusCenter
+        ? frame.laserFocusCenterY + Math.sin(focusTargetAngle) * focusedLaserRadius
+        : y + Math.sin(normalBeamAngle) * beamLength;
+      let focusedAngle = hasFocusCenter
+        ? Math.atan2(focusedTargetY - y, focusedTargetX - x)
+        : normalBeamAngle;
+      let focusedBeamLength = hasFocusCenter
+        ? Math.hypot(focusedTargetX - x, focusedTargetY - y)
+        : beamLength;
+      let angleDifference = Math.atan2(
+        Math.sin(focusedAngle - normalBeamAngle),
+        Math.cos(focusedAngle - normalBeamAngle)
+      );
+      let angle = normalBeamAngle + angleDifference * laserFocusAmount;
+      let visibleBeamLength = beamLength + (focusedBeamLength - beamLength) * laserFocusAmount;
       context.beginPath();
       context.moveTo(x, y);
       context.lineTo(x + Math.cos(angle) * visibleBeamLength, y + Math.sin(angle) * visibleBeamLength);

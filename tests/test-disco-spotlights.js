@@ -13,7 +13,9 @@ let roundedCaps = 0;
 let ellipseScales = 0;
 let currentLineStart = null;
 let currentLineLength = null;
+let currentLineEnd = null;
 let strokeLengths = [];
+let strokeEndpoints = [];
 
 function gradient() {
   return { addColorStop() {} };
@@ -27,6 +29,7 @@ const drawingContext = {
   clip() {},
   moveTo(x, y) { currentLineStart = { x, y }; },
   lineTo(x, y) {
+    currentLineEnd = { x, y };
     if (currentLineStart) currentLineLength = Math.hypot(x - currentLineStart.x, y - currentLineStart.y);
   },
   quadraticCurveTo() { roundedCaps++; },
@@ -39,6 +42,7 @@ const drawingContext = {
   stroke() {
     strokes++;
     strokeLengths.push(currentLineLength);
+    strokeEndpoints.push(currentLineEnd);
   },
   fillRect() { fills++; },
   createLinearGradient: gradient,
@@ -222,6 +226,7 @@ roundedCaps = 0;
 ellipseScales = 0;
 strokes = 0;
 strokeLengths = [];
+strokeEndpoints = [];
 weather.drawDiscoLights();
 assert.strictEqual(roundedCaps, 4, "each focused beam should end with a rounded cap");
 assert.strictEqual(ellipseScales, 4, "each focused target should render as a perspective ellipse");
@@ -259,9 +264,22 @@ assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "lasers s
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusRadius, 10, "lasers should converge closer during a winner flash");
 strokes = 0;
 strokeLengths = [];
+strokeEndpoints = [];
 weather.drawDiscoLights();
 assert.strictEqual(strokeLengths.length, 9, "focused laser fans should retain all nine beams");
 assert.ok(strokeLengths.every((length) => length < 500), "focused lasers should stop around the winner instead of crossing the entire screen");
+assert.strictEqual(
+  new Set(strokeEndpoints.map((endpoint) => endpoint.x.toFixed(3) + ":" + endpoint.y.toFixed(3))).size,
+  9,
+  "all nine focused lasers should have independently controlled targets"
+);
+assert.ok(
+  strokeEndpoints.every((endpoint) => {
+    let distance = Math.hypot(endpoint.x - initialFocusCenterX, endpoint.y - initialFocusCenterY);
+    return distance >= 9.9 && distance <= 10.1;
+  }),
+  "the nine independent laser targets should form a ring around the winner"
+);
 
 now += 450;
 context.gameClient.renderer.debugger.__nFrames++;
