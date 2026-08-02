@@ -83,9 +83,13 @@ const weather = new context.WeatherCanvas({
   context: drawingContext,
 });
 const lights = [];
+const lightBeams = [];
 const lightCanvas = {
   renderColorLightBubble() {
     lights.push(Array.from(arguments));
+  },
+  renderColorLightBeam() {
+    lightBeams.push(Array.from(arguments));
   },
 };
 
@@ -97,6 +101,7 @@ weather.setDiscoLights(true, 80, 120, 6, {
 weather.renderDiscoIllumination(lightCanvas);
 
 assert.strictEqual(lights.length, 8, "four pools and four fixture halos expected");
+assert.strictEqual(lightBeams.length, 4, "the complete four cones should illuminate the world");
 assert.strictEqual(
   new Set(lights.map((entry) => entry[3].join(","))).size,
   4,
@@ -107,18 +112,22 @@ assert.ok(lights.every((entry) => entry[5] && entry[5].width > 0));
 
 weather.drawDiscoLights();
 assert.ok(fills >= 8, "each spotlight should draw a cone and target halo");
-assert.strictEqual(strokes, 4, "each spotlight should draw one bright beam core");
+assert.strictEqual(strokes, 13, "four spotlight cores and three original three-ray lasers expected");
 
 const firstTargetX = lights[0][0];
 lights.length = 0;
+lightBeams.length = 0;
 now += 600;
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 assert.notStrictEqual(lights[0][0], firstTargetX, "spotlight pool should move between frames");
+assert.strictEqual(lightBeams.length, 4);
 
 weather.setDiscoLights(false, 80, 120, 6, null);
 lights.length = 0;
+lightBeams.length = 0;
 weather.renderDiscoIllumination(lightCanvas);
 assert.strictEqual(lights.length, 0, "disabled disco lighting must stop rendering");
+assert.strictEqual(lightBeams.length, 0, "disabled disco beams must stop illuminating");
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

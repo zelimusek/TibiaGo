@@ -372,6 +372,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   this.__discoLightFrame = {
     frameNumber: frameNumber,
+    now: now,
+    beatBpm: disco.beatBpm,
     pulse: pulse,
     intensity: intensity,
     radius: radius,
@@ -401,6 +403,22 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
   let strength = frame.intensity * frame.pulse * mobileScale;
 
   frame.lights.forEach(function(light) {
+    let beamEndWidth = (gameClient.touch && gameClient.touch.isMobileMode ? 30 : 42) + 20 * frame.intensity;
+
+    // The complete cone participates in the real light mask. Its lower power
+    // keeps the moving target visibly brighter than the path leading to it.
+    lightCanvas.renderColorLightBeam(
+      light.fixtureX,
+      light.fixtureY,
+      light.targetX,
+      light.targetY,
+      4,
+      beamEndWidth,
+      light.color,
+      strength * 0.48,
+      frame.clip
+    );
+
     // The moving pool illuminates tiles, items and creatures through the same
     // darkness mask as ordinary Tibia light sources.
     lightCanvas.renderColorLightBubble(
@@ -408,7 +426,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
       light.targetY,
       Math.min(128, Math.max(72, frame.radius * 13)) * mobileScale,
       light.color,
-      strength,
+      Math.min(1, strength * 1.65),
       frame.clip
     );
 
@@ -418,7 +436,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
       light.fixtureY,
       45 * mobileScale,
       light.color,
-      strength * 0.58,
+      strength * 0.68,
       frame.clip
     );
   });
@@ -483,6 +501,42 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.fillRect(light.targetX - haloRadius, light.targetY - haloRadius, haloRadius * 2, haloRadius * 2);
   });
 
+  context.restore();
+
+  // Preserve the original three wall-mounted laser fans. These are separate
+  // from the four illuminating spotlights and retain their former positions,
+  // sweep and three-ray pattern.
+  let legacyColors = [[42, 120, 255], [232, 48, 255], [35, 255, 194]];
+  let legacyFixtures = [
+    [0, -frame.radius],
+    [-frame.radius, frame.radius * 0.5],
+    [frame.radius, frame.radius * 0.5]
+  ];
+  let legacyPulse = frame.beatBpm > 0
+    ? 0.55 + 0.45 * Math.max(0, Math.sin(frame.now * Math.PI * 2 * frame.beatBpm / 60000))
+    : 0.72 + 0.28 * Math.sin(frame.now / 260);
+  let beamLength = Math.max(this.screen.canvas.width, this.screen.canvas.height) * 1.5;
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.globalAlpha = 0.72 * frame.intensity * legacyPulse;
+  context.lineWidth = 3;
+  legacyFixtures.forEach(function(fixture, index) {
+    let color = legacyColors[index];
+    let x = frame.centerX + fixture[0] * 32;
+    let y = frame.centerY + fixture[1] * 32;
+    let inwardAngle = Math.atan2(-fixture[1], -fixture[0]);
+    let sweep = Math.sin(frame.now / 760 + index * 1.7) * 0.72;
+
+    context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
+    for(let beam = -1; beam <= 1; beam++) {
+      let angle = inwardAngle + sweep + beam * 0.24;
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(x + Math.cos(angle) * beamLength, y + Math.sin(angle) * beamLength);
+      context.stroke();
+    }
+  });
   context.restore();
 
 }

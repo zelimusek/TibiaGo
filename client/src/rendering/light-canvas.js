@@ -224,3 +224,48 @@ LightCanvas.prototype.renderColorLightBubble = function(x, y, size, color, stren
   this.context.restore();
 
 }
+
+LightCanvas.prototype.renderColorLightBeam = function(x1, y1, x2, y2, startWidth, endWidth, color, strength, clip) {
+
+  /*
+   * Adds a widening RGB beam to the real darkness mask. Everything beneath
+   * the beam (floor, items and creatures) is illuminated, not merely covered
+   * by a decorative line drawn after lighting.
+   */
+
+  let night = this.getDarknessFraction();
+  let alpha = Math.max(0, Math.min(1, Number(strength) || 0)) * night;
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  let length = Math.sqrt(dx * dx + dy * dy);
+
+  if(alpha <= 0 || length < 1 || !Array.isArray(color) || color.length < 3) {
+    return;
+  }
+
+  let perpendicularX = -dy / length;
+  let perpendicularY = dx / length;
+  let gradient = this.context.createLinearGradient(x1, y1, x2, y2);
+  let baseAlpha = Math.floor(150 * alpha);
+
+  gradient.addColorStop(0.00, new RGBA(color[0], color[1], color[2], Math.floor(baseAlpha * 0.35)).toString());
+  gradient.addColorStop(0.55, new RGBA(color[0], color[1], color[2], Math.floor(baseAlpha * 0.72)).toString());
+  gradient.addColorStop(1.00, new RGBA(color[0], color[1], color[2], baseAlpha).toString());
+
+  this.context.save();
+  if(clip) {
+    this.context.beginPath();
+    this.context.rect(clip.x, clip.y, clip.width, clip.height);
+    this.context.clip();
+  }
+  this.context.beginPath();
+  this.context.moveTo(x1 - perpendicularX * startWidth, y1 - perpendicularY * startWidth);
+  this.context.lineTo(x2 - perpendicularX * endWidth, y2 - perpendicularY * endWidth);
+  this.context.lineTo(x2 + perpendicularX * endWidth, y2 + perpendicularY * endWidth);
+  this.context.lineTo(x1 + perpendicularX * startWidth, y1 + perpendicularY * startWidth);
+  this.context.closePath();
+  this.context.fillStyle = gradient;
+  this.context.fill();
+  this.context.restore();
+
+}
