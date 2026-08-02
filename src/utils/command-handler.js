@@ -534,6 +534,30 @@ CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
   return player.sendCancelMessage(result.message);
 };
 
+CommandHandler.prototype.handleCommandLaserShow = function (player, message) {
+  let action = (message[1] || "").toLowerCase();
+  let handler = gameServer.world.creatureHandler;
+  let result;
+
+  if (!action) {
+    result = handler.startLaserShow();
+  } else if (action === "off") {
+    result = handler.stopLaserShow();
+  } else if (action === "status") {
+    result = handler.getLaserShowStatus();
+  } else if (action === "text") {
+    let text = message.slice(2).join(" ").trim();
+    if (!text) {
+      return player.sendCancelMessage("Usage: /lasershow text YOUR TEXT");
+    }
+    result = handler.startLaserShow(text);
+  } else {
+    result = handler.startLaserShow(message.slice(1).join(" "));
+  }
+
+  return player.sendCancelMessage(result.message);
+};
+
 CommandHandler.prototype.handleCommandBomb = function (player) {
 
   let result = gameServer.world.creatureHandler.bomberman.placeBomb(player);
@@ -733,6 +757,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/spotlight" || message[0] === "/spotlights") {
     return this.handleCommandSpotlight(player, message);
+  }
+
+  if (message[0] === "/lasershow") {
+    return this.handleCommandLaserShow(player, message);
   }
 
   if (message[0] === "/bouncers") {

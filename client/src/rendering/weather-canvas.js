@@ -23,6 +23,24 @@ const WeatherCanvas = function(screen) {
   this.__discoLightFrame = null;
   this.__spotlightFocusVisual = null;
   this.__spotlightFocusTransition = null;
+  this.__laserGlyphSegments = {
+    a: [-0.42, -0.55, 0.42, -0.55], b: [-0.45, -0.50, -0.45, -0.05],
+    c: [0.45, -0.50, 0.45, -0.05], d: [-0.40, 0, 0.40, 0],
+    e: [-0.45, 0.05, -0.45, 0.50], f: [0.45, 0.05, 0.45, 0.50],
+    g: [-0.42, 0.55, 0.42, 0.55], h: [0, -0.50, 0, -0.05],
+    i: [0, 0.05, 0, 0.50], j: [-0.40, -0.50, 0, -0.02],
+    k: [0.40, -0.50, 0, -0.02], l: [-0.40, 0.50, 0, 0.02],
+    m: [0.40, 0.50, 0, 0.02], p: [0.36, 0.48, 0.42, 0.48]
+  };
+  this.__laserGlyphMap = {
+    "0": "abcefg", "1": "cf", "2": "acdeg", "3": "acdfg", "4": "bcdf",
+    "5": "abdfg", "6": "abdefg", "7": "acf", "8": "abcdefg", "9": "abcdfg",
+    A: "abcdef", B: "bdefghi", C: "abeg", D: "cefghi", E: "abdeg", F: "abde",
+    G: "abefgd", H: "bcdef", I: "aghi", J: "cefg", K: "bejklm",
+    L: "beg", M: "bcjk", N: "bckl", O: "abcefg", P: "abcde", Q: "abcefgm",
+    R: "abcdem", S: "abdfg", T: "ahi", U: "bcefg", V: "bclm", W: "bceflm",
+    X: "jklm", Y: "jki", Z: "aklg", " ": "", "'": "c", ".": "p", "-": "d", "!": "hip"
+  };
   this.__pipeSmokeClouds = new Map();
   this.__intoxication = null;
   this.__intoxicationBuffer = document.createElement("canvas");
@@ -305,7 +323,7 @@ WeatherCanvas.prototype.setWeatherType = function(type) {
 
 }
 
-WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, spotlightSpeed, beatBpm, radius, center, focus) {
+WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, spotlightSpeed, beatBpm, radius, center, focus, laserShow) {
 
   let validFocus = focus
     && Number.isInteger(focus.targetId)
@@ -322,6 +340,11 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   let nextTargetId = validFocus ? focus.targetId : null;
   let previousLaserFocus = previousFocusActive && previousFocus.includeLasers === true;
   let nextLaserFocus = validFocus === true && focus.includeLasers === true;
+  let validLaserShow = laserShow
+    && (laserShow.mode === "default" || laserShow.mode === "text")
+    && typeof laserShow.text === "string"
+    && Number.isFinite(laserShow.durationMs)
+    && laserShow.durationMs > 0;
 
   if((previousTargetId !== nextTargetId || previousLaserFocus !== nextLaserFocus) && this.__discoLightFrame && this.__discoLightFrame.lights) {
     this.__spotlightFocusTransition = {
@@ -359,16 +382,175 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
       flashCount: Math.max(0, Number(focus.flashCount) || 0),
       includeLasers: focus.includeLasers === true,
       receivedAt: performance.now()
+    } : null,
+    laserShow: validLaserShow ? {
+      mode: laserShow.mode,
+      text: laserShow.text.slice(0, 12),
+      elapsedMs: Math.max(0, Number(laserShow.elapsedMs) || 0),
+      durationMs: laserShow.durationMs,
+      receivedAt: performance.now()
     } : null
   };
   this.__discoLightFrame = null;
 
 }
 
+WeatherCanvas.prototype.__getLaserGlyphLines = function(character, centerX, centerY, scale) {
+
+  let keys = this.__laserGlyphMap[character] || this.__laserGlyphMap["-"];
+  return keys.split("").map(function(key) {
+    let segment = this.__laserGlyphSegments[key];
+    return {
+      x1: centerX + segment[0] * scale,
+      y1: centerY + segment[1] * scale,
+      x2: centerX + segment[2] * scale,
+      y2: centerY + segment[3] * scale
+    };
+  }, this);
+
+}
+
+WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, centerX, centerY, radius, elapsedMs) {
+
+  text = text || "CYRK";
+  let availableWidth = Math.max(180, radius * 64 * 1.70);
+  let scale = Math.min(76, availableWidth / Math.max(1, text.length * 1.12));
+  let advance = scale * 1.12;
+  let startX = centerX - advance * (text.length - 1) * 0.5;
+  let revealPosition = Math.max(0, Math.min(text.length - 0.001, progress * text.length));
+  let currentIndex = Math.floor(revealPosition);
+  while(currentIndex < text.length - 1 && text[currentIndex] === " ") currentIndex++;
+  let trailLines = [];
+
+  for(let index = 0; index <= currentIndex; index++) {
+    if(text[index] === " ") continue;
+    let lines = this.__getLaserGlyphLines(text[index], startX + index * advance, centerY, scale);
+    lines.forEach(function(line) {
+      line.alpha = index === currentIndex ? 1 : 0.46;
+      line.colorIndex = index % 3;
+      trailLines.push(line);
+    });
+  }
+
+  let currentLines = this.__getLaserGlyphLines(text[currentIndex] || "-", startX + currentIndex * advance, centerY, scale);
+  if(currentLines.length === 0) currentLines = this.__getLaserGlyphLines("-", centerX, centerY, scale);
+  let targets = Array.from({ length: 9 }, function(_, index) {
+    let line = currentLines[index % currentLines.length];
+    let travel = (elapsedMs / 520 + index * 0.137) % 1;
+    if(index % 2 === 1) travel = 1 - travel;
+    return {
+      x: line.x1 + (line.x2 - line.x1) * travel,
+      y: line.y1 + (line.y2 - line.y1) * travel
+    };
+  });
+
+  return { targets: targets, trailLines: trailLines };
+
+}
+
+WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, radius, now) {
+
+  let elapsedMs = show.elapsedMs + Math.max(0, now - show.receivedAt);
+  let remainingMs = Math.max(0, show.durationMs - elapsedMs);
+  let amount = Math.max(0, Math.min(1, elapsedMs / 1300, remainingMs / 1300));
+  let targets = [];
+  let trailLines = [];
+  let phase = "opening";
+  let angleTime = elapsedMs * Math.PI * 2 / 4200;
+
+  function ringTargets(ringRadius, twist, alternate) {
+    return Array.from({ length: 9 }, function(_, index) {
+      let localRadius = alternate ? ringRadius * (index % 2 === 0 ? 1 : 0.52) : ringRadius;
+      let angle = twist + index * Math.PI * 2 / 9;
+      return { x: centerX + Math.cos(angle) * localRadius, y: centerY + Math.sin(angle) * localRadius * 0.72 };
+    });
+  }
+
+  if(show.mode === "default") {
+    if(elapsedMs < 4000) {
+      phase = "opening";
+      let progress = elapsedMs / 4000;
+      targets = ringTargets(170 - progress * 90, angleTime, false);
+    } else if(elapsedMs < 8000) {
+      phase = "double-spiral";
+      let pulse = 78 + Math.sin((elapsedMs - 4000) / 430) * 34;
+      targets = ringTargets(pulse, -angleTime * 1.25, true);
+    } else if(elapsedMs < 12000) {
+      phase = "star";
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let point = (index * 4) % 10;
+        let starRadius = point % 2 === 0 ? 126 : 54;
+        let angle = angleTime * 0.55 - Math.PI / 2 + point * Math.PI / 5;
+        return { x: centerX + Math.cos(angle) * starRadius, y: centerY + Math.sin(angle) * starRadius * 0.72 };
+      });
+    } else if(elapsedMs < 16000) {
+      phase = "wave";
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let x = centerX - 145 + index * 36.25;
+        return { x: x, y: centerY + Math.sin(elapsedMs / 360 + index * 0.82) * 76 };
+      });
+    } else if(elapsedMs < 20000) {
+      phase = "tunnel";
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let ring = index % 3;
+        let tunnelRadius = 38 + ring * 42 + Math.sin(elapsedMs / 310 + ring) * 12;
+        let angle = -angleTime * (1 + ring * 0.18) + index * Math.PI * 2 / 9;
+        return { x: centerX + Math.cos(angle) * tunnelRadius, y: centerY + Math.sin(angle) * tunnelRadius * 0.72 };
+      });
+    } else if(elapsedMs < 27000) {
+      phase = "text";
+      let textFrame = this.__getLaserTextChoreography("CYRK", (elapsedMs - 20000) / 7000, centerX, centerY, radius, elapsedMs);
+      targets = textFrame.targets;
+      trailLines = textFrame.trailLines;
+    } else {
+      phase = "finale";
+      let finaleProgress = Math.min(1, (elapsedMs - 27000) / 3000);
+      targets = ringTargets(55 + finaleProgress * 135, angleTime * 1.8, true);
+    }
+  } else {
+    let textStart = 3000;
+    let textEnd = Math.max(textStart + 1000, show.durationMs - 3000);
+    if(elapsedMs < textStart) {
+      phase = "opening";
+      targets = ringTargets(165 - elapsedMs / textStart * 65, angleTime, true);
+    } else if(elapsedMs < textEnd) {
+      phase = "text";
+      let textFrame = this.__getLaserTextChoreography(show.text, (elapsedMs - textStart) / (textEnd - textStart), centerX, centerY, radius, elapsedMs);
+      targets = textFrame.targets;
+      trailLines = textFrame.trailLines;
+    } else {
+      phase = "finale";
+      targets = ringTargets(65 + Math.min(1, (elapsedMs - textEnd) / 3000) * 125, angleTime * 1.7, true);
+    }
+  }
+
+  let spotlightTargets = [0, 2, 4, 6].map(function(index) {
+    let target = targets[index] || { x: centerX, y: centerY };
+    return {
+      x: centerX + (target.x - centerX) * 0.82,
+      y: centerY + (target.y - centerY) * 0.82
+    };
+  });
+  return {
+    active: elapsedMs < show.durationMs,
+    amount: amount,
+    elapsedMs: elapsedMs,
+    phase: phase,
+    targets: targets,
+    spotlightTargets: spotlightTargets,
+    trailLines: trailLines
+  };
+
+}
+
 WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   let disco = this.__discoLights;
-  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled) || !disco.center || disco.radius <= 0) {
+  let now = performance.now();
+  let show = disco.laserShow;
+  let showElapsed = show ? show.elapsedMs + Math.max(0, now - show.receivedAt) : 0;
+  let showActive = show !== null && showElapsed < show.durationMs;
+  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive) || !disco.center || disco.radius <= 0) {
     return null;
   }
 
@@ -377,7 +559,6 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     return this.__discoLightFrame;
   }
 
-  let now = performance.now();
   let pulse = disco.beatBpm > 0
     ? 0.62 + 0.38 * Math.max(0, Math.sin(now * Math.PI * 2 * disco.beatBpm / 60000))
     : 0.76 + 0.24 * Math.sin(now / 260);
@@ -387,9 +568,12 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let centerScreen = gameClient.renderer.getStaticScreenPosition(center);
   let centerX = (centerScreen.x + 0.5) * 32;
   let centerY = (centerScreen.y + 0.5) * 32;
+  let laserShowFrame = showActive
+    ? this.__getLaserShowFrame(show, centerX, centerY, radius, now)
+    : null;
   let focus = disco.focus;
   let focusElapsed = focus ? focus.elapsedMs + Math.max(0, now - focus.receivedAt) : 0;
-  let focusActive = focus !== null && (focus.persistent || focusElapsed < focus.durationMs);
+  let focusActive = !showActive && focus !== null && (focus.persistent || focusElapsed < focus.durationMs);
   if(focus && !focusActive && !focus.expiryTransitionStarted) {
     focus.expiryTransitionStarted = true;
     if(this.__discoLightFrame && this.__discoLightFrame.lights) {
@@ -490,12 +674,19 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     );
     let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
     let orbitAngle = focusOrbitAngle + index * Math.PI * 0.5;
-    let desiredTargetX = focusScreen
-      ? focusScreen.x + Math.cos(orbitAngle) * focusOrbitRadius
-      : (targetScreen.x + 0.5) * 32;
-    let desiredTargetY = focusScreen
-      ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius
-      : (targetScreen.y + 0.5) * 32;
+    let normalTargetX = (targetScreen.x + 0.5) * 32;
+    let normalTargetY = (targetScreen.y + 0.5) * 32;
+    let showTarget = laserShowFrame && laserShowFrame.spotlightTargets[index];
+    let desiredTargetX = showTarget
+      ? normalTargetX + (showTarget.x - normalTargetX) * laserShowFrame.amount
+      : focusScreen
+        ? focusScreen.x + Math.cos(orbitAngle) * focusOrbitRadius
+        : normalTargetX;
+    let desiredTargetY = showTarget
+      ? normalTargetY + (showTarget.y - normalTargetY) * laserShowFrame.amount
+      : focusScreen
+        ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius
+        : normalTargetY;
     let transitionStart = focusTransition && focusTransition.from[index];
 
     return {
@@ -521,8 +712,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     beatBpm: disco.beatBpm,
     pulse: pulse,
     intensity: intensity,
-    spotlightsEnabled: disco.spotlightsEnabled,
-    legacyLasersEnabled: disco.legacyLasersEnabled,
+    spotlightsEnabled: disco.spotlightsEnabled || showActive,
+    legacyLasersEnabled: disco.legacyLasersEnabled || showActive,
     radius: radius,
     centerX: centerX,
     centerY: centerY,
@@ -534,6 +725,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusCenterX: laserFocusCenter ? laserFocusCenter.x : null,
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
     laserFocusRadius: laserFocusRadius,
+    laserShow: laserShowFrame,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,
@@ -688,9 +880,13 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     : 0.72 + 0.28 * Math.sin(frame.now / 260);
   let beamLength = Math.max(this.screen.canvas.width, this.screen.canvas.height) * 1.5;
   let laserFocusAmount = frame.laserFocusAmount || 0;
+  let laserShow = frame.laserShow;
+  let laserControlAmount = laserShow ? laserShow.amount : laserFocusAmount;
   let focusedLaserRadius = frame.laserFocusRadius;
   let laserOrbitAngle = -Math.PI * 0.5 + frame.now * Math.PI * 2 / 3200;
-  let laserBrightness = 1 + (frame.focusStrength - 1) * laserFocusAmount;
+  let laserBrightness = laserShow
+    ? 1.08 + 0.22 * Math.max(0, Math.sin(frame.now / 180))
+    : 1 + (frame.focusStrength - 1) * laserFocusAmount;
   let laserAlpha = Math.min(1, 0.72 * frame.intensity * legacyPulse * laserBrightness);
   let focusedEndpoints = [];
 
@@ -712,37 +908,43 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       let beamIndex = index * 3 + beam + 1;
       let normalBeamAngle = normalAngle + beam * 0.24;
       let focusTargetAngle = laserOrbitAngle + beamIndex * Math.PI * 2 / 9;
-      let focusedTargetX = hasFocusCenter
-        ? frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius
+      let showEndpoint = laserShow && laserShow.targets[beamIndex];
+      let hasControlledTarget = Boolean(showEndpoint) || hasFocusCenter;
+      let focusedTargetX = showEndpoint
+        ? showEndpoint.x
+        : hasFocusCenter
+          ? frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius
         : x + Math.cos(normalBeamAngle) * beamLength;
-      let focusedTargetY = hasFocusCenter
-        ? frame.laserFocusCenterY + Math.sin(focusTargetAngle) * focusedLaserRadius
+      let focusedTargetY = showEndpoint
+        ? showEndpoint.y
+        : hasFocusCenter
+          ? frame.laserFocusCenterY + Math.sin(focusTargetAngle) * focusedLaserRadius
         : y + Math.sin(normalBeamAngle) * beamLength;
-      let focusedAngle = hasFocusCenter
+      let focusedAngle = hasControlledTarget
         ? Math.atan2(focusedTargetY - y, focusedTargetX - x)
         : normalBeamAngle;
-      let focusedBeamLength = hasFocusCenter
+      let focusedBeamLength = hasControlledTarget
         ? Math.hypot(focusedTargetX - x, focusedTargetY - y)
         : beamLength;
       let angleDifference = Math.atan2(
         Math.sin(focusedAngle - normalBeamAngle),
         Math.cos(focusedAngle - normalBeamAngle)
       );
-      let angle = normalBeamAngle + angleDifference * laserFocusAmount;
-      let visibleBeamLength = beamLength + (focusedBeamLength - beamLength) * laserFocusAmount;
+      let angle = normalBeamAngle + angleDifference * laserControlAmount;
+      let visibleBeamLength = beamLength + (focusedBeamLength - beamLength) * laserControlAmount;
       let endpointX = x + Math.cos(angle) * visibleBeamLength;
       let endpointY = y + Math.sin(angle) * visibleBeamLength;
       context.beginPath();
       context.moveTo(x, y);
       context.lineTo(endpointX, endpointY);
       context.stroke();
-      if(laserFocusAmount > 0.01) {
+      if(laserControlAmount > 0.01) {
         focusedEndpoints.push({ x: endpointX, y: endpointY, color: color });
       }
     }
   });
 
-  context.globalAlpha = Math.min(1, laserAlpha * 1.45) * laserFocusAmount;
+  context.globalAlpha = Math.min(1, laserAlpha * 1.45) * laserControlAmount;
   focusedEndpoints.forEach(function(endpoint) {
     let color = endpoint.color;
     let dot = context.createRadialGradient(endpoint.x, endpoint.y, 0, endpoint.x, endpoint.y, 4);
@@ -754,6 +956,19 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.arc(endpoint.x, endpoint.y, 4, 0, Math.PI * 2);
     context.fill();
   });
+
+  if(laserShow && laserShow.trailLines.length > 0) {
+    context.lineWidth = 2.4;
+    laserShow.trailLines.forEach(function(line) {
+      let color = legacyColors[line.colorIndex % legacyColors.length];
+      context.globalAlpha = laserShow.amount * line.alpha * 0.72;
+      context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
+      context.beginPath();
+      context.moveTo(line.x1, line.y1);
+      context.lineTo(line.x2, line.y2);
+      context.stroke();
+    });
+  }
   context.restore();
 
 }

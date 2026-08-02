@@ -29,6 +29,9 @@ const PARTY_DANCE_FLOOR_CENTER = { x: 32515, y: 32346, z: 7 };
 const SPOTLIGHT_FOCUS_DURATION_MS = 11200;
 const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
+const LASER_SHOW_DEFAULT_DURATION_MS = 30000;
+const LASER_SHOW_OUTRO_MS = 1300;
+const LASER_SHOW_MAX_TEXT_LENGTH = 12;
 const PARTY_READABLE_POSITIONS = {
   "32517,32391,7": function (onlinePlayers, partyPlayers) {
     return "       Welcome to:\n"
@@ -91,6 +94,7 @@ const CreatureHandler = function () {
   this.__radioZones = this.__loadRadioZones();
   this.__radioEffectTicks = 0;
   this.__spotlightFocus = null;
+  this.__laserShow = null;
 
   // One short dance contest may run in the club at a time.
   this.__clubDance = null;
@@ -424,6 +428,7 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
     : null;
   let flashing = options.flashing === true && duration !== null;
   let includeLasers = options.includeLasers === true;
+  this.__laserShow = null;
   this.__spotlightFocus = {
     targetId: player.getId(),
     targetName: player.getProperty(CONST.PROPERTIES.NAME),
@@ -447,6 +452,70 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
         ? "All spotlights and lasers are now following %s for %s seconds."
         : "All spotlights are now following %s for %s seconds.")
         .format(this.__spotlightFocus.targetName, Math.ceil(duration / 1000))
+  };
+}
+
+CreatureHandler.prototype.startLaserShow = function (text) {
+  let mode = typeof text === "string" && text.trim().length > 0 ? "text" : "default";
+  let normalizedText = mode === "text" ? text.trim().toUpperCase() : "CYRK";
+  if (normalizedText.length > LASER_SHOW_MAX_TEXT_LENGTH) {
+    return { ok: false, message: "Laser show text can contain at most %s characters.".format(LASER_SHOW_MAX_TEXT_LENGTH) };
+  }
+  if (!/^[A-Z0-9 '!.-]+$/.test(normalizedText)) {
+    return { ok: false, message: "Laser show text supports A-Z, 0-9, spaces, apostrophes, dots, dashes and exclamation marks." };
+  }
+
+  let now = Date.now();
+  let visibleCharacters = normalizedText.replace(/\s/g, "").length;
+  let durationMs = mode === "default"
+    ? LASER_SHOW_DEFAULT_DURATION_MS
+    : 6000 + Math.max(1, visibleCharacters) * 1400;
+  this.__spotlightFocus = null;
+  this.__laserShow = {
+    mode: mode,
+    text: normalizedText,
+    startedAt: now,
+    endsAt: now + durationMs
+  };
+  this.__resyncRadioAmbience();
+  return {
+    ok: true,
+    message: mode === "default"
+      ? "The 30-second CYRK laser show has started!"
+      : "Laser show is drawing '%s' for %s seconds.".format(normalizedText, Math.ceil(durationMs / 1000))
+  };
+}
+
+CreatureHandler.prototype.stopLaserShow = function () {
+  if (!this.__laserShow) {
+    return { ok: false, message: "No laser show is currently running." };
+  }
+  let now = Date.now();
+  this.__laserShow.endsAt = Math.min(this.__laserShow.endsAt, now + LASER_SHOW_OUTRO_MS);
+  this.__resyncRadioAmbience();
+  return { ok: true, message: "Laser show is finishing smoothly." };
+}
+
+CreatureHandler.prototype.getLaserShowStatus = function () {
+  if (!this.__laserShow || this.__laserShow.endsAt <= Date.now()) {
+    return { ok: false, message: "No laser show is currently running." };
+  }
+  return {
+    ok: true,
+    message: "Laser show '%s' has %s seconds remaining."
+      .format(this.__laserShow.text, Math.ceil((this.__laserShow.endsAt - Date.now()) / 1000))
+  };
+}
+
+CreatureHandler.prototype.__getLaserShowPayload = function () {
+  let show = this.__laserShow;
+  let now = Date.now();
+  if (!show || show.endsAt <= now) return null;
+  return {
+    mode: show.mode,
+    text: show.text,
+    elapsedMs: Math.max(0, now - show.startedAt),
+    durationMs: show.endsAt - show.startedAt
   };
 }
 
@@ -546,11 +615,12 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       discoCanvasIntensity: Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
       spotlightSpeed: Number.isInteger(zone.spotlightSpeed) && zone.spotlightSpeed >= 0 && zone.spotlightSpeed <= 250 ? zone.spotlightSpeed : 100,
       spotlightFocus: this.__getSpotlightFocusPayload(),
+      laserShow: this.__getLaserShowPayload(),
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser
@@ -978,6 +1048,10 @@ CreatureHandler.prototype.tick = function () {
   this.__tickClubDance();
   if (this.__spotlightFocus && this.__spotlightFocus.endsAt !== null && this.__spotlightFocus.endsAt <= Date.now()) {
     this.__spotlightFocus = null;
+    this.__resyncRadioAmbience();
+  }
+  if (this.__laserShow && this.__laserShow.endsAt <= Date.now()) {
+    this.__laserShow = null;
     this.__resyncRadioAmbience();
   }
   this.partyAchievements.tick();

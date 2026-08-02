@@ -464,4 +464,54 @@ weather.renderDiscoIllumination(lightCanvas);
 assert.strictEqual(lights.length, 0, "disabled disco lighting must stop rendering");
 assert.strictEqual(lightBeams.length, 0, "disabled disco beams must stop illuminating");
 
+function setLaserShow(mode, text, elapsedMs, durationMs) {
+  weather.setDiscoLights(false, false, 80, 100, 120, 6, {
+    x: 32515,
+    y: 32346,
+    z: 7,
+  }, null, {
+    mode,
+    text,
+    elapsedMs,
+    durationMs,
+  });
+  context.gameClient.renderer.debugger.__nFrames++;
+  return weather.__getDiscoLightFrame();
+}
+
+let showFrame = setLaserShow("default", "CYRK", 0, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "opening");
+assert.strictEqual(showFrame.laserShow.targets.length, 9);
+assert.strictEqual(showFrame.spotlightsEnabled, true, "laser shows should temporarily enable their four choreographed spotlights");
+assert.strictEqual(showFrame.legacyLasersEnabled, true, "laser shows should temporarily enable all nine laser beams");
+
+showFrame = setLaserShow("default", "CYRK", 5000, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "double-spiral");
+assert.strictEqual(new Set(showFrame.laserShow.targets.map((target) => target.x.toFixed(2) + ":" + target.y.toFixed(2))).size, 9);
+showFrame = setLaserShow("default", "CYRK", 9000, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "star");
+showFrame = setLaserShow("default", "CYRK", 13000, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "wave");
+showFrame = setLaserShow("default", "CYRK", 17000, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "tunnel");
+
+showFrame = setLaserShow("default", "CYRK", 22000, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "text");
+assert.ok(showFrame.laserShow.trailLines.length > 0, "the CYRK phase should retain already drawn laser letter strokes");
+strokes = 0;
+arcRadii = [];
+weather.drawDiscoLights();
+assert.ok(strokes > 9, "letter trails should be drawn in addition to the nine controlled beams");
+assert.strictEqual(arcRadii.length, 9, "each choreographed laser should retain its bright endpoint dot");
+
+showFrame = setLaserShow("default", "CYRK", 28000, 30000);
+assert.strictEqual(showFrame.laserShow.phase, "finale");
+showFrame = setLaserShow("text", "PARTY ZONE", 7000, 18600);
+assert.strictEqual(showFrame.laserShow.phase, "text");
+assert.ok(showFrame.laserShow.trailLines.length > 0, "custom text should use the synchronized vector laser alphabet");
+showFrame = setLaserShow("default", "CYRK", 29500, 30000);
+assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "the final 1.3 seconds should fade the show smoothly");
+showFrame = setLaserShow("default", "CYRK", 30000, 30000);
+assert.strictEqual(showFrame, null, "a completed show should release temporarily enabled venue lights");
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");
