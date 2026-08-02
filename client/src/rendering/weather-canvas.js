@@ -318,6 +318,10 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   if(previousTargetId !== nextTargetId && this.__discoLightFrame && this.__discoLightFrame.lights) {
     this.__spotlightFocusTransition = {
       startedAt: performance.now(),
+      leaving: previousTargetId !== null && nextTargetId === null,
+      focusCenter: this.__spotlightFocusVisual
+        ? { x: this.__spotlightFocusVisual.x, y: this.__spotlightFocusVisual.y }
+        : null,
       from: this.__discoLightFrame.lights.map(function(light) {
         return { x: light.targetX, y: light.targetY };
       })
@@ -432,9 +436,13 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let focusOrbitRadius = 22;
   let focusTransition = this.__spotlightFocusTransition;
   let transitionProgress = focusTransition
-    ? Math.min(1, Math.max(0, (now - focusTransition.startedAt) / 850))
+    ? Math.min(1, Math.max(0, (now - focusTransition.startedAt) / 1300))
     : 1;
   let transitionEase = 1 - Math.pow(1 - transitionProgress, 3);
+  let laserFocusAmount = focusTransition
+    ? (focusTransition.leaving ? 1 - transitionEase : transitionEase)
+    : (focusActive ? 1 : 0);
+  let laserFocusCenter = focusScreen || (focusTransition ? focusTransition.focusCenter : null);
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
@@ -486,6 +494,11 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     focusFlashing: focusFlashing,
     focusFlashOn: focusFlashOn,
     focusStrength: focusStrength,
+    laserFocusAmount: laserFocusAmount,
+    laserFocusCenterX: laserFocusCenter ? laserFocusCenter.x : null,
+    laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
+    laserFocusRadius: focusFlashing ? (focusFlashOn ? 10 : 38) : 28,
+    laserFocusSpread: focusFlashing ? (focusFlashOn ? 0.07 : 0.18) : 0.11,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,
@@ -650,10 +663,15 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     ? 0.55 + 0.45 * Math.max(0, Math.sin(frame.now * Math.PI * 2 * frame.beatBpm / 60000))
     : 0.72 + 0.28 * Math.sin(frame.now / 260);
   let beamLength = Math.max(this.screen.canvas.width, this.screen.canvas.height) * 1.5;
+  let laserFocusAmount = frame.laserFocusAmount || 0;
+  let focusedLaserRadius = frame.laserFocusRadius;
+  let focusedLaserSpread = frame.laserFocusSpread;
+  let laserOrbitAngle = -Math.PI * 0.5 + frame.now * Math.PI * 2 / 3200;
+  let laserBrightness = 1 + (frame.focusStrength - 1) * laserFocusAmount;
 
   context.save();
   context.globalCompositeOperation = "screen";
-  context.globalAlpha = 0.72 * frame.intensity * legacyPulse;
+  context.globalAlpha = Math.min(1, 0.72 * frame.intensity * legacyPulse * laserBrightness);
   context.lineWidth = 3;
   legacyFixtures.forEach(function(fixture, index) {
     let color = legacyColors[index];
@@ -661,10 +679,25 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let y = frame.centerY + fixture[1] * 32;
     let inwardAngle = Math.atan2(-fixture[1], -fixture[0]);
     let sweep = Math.sin(frame.now / 760 + index * 1.7) * 0.72;
+    let normalAngle = inwardAngle + sweep;
+    let focusTargetAngle = laserOrbitAngle + index * Math.PI * 2 / 3;
+    let hasFocusCenter = Number.isFinite(frame.laserFocusCenterX) && Number.isFinite(frame.laserFocusCenterY);
+    let focusedAngle = hasFocusCenter
+      ? Math.atan2(
+        frame.laserFocusCenterY + Math.sin(focusTargetAngle) * focusedLaserRadius - y,
+        frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius - x
+      )
+      : normalAngle;
+    let angleDifference = Math.atan2(
+      Math.sin(focusedAngle - normalAngle),
+      Math.cos(focusedAngle - normalAngle)
+    );
+    let baseAngle = normalAngle + angleDifference * laserFocusAmount;
+    let beamSpread = 0.24 + (focusedLaserSpread - 0.24) * laserFocusAmount;
 
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
     for(let beam = -1; beam <= 1; beam++) {
-      let angle = inwardAngle + sweep + beam * 0.24;
+      let angle = baseAngle + beam * beamSpread;
       context.beginPath();
       context.moveTo(x, y);
       context.lineTo(x + Math.cos(angle) * beamLength, y + Math.sin(angle) * beamLength);
