@@ -151,6 +151,35 @@ CommandHandler.prototype.handleCommandRestart = function (player, value) {
   );
 };
 
+CommandHandler.prototype.handleCommandTime = function (player, value) {
+  /*
+   * CommandHandler.handleCommandTime
+   * Changes the global world time or reports the current clock state.
+   */
+
+  let clock = gameServer.world.clock;
+
+  if (value === "status") {
+    let speed = CONFIG.WORLD.CLOCK.SPEED;
+    let realDayMinutes = (24 * 60) / speed;
+    let duration = Number.isInteger(realDayMinutes)
+      ? realDayMinutes + " real minutes"
+      : realDayMinutes.toFixed(1) + " real minutes";
+
+    return player.sendCancelMessage(
+      "World time: " + clock.getTimeString() +
+      ". Clock speed: " + speed + "x (full day: " + duration + ")."
+    );
+  }
+
+  if (typeof value !== "string" || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    return player.sendCancelMessage("Usage: /time HH:MM or /time status");
+  }
+
+  clock.changeTime(value);
+  return player.sendCancelMessage("World time set to " + value + ".");
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -656,6 +685,18 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/restart") {
     return this.handleCommandRestart(player, message[1]);
+  }
+
+  if (message[0] === "/time") {
+    return this.handleCommandTime(player, message[1]);
+  }
+
+  if (message[0] === "/day") {
+    return this.handleCommandTime(player, "15:00");
+  }
+
+  if (message[0] === "/night") {
+    return this.handleCommandTime(player, "03:00");
   }
 
   if (message[0] === "/broadcast") {

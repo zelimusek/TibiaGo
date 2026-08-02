@@ -165,7 +165,7 @@ WorldClock.prototype.changeTime = function(time) {
   this.__initialized = performance.now();
   this.__startOffset = this.__convertStringToTime(time);
 
-  gameServer.server.world.broadcastPacket(new WorldTimePacket(this.getTime()));
+  process.gameServer.world.broadcastPacket(new WorldTimePacket(this.getTime()));
 
 }
 
