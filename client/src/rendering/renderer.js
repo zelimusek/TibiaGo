@@ -383,6 +383,10 @@ Renderer.prototype.__renderWorld = function () {
       this.lightscreen.renderLightBubble(7, 5, 2, 23, true);
     }
 
+    // Disco spotlights participate in the real world light mask. Their
+    // moving pools therefore illuminate tiles and creatures even at night.
+    this.weatherCanvas.renderDiscoIllumination(this.lightscreen);
+
     this.screen.context.drawImage(this.lightscreen.canvas, 0, 0);
     this.lightscreen.setup();
 

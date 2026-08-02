@@ -187,3 +187,40 @@ LightCanvas.prototype.renderLightBubble = function(x, y, size, colorByte) {
   this.context.fill();
 
 }
+
+LightCanvas.prototype.renderColorLightBubble = function(x, y, size, color, strength, clip) {
+
+  /*
+   * Renders a freely positioned RGB light source. Unlike item lights, disco
+   * spotlights move between tiles and therefore use screen pixels directly.
+   */
+
+  let night = this.getDarknessFraction();
+  let alpha = Math.max(0, Math.min(1, Number(strength) || 0)) * night;
+
+  if(alpha <= 0 || !Array.isArray(color) || color.length < 3) {
+    return;
+  }
+
+  let radius = Math.max(16, Number(size) || 16);
+  let gradient = this.context.createRadialGradient(x, y, 0, x, y, radius);
+  let coreAlpha = Math.floor(210 * alpha);
+
+  gradient.addColorStop(0.00, new RGBA(color[0], color[1], color[2], coreAlpha).toString());
+  gradient.addColorStop(0.28, new RGBA(color[0], color[1], color[2], Math.floor(coreAlpha * 0.64)).toString());
+  gradient.addColorStop(0.62, new RGBA(color[0], color[1], color[2], Math.floor(coreAlpha * 0.25)).toString());
+  gradient.addColorStop(1.00, new RGBA(0, 0, 0, 0).toString());
+
+  this.context.save();
+  if(clip) {
+    this.context.beginPath();
+    this.context.rect(clip.x, clip.y, clip.width, clip.height);
+    this.context.clip();
+  }
+  this.context.beginPath();
+  this.context.fillStyle = gradient;
+  this.context.arc(x, y, radius, 0, 2 * Math.PI, false);
+  this.context.fill();
+  this.context.restore();
+
+}

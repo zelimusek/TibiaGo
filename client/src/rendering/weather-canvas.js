@@ -20,6 +20,7 @@ const WeatherCanvas = function(screen) {
   this.__isRaining = false;
   this.__weatherType = "none";
   this.__discoLights = { enabled: false, intensity: 60, beatBpm: 0, radius: 0, center: null };
+  this.__discoLightFrame = null;
   this.__pipeSmokeClouds = new Map();
   this.__intoxication = null;
   this.__intoxicationBuffer = document.createElement("canvas");
@@ -311,80 +312,175 @@ WeatherCanvas.prototype.setDiscoLights = function(enabled, intensity, beatBpm, r
     radius: Math.max(0, Math.min(20, Number(radius) || 0)),
     center: center && Number.isInteger(center.x) && Number.isInteger(center.y) && Number.isInteger(center.z) ? center : null
   };
+  this.__discoLightFrame = null;
+
+}
+
+WeatherCanvas.prototype.__getDiscoLightFrame = function() {
+
+  let disco = this.__discoLights;
+  if(!disco.enabled || !disco.center || disco.radius <= 0) {
+    return null;
+  }
+
+  let frameNumber = gameClient.renderer.debugger.__nFrames;
+  if(this.__discoLightFrame && this.__discoLightFrame.frameNumber === frameNumber) {
+    return this.__discoLightFrame;
+  }
+
+  let now = performance.now();
+  let pulse = disco.beatBpm > 0
+    ? 0.62 + 0.38 * Math.max(0, Math.sin(now * Math.PI * 2 * disco.beatBpm / 60000))
+    : 0.76 + 0.24 * Math.sin(now / 260);
+  let intensity = disco.intensity / 100;
+  let radius = Math.max(2, disco.radius);
+  let center = new Position(disco.center.x, disco.center.y, disco.center.z);
+  let centerScreen = gameClient.renderer.getStaticScreenPosition(center);
+  let centerX = (centerScreen.x + 0.5) * 32;
+  let centerY = (centerScreen.y + 0.5) * 32;
+  let colors = [
+    [42, 120, 255],
+    [232, 48, 255],
+    [35, 255, 194],
+    [255, 58, 112]
+  ];
+  let fixtureOffsets = [
+    [-0.68, -1.00],
+    [0.68, -1.00],
+    [-1.00, 0.55],
+    [1.00, 0.55]
+  ];
+  let lights = colors.map(function(color, index) {
+    let phase = index * Math.PI * 0.5;
+    let travelX = Math.sin(now / (1350 + index * 170) + phase);
+    let travelY = Math.cos(now / (1750 - index * 90) + phase * 1.35);
+    let targetWorld = new Position(
+      center.x + travelX * radius * 0.72,
+      center.y + travelY * radius * 0.72,
+      center.z
+    );
+    let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
+
+    return {
+      color: color,
+      fixtureX: centerX + fixtureOffsets[index][0] * radius * 32,
+      fixtureY: centerY + fixtureOffsets[index][1] * radius * 32,
+      targetX: (targetScreen.x + 0.5) * 32,
+      targetY: (targetScreen.y + 0.5) * 32
+    };
+  });
+
+  this.__discoLightFrame = {
+    frameNumber: frameNumber,
+    pulse: pulse,
+    intensity: intensity,
+    radius: radius,
+    centerX: centerX,
+    centerY: centerY,
+    clip: {
+      x: centerX - radius * 32,
+      y: centerY - radius * 32,
+      width: radius * 64 + 32,
+      height: radius * 64 + 32
+    },
+    lights: lights
+  };
+
+  return this.__discoLightFrame;
+
+}
+
+WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
+
+  let frame = this.__getDiscoLightFrame();
+  if(!frame) {
+    return;
+  }
+
+  let mobileScale = gameClient.touch && gameClient.touch.isMobileMode ? 0.82 : 1;
+  let strength = frame.intensity * frame.pulse * mobileScale;
+
+  frame.lights.forEach(function(light) {
+    // The moving pool illuminates tiles, items and creatures through the same
+    // darkness mask as ordinary Tibia light sources.
+    lightCanvas.renderColorLightBubble(
+      light.targetX,
+      light.targetY,
+      Math.min(128, Math.max(72, frame.radius * 13)) * mobileScale,
+      light.color,
+      strength,
+      frame.clip
+    );
+
+    // A smaller halo keeps the physical fixture readable in a dark room.
+    lightCanvas.renderColorLightBubble(
+      light.fixtureX,
+      light.fixtureY,
+      45 * mobileScale,
+      light.color,
+      strength * 0.58,
+      frame.clip
+    );
+  });
 
 }
 
 WeatherCanvas.prototype.drawDiscoLights = function() {
 
-  let disco = this.__discoLights;
-  if(!disco.enabled) {
+  let frame = this.__getDiscoLightFrame();
+  if(!frame) {
     return;
   }
 
   let context = this.screen.context;
-  let width = this.screen.canvas.width;
-  let height = this.screen.canvas.height;
-  let now = performance.now();
-  let pulse = disco.beatBpm > 0
-    ? 0.55 + 0.45 * Math.max(0, Math.sin(now * Math.PI * 2 * disco.beatBpm / 60000))
-    : 0.72 + 0.28 * Math.sin(now / 260);
-  let intensity = disco.intensity / 100;
-  let colors = [[42, 120, 255], [232, 48, 255], [35, 255, 194]];
+  let intensity = frame.intensity * frame.pulse;
+  let mobile = gameClient.touch && gameClient.touch.isMobileMode;
 
   context.save();
   context.globalCompositeOperation = "screen";
+  context.beginPath();
+  context.rect(frame.clip.x, frame.clip.y, frame.clip.width, frame.clip.height);
+  context.clip();
 
-  // Three moving soft spotlights sweeping across the dance floor.
-  for(let index = 0; index < colors.length; index++) {
-    let angle = now / 1100 + index * Math.PI * 2 / colors.length;
-    let x = width * 0.5 + Math.cos(angle) * width * 0.38;
-    let y = height * 0.48 + Math.sin(angle * 1.3) * height * 0.28;
-    let color = colors[index];
-    let gradient = context.createRadialGradient(x, y, 0, x, y, Math.max(width, height) * 0.34);
-    gradient.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.36 * intensity * pulse));
-    gradient.addColorStop(0.38, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.13 * intensity * pulse));
-    gradient.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-  }
+  frame.lights.forEach(function(light) {
+    let dx = light.targetX - light.fixtureX;
+    let dy = light.targetY - light.fixtureY;
+    let length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    let perpendicularX = -dy / length;
+    let perpendicularY = dx / length;
+    let endWidth = (mobile ? 34 : 48) + 24 * frame.intensity;
+    let color = light.color;
+    let beam = context.createLinearGradient(light.fixtureX, light.fixtureY, light.targetX, light.targetY);
+    beam.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.06 * intensity));
+    beam.addColorStop(0.55, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.12 * intensity));
+    beam.addColorStop(1, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.28 * intensity));
 
-  // Laser fixtures live on the outer wall of the radio square, every four
-  // SQMs, instead of firing through the player in the centre of the room.
-  let zoneCenter = disco.center
-    ? new Position(disco.center.x, disco.center.y, disco.center.z)
-    : gameClient.player.getPosition();
-  let zoneScreenPosition = gameClient.renderer.getStaticScreenPosition(zoneCenter);
-  let centreX = (zoneScreenPosition.x + 0.5) * 32;
-  let centreY = (zoneScreenPosition.y + 0.5) * 32;
-  // Three fixed fixtures are mounted on the zone walls. Their beams sweep
-  // across the dance floor just like the original rotating lasers did around
-  // the player, but their source never moves with a creature.
-  let fixtures = [
-    [0, -disco.radius],
-    [-disco.radius, disco.radius * 0.5],
-    [disco.radius, disco.radius * 0.5]
-  ];
-  let beamLength = Math.max(width, height) * 1.5;
+    // A widening translucent cone makes the beam visible, particularly in
+    // fog and pipe smoke, while the LightCanvas pool does the real lighting.
+    context.beginPath();
+    context.moveTo(light.fixtureX - perpendicularX * 3, light.fixtureY - perpendicularY * 3);
+    context.lineTo(light.targetX - perpendicularX * endWidth, light.targetY - perpendicularY * endWidth);
+    context.lineTo(light.targetX + perpendicularX * endWidth, light.targetY + perpendicularY * endWidth);
+    context.lineTo(light.fixtureX + perpendicularX * 3, light.fixtureY + perpendicularY * 3);
+    context.closePath();
+    context.fillStyle = beam;
+    context.fill();
 
-  context.globalAlpha = 0.72 * intensity * pulse;
-  context.lineWidth = 3;
-  fixtures.forEach(function(fixture, index) {
-    let color = colors[index];
-    let x = centreX + fixture[0] * 32;
-    let y = centreY + fixture[1] * 32;
-    // Aim the fixture at the centre of the radio zone, then gently sweep the
-    // three-beam fan left and right instead of rotating endlessly clockwise.
-    let inwardAngle = Math.atan2(-fixture[1], -fixture[0]);
-    let sweep = Math.sin(now / 760 + index * 1.7) * 0.72;
-
+    context.globalAlpha = 0.72 * intensity;
     context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
-    for(let beam = -1; beam <= 1; beam++) {
-      let angle = inwardAngle + sweep + beam * 0.24;
-      context.beginPath();
-      context.moveTo(x, y);
-      context.lineTo(x + Math.cos(angle) * beamLength, y + Math.sin(angle) * beamLength);
-      context.stroke();
-    }
+    context.lineWidth = mobile ? 1.5 : 2.2;
+    context.beginPath();
+    context.moveTo(light.fixtureX, light.fixtureY);
+    context.lineTo(light.targetX, light.targetY);
+    context.stroke();
+
+    let haloRadius = mobile ? 46 : 62;
+    let halo = context.createRadialGradient(light.targetX, light.targetY, 0, light.targetX, light.targetY, haloRadius);
+    halo.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.24 * intensity));
+    halo.addColorStop(1, "rgba(%s, %s, %s, 0)".format(color[0], color[1], color[2]));
+    context.globalAlpha = 1;
+    context.fillStyle = halo;
+    context.fillRect(light.targetX - haloRadius, light.targetY - haloRadius, haloRadius * 2, haloRadius * 2);
   });
 
   context.restore();
