@@ -384,6 +384,16 @@ PartyBouncerEvent.prototype.__faceBouncersSouth = function () {
   }, this);
 };
 
+PartyBouncerEvent.prototype.__faceBouncersTo = function (player) {
+  if (!player || !player.position) return;
+  Object.keys(BOUNCER_CONFIG.npcNames).forEach(function (which) {
+    let npc = this.__findNPC(BOUNCER_CONFIG.npcNames[which]);
+    if (npc && typeof npc.faceCreature === "function") {
+      npc.faceCreature(player);
+    }
+  }, this);
+};
+
 PartyBouncerEvent.prototype.__clearActive = function () {
   this.__active = null;
   this.__invitedPlayer = null;
@@ -391,13 +401,9 @@ PartyBouncerEvent.prototype.__clearActive = function () {
 };
 
 PartyBouncerEvent.prototype.__say = function (which, player, message) {
+  this.__faceBouncersTo(player);
   let npc = this.__findNPC(BOUNCER_CONFIG.npcNames[which]);
   if (npc && npc.speechHandler && typeof npc.speechHandler.privateSay === "function") {
-    // Face the guest before sending the speech packet so every observer sees
-    // the bouncer address the person who is currently being checked.
-    if (player && typeof npc.faceCreature === "function") {
-      npc.faceCreature(player);
-    }
     npc.speechHandler.privateSay(player, message, CONST.COLOR.LIGHTBLUE);
     return;
   }
@@ -612,7 +618,6 @@ PartyBouncerEvent.prototype.__grant = function () {
   this.__say("second", active.player, this.__getAttendanceMessage(active.player));
   active.stage = "authorized";
   active.expiresAt = this.__now() + BOUNCER_CONFIG.accessTimeoutMs;
-  active.faceSouthAt = this.__now() + BOUNCER_CONFIG.dialogueDelayMs;
 };
 
 PartyBouncerEvent.prototype.__failToBack = function (firstMessage) {
@@ -773,11 +778,7 @@ PartyBouncerEvent.prototype.tick = function () {
 
   let now = this.__now();
   let text = this.__getText(active.player);
-
-  if (active.stage === "authorized" && active.faceSouthAt && now >= active.faceSouthAt) {
-    this.__faceBouncersSouth();
-    active.faceSouthAt = 0;
-  }
+  this.__faceBouncersTo(active.player);
 
   if (["await_answer", "await_password", "await_spin"].includes(active.stage) && now >= active.expiresAt) {
     return this.__failToBack(text.timeout);

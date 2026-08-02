@@ -107,8 +107,25 @@ event.__active = {
 assert.strictEqual(event.handleSpeech(polish, "OCZYWISCIE!!!"), true);
 assert.strictEqual(event.__active.stage, "grant_pending");
 assert.match(spoken.at(-1).message, /odpowiedź|zgadza|zaliczona/i);
-assert.strictEqual(faced.at(-1).player, polish, "the speaking bouncer must face the active player");
-assert.strictEqual(faced.at(-1).name, "Różal");
+assert.ok(faced.every(entry => entry.player === polish));
+assert.strictEqual(new Set(faced.map(entry => entry.name)).size, 2, "both bouncers must face the player");
+
+faced = [];
+players.set("Polish", polish);
+polish.position = new Position(32515, 32359, 7);
+event.__active = {
+  player: polish,
+  stage: "await_answer",
+  attempts: 0,
+  expiresAt: now + 10000,
+  nextAt: Number.POSITIVE_INFINITY,
+  question: { answers: ["yes"] },
+  spinDirections: new Set()
+};
+event.tick();
+assert.ok(faced.every(entry => entry.player === polish));
+assert.strictEqual(new Set(faced.map(entry => entry.name)).size, 2, "both bouncers must track a moving player");
+players.delete("Polish");
 
 let mobile = makePlayer("PL", true);
 event.__active = { player: mobile, stage: "starting", attempts: 0, spinDirections: new Set() };
