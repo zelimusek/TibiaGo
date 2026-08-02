@@ -660,6 +660,7 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
           ? ambience.legacyLasersEnabled === true
           : ambience.discoCanvasEnabled === true,
         ambience.discoCanvasIntensity,
+        ambience.spotlightSpeed,
         ambience.beatBpm,
         ambience.discoCanvasRadius,
         ambience.discoCanvasCenter

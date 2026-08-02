@@ -353,15 +353,18 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let spotlightsEnabled = message[12] === "1";
   let legacyLasersEnabled;
   let discoCanvasIntensity;
+  let spotlightSpeed;
 
   // Cached clients still send the former aggregate checkbox followed by the
   // intensity. Treat it as enabling both effects until they refresh.
   if (message[14] === undefined) {
     legacyLasersEnabled = spotlightsEnabled;
     discoCanvasIntensity = message[13] === undefined ? 60 : Number(message[13]);
+    spotlightSpeed = 100;
   } else {
     legacyLasersEnabled = message[13] === "1";
     discoCanvasIntensity = Number(message[14]);
+    spotlightSpeed = message[15] === undefined ? 100 : Number(message[15]);
   }
   let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
   let validWeather = ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"];
@@ -410,6 +413,10 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Canvas disco intensity must be a whole number from 10 to 100.");
   }
 
+  if (!Number.isInteger(spotlightSpeed) || spotlightSpeed < 0 || spotlightSpeed > 250 || spotlightSpeed % 5 !== 0) {
+    return player.sendCancelMessage("Spotlight speed must be from 0% to 250% in steps of 5%.");
+  }
+
   if (!gameServer.world.creatureHandler.setRadioZoneAt(
     player.position,
     url,
@@ -425,6 +432,7 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     spotlightsEnabled,
     legacyLasersEnabled,
     discoCanvasIntensity,
+    spotlightSpeed,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
     return player.sendCancelMessage("Could not save the radio zone.");

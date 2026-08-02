@@ -19,7 +19,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
-  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, beatBpm: 0, radius: 0, center: null };
+  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null };
   this.__discoLightFrame = null;
   this.__pipeSmokeClouds = new Map();
   this.__intoxication = null;
@@ -303,12 +303,13 @@ WeatherCanvas.prototype.setWeatherType = function(type) {
 
 }
 
-WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, beatBpm, radius, center) {
+WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, spotlightSpeed, beatBpm, radius, center) {
 
   this.__discoLights = {
     spotlightsEnabled: spotlightsEnabled === true,
     legacyLasersEnabled: legacyLasersEnabled === true,
     intensity: Math.max(10, Math.min(100, Number(intensity) || 60)),
+    spotlightSpeed: Number.isInteger(spotlightSpeed) && spotlightSpeed >= 0 && spotlightSpeed <= 250 ? spotlightSpeed : 100,
     beatBpm: Number.isInteger(beatBpm) ? beatBpm : 0,
     radius: Math.max(0, Math.min(20, Number(radius) || 0)),
     center: center && Number.isInteger(center.x) && Number.isInteger(center.y) && Number.isInteger(center.z) ? center : null
@@ -351,10 +352,11 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     [-1.00, 0.55],
     [1.00, 0.55]
   ];
+  let motionTime = now * disco.spotlightSpeed / 100;
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
-    let travelX = Math.sin(now / (1350 + index * 170) + phase);
-    let travelY = Math.cos(now / (1750 - index * 90) + phase * 1.35);
+    let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
+    let travelY = Math.cos(motionTime / (1750 - index * 90) + phase * 1.35);
     let targetWorld = new Position(
       center.x + travelX * radius * 0.46,
       center.y + travelY * radius * 0.46,

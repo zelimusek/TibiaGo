@@ -288,6 +288,16 @@
   width: auto;
 }
 
+.radio-editor-range-title {
+  display: flex;
+  justify-content: space-between;
+}
+
+.radio-editor-range-title output {
+  color: #ffd500;
+  font-weight: bold;
+}
+
 .radio-editor-styles {
   display: grid;
   gap: 4px 10px;

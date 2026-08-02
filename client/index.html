@@ -673,9 +673,15 @@
                     Lasers
                   </label>
                 </div>
-                <label for="radio-editor-disco-intensity">Club effect intensity
-                  <input id="radio-editor-disco-intensity" type="range" min="10" max="100" step="1" value="60">
-                </label>
+                <div class="radio-editor-row">
+                  <label for="radio-editor-disco-intensity">Club effect intensity
+                    <input id="radio-editor-disco-intensity" type="range" min="10" max="100" step="1" value="60">
+                  </label>
+                  <label for="radio-editor-spotlight-speed">
+                    <span class="radio-editor-range-title">Spotlight speed <output id="radio-editor-spotlight-speed-value">100%</output></span>
+                    <input id="radio-editor-spotlight-speed" type="range" min="0" max="250" step="5" value="100">
+                  </label>
+                </div>
                 <div class="modal-footer">
                   <button action="cancel" value="Cancel">Cancel</button>
                   <button action="confirm" value="Save">Save Radio</button>

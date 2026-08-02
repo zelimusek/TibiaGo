@@ -268,12 +268,13 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     legacyLasersEnabled: zone && zone.legacyLasersEnabled !== undefined
       ? zone.legacyLasersEnabled === true
       : zone && zone.discoCanvasEnabled === true,
-    discoCanvasIntensity: zone && Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60
+    discoCanvasIntensity: zone && Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
+    spotlightSpeed: zone && Number.isInteger(zone.spotlightSpeed) && zone.spotlightSpeed >= 0 && zone.spotlightSpeed <= 250 ? zone.spotlightSpeed : 100
   };
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, spotlightSpeed, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -302,6 +303,7 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     spotlightsEnabled: spotlightsEnabled === true,
     legacyLasersEnabled: legacyLasersEnabled === true,
     discoCanvasIntensity: discoCanvasIntensity,
+    spotlightSpeed: spotlightSpeed,
     fadeMetric: "chebyshev",
     owner: owner,
     center: { x: position.x, y: position.y, z: position.z },
@@ -446,11 +448,12 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
         ? zone.legacyLasersEnabled === true
         : zone.discoCanvasEnabled === true,
       discoCanvasIntensity: Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
+      spotlightSpeed: Number.isInteger(zone.spotlightSpeed) && zone.spotlightSpeed >= 0 && zone.spotlightSpeed <= 250 ? zone.spotlightSpeed : 100,
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser

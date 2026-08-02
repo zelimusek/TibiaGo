@@ -93,7 +93,7 @@ const lightCanvas = {
   },
 };
 
-weather.setDiscoLights(true, true, 80, 120, 6, {
+weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515,
   y: 32346,
   z: 7,
@@ -123,7 +123,7 @@ weather.renderDiscoIllumination(lightCanvas);
 assert.notStrictEqual(lights[0][0], firstTargetX, "spotlight pool should move between frames");
 assert.strictEqual(lightBeams.length, 4);
 
-weather.setDiscoLights(true, false, 80, 120, 6, {
+weather.setDiscoLights(true, false, 80, 100, 120, 6, {
   x: 32515,
   y: 32346,
   z: 7,
@@ -137,7 +137,7 @@ weather.drawDiscoLights();
 assert.strictEqual(lightBeams.length, 4, "spotlight-only mode should illuminate four cones");
 assert.strictEqual(strokes, 0, "new spotlights must not draw thin laser beams");
 
-weather.setDiscoLights(false, true, 80, 120, 6, {
+weather.setDiscoLights(false, true, 80, 100, 120, 6, {
   x: 32515,
   y: 32346,
   z: 7,
@@ -151,7 +151,22 @@ weather.drawDiscoLights();
 assert.strictEqual(lightBeams.length, 0, "laser-only mode should not render spotlight illumination");
 assert.strictEqual(strokes, 9, "laser-only mode should retain all original rays");
 
-weather.setDiscoLights(false, false, 80, 120, 6, null);
+weather.setDiscoLights(true, false, 80, 0, 120, 6, {
+  x: 32515,
+  y: 32346,
+  z: 7,
+});
+lights.length = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+const staticTargetX = lights[0][0];
+now += 1500;
+lights.length = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+assert.strictEqual(lights[0][0], staticTargetX, "Static speed should keep spotlight targets still");
+
+weather.setDiscoLights(false, false, 80, 100, 120, 6, null);
 lights.length = 0;
 lightBeams.length = 0;
 weather.renderDiscoIllumination(lightCanvas);

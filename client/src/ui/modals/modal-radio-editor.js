@@ -19,11 +19,19 @@ const RadioEditorModal = function (element) {
   this.__spotlights = document.getElementById("radio-editor-spotlights");
   this.__legacyLasers = document.getElementById("radio-editor-legacy-lasers");
   this.__discoIntensity = document.getElementById("radio-editor-disco-intensity");
+  this.__spotlightSpeed = document.getElementById("radio-editor-spotlight-speed");
+  this.__spotlightSpeedValue = document.getElementById("radio-editor-spotlight-speed-value");
+  this.__spotlightSpeed.oninput = this.__updateSpotlightSpeedValue.bind(this);
 
 }
 
 RadioEditorModal.prototype = Object.create(Modal.prototype);
 RadioEditorModal.prototype.constructor = RadioEditorModal;
+
+RadioEditorModal.prototype.__updateSpotlightSpeedValue = function () {
+  let value = Number(this.__spotlightSpeed.value);
+  this.__spotlightSpeedValue.innerText = value === 0 ? "Static" : value + "%";
+}
 
 RadioEditorModal.prototype.handleOpen = function (config) {
 
@@ -46,6 +54,8 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   this.__spotlights.checked = config.spotlightsEnabled === true;
   this.__legacyLasers.checked = config.legacyLasersEnabled === true;
   this.__discoIntensity.value = Number.isInteger(config.discoCanvasIntensity) ? config.discoCanvasIntensity : 60;
+  this.__spotlightSpeed.value = Number.isInteger(config.spotlightSpeed) && config.spotlightSpeed >= 0 && config.spotlightSpeed <= 250 ? config.spotlightSpeed : 100;
+  this.__updateSpotlightSpeedValue();
 
   setTimeout(function () {
     this.__url.focus();
@@ -70,6 +80,7 @@ RadioEditorModal.prototype.handleConfirm = function () {
   let spotlightsEnabled = this.__spotlights.checked ? 1 : 0;
   let legacyLasersEnabled = this.__legacyLasers.checked ? 1 : 0;
   let discoCanvasIntensity = Number(this.__discoIntensity.value);
+  let spotlightSpeed = Number(this.__spotlightSpeed.value);
 
   try {
     let parsed = new URL(url);
@@ -116,12 +127,17 @@ RadioEditorModal.prototype.handleConfirm = function () {
     return false;
   }
 
+  if (!Number.isInteger(spotlightSpeed) || spotlightSpeed < 0 || spotlightSpeed > 250 || spotlightSpeed % 5 !== 0) {
+    gameClient.interface.setCancelMessage("Spotlight speed must be from 0% to 250% in steps of 5%.");
+    return false;
+  }
+
   // Commands are handled by the server in the Default channel and are not
   // echoed to chat, so saving stays an in-game GM action.
   gameClient.send(new ChannelMessagePacket(
     CONST.CHANNEL.DEFAULT,
     1,
-    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity)
+    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, spotlightSpeed)
   ));
 
   return true;

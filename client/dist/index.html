@@ -519,6 +519,7 @@
           <div id="joystick-knob"></div>
         </div>
       </div>
+
       <!-- Mobile Hotbar - 4 skill slots -->
       <div id="mobile-hotbar">
         <div class="mobile-hotbar-slot" data-slot="0"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">1</span></div>
@@ -526,6 +527,7 @@
         <div class="mobile-hotbar-slot" data-slot="2"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">3</span></div>
         <div class="mobile-hotbar-slot" data-slot="3"><canvas></canvas><span class="mobile-slot-duration"></span><span class="mobile-slot-key">4</span></div>
       </div>
+
       <!-- Action Buttons -->
       <div id="mobile-actions">
         <button id="mobile-equipment-btn" class="mobile-action-btn equipment" title="Equipment">🛡</button>
@@ -650,9 +652,15 @@
                     Lasers
                   </label>
                 </div>
-                <label for="radio-editor-disco-intensity">Club effect intensity
-                  <input id="radio-editor-disco-intensity" type="range" min="10" max="100" step="1" value="60">
-                </label>
+                <div class="radio-editor-row">
+                  <label for="radio-editor-disco-intensity">Club effect intensity
+                    <input id="radio-editor-disco-intensity" type="range" min="10" max="100" step="1" value="60">
+                  </label>
+                  <label for="radio-editor-spotlight-speed">
+                    <span class="radio-editor-range-title">Spotlight speed <output id="radio-editor-spotlight-speed-value">100%</output></span>
+                    <input id="radio-editor-spotlight-speed" type="range" min="0" max="250" step="5" value="100">
+                  </label>
+                </div>
                 <div class="modal-footer">
                   <button action="cancel" value="Cancel">Cancel</button>
                   <button action="confirm" value="Save">Save Radio</button>
