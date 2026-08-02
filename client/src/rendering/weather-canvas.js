@@ -418,9 +418,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     [1.00, 0.55]
   ];
   let motionTime = now * disco.spotlightSpeed / 100;
-  let focusBaseAngles = [-Math.PI * 0.5, 0, Math.PI, Math.PI * 0.5];
-  let focusSway = Math.sin(now / 1700) * 0.18;
-  let focusOrbitRadius = (focusFlashing && focusFlashOn ? 13 : 22) + Math.sin(now / 620) * 1.5;
+  let focusOrbitAngle = -Math.PI * 0.5 + now * Math.PI * 2 / 4500;
+  let focusOrbitRadius = 22;
   let lights = colors.map(function(color, index) {
     let phase = index * Math.PI * 0.5;
     let travelX = Math.sin(motionTime / (1350 + index * 170) + phase);
@@ -431,7 +430,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
         center.z
     );
     let targetScreen = gameClient.renderer.getStaticScreenPosition(targetWorld);
-    let orbitAngle = focusBaseAngles[index] + focusSway;
+    let orbitAngle = focusOrbitAngle + index * Math.PI * 0.5;
 
     return {
       color: color,
@@ -441,7 +440,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
         ? focusScreen.x + Math.cos(orbitAngle) * focusOrbitRadius
         : (targetScreen.x + 0.5) * 32,
       targetY: focusScreen
-        ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius * 0.72
+        ? focusScreen.y + Math.sin(orbitAngle) * focusOrbitRadius
         : (targetScreen.y + 0.5) * 32
     };
   });

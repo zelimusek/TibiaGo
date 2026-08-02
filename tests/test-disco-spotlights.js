@@ -194,17 +194,26 @@ const initialFocusCenterX = (focusedPosition.x - 32508 + 0.5) * 32;
 const initialFocusCenterY = (focusedPosition.y - 32335 + 0.5) * 32;
 const initialOrbitDistances = focusedTargets.map((entry) => Math.hypot(entry[0] - initialFocusCenterX, entry[1] - initialFocusCenterY));
 assert.strictEqual(new Set(focusedTargets.map((entry) => entry[0] + ":" + entry[1])).size, 4, "focused spotlights should keep four separate colored targets");
-assert.ok(initialOrbitDistances.every((distance) => distance >= 8 && distance <= 15), "winner flashes should tighten the ring without merging its colors");
+assert.ok(initialOrbitDistances.every((distance) => distance >= 21 && distance <= 23), "focused colors should keep a constant circular radius during winner flashes");
 assert.ok(focusedTargets.every((entry) => entry[2] >= 60 && entry[2] <= 90), "focused targets should use compact colored pools");
-assert.ok(focusedTargets[0][1] < initialFocusCenterY, "blue should stay above the focused player");
-assert.ok(focusedTargets[1][0] > initialFocusCenterX, "magenta should stay to the right of the focused player");
-assert.ok(focusedTargets[2][0] < initialFocusCenterX, "green should stay to the left of the focused player");
-assert.ok(focusedTargets[3][1] > initialFocusCenterY, "red should stay below the focused player");
+const initialBlueVector = {
+  x: focusedTargets[0][0] - initialFocusCenterX,
+  y: focusedTargets[0][1] - initialFocusCenterY,
+};
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the winner sequence should begin with an intense flash");
 
 now += 450;
 context.gameClient.renderer.debugger.__nFrames++;
-assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, false, "the first flash should visibly switch off");
+const rotatedFrame = weather.__getDiscoLightFrame();
+const rotatedBlueVector = {
+  x: rotatedFrame.lights[0].targetX - initialFocusCenterX,
+  y: rotatedFrame.lights[0].targetY - initialFocusCenterY,
+};
+assert.ok(
+  initialBlueVector.x * rotatedBlueVector.y - initialBlueVector.y * rotatedBlueVector.x > 0,
+  "focused colors should travel clockwise around the player"
+);
+assert.strictEqual(rotatedFrame.focusFlashOn, false, "the first flash should visibly switch off");
 
 focusedPosition.x++;
 now += 550;
