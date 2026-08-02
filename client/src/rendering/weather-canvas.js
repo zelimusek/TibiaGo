@@ -312,14 +312,20 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
     && focus.targetPosition
     && (focus.persistent === true || (Number.isFinite(focus.durationMs) && focus.durationMs > 0));
   let previousFocus = this.__discoLights.focus;
-  let previousTargetId = previousFocus ? previousFocus.targetId : null;
+  let transitionNow = performance.now();
+  let previousFocusElapsed = previousFocus
+    ? previousFocus.elapsedMs + Math.max(0, transitionNow - previousFocus.receivedAt)
+    : 0;
+  let previousFocusActive = previousFocus !== null
+    && (previousFocus.persistent || previousFocusElapsed < previousFocus.durationMs);
+  let previousTargetId = previousFocusActive ? previousFocus.targetId : null;
   let nextTargetId = validFocus ? focus.targetId : null;
-  let previousLaserFocus = previousFocus !== null && previousFocus.includeLasers === true;
+  let previousLaserFocus = previousFocusActive && previousFocus.includeLasers === true;
   let nextLaserFocus = validFocus === true && focus.includeLasers === true;
 
   if((previousTargetId !== nextTargetId || previousLaserFocus !== nextLaserFocus) && this.__discoLightFrame && this.__discoLightFrame.lights) {
     this.__spotlightFocusTransition = {
-      startedAt: performance.now(),
+      startedAt: transitionNow,
       laserStartAmount: previousLaserFocus ? 1 : 0,
       laserEndAmount: nextLaserFocus ? 1 : 0,
       focusCenter: this.__spotlightFocusVisual
@@ -384,6 +390,22 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let focus = disco.focus;
   let focusElapsed = focus ? focus.elapsedMs + Math.max(0, now - focus.receivedAt) : 0;
   let focusActive = focus !== null && (focus.persistent || focusElapsed < focus.durationMs);
+  if(focus && !focusActive && !focus.expiryTransitionStarted) {
+    focus.expiryTransitionStarted = true;
+    if(this.__discoLightFrame && this.__discoLightFrame.lights) {
+      this.__spotlightFocusTransition = {
+        startedAt: now,
+        laserStartAmount: focus.includeLasers === true ? 1 : 0,
+        laserEndAmount: 0,
+        focusCenter: this.__spotlightFocusVisual
+          ? { x: this.__spotlightFocusVisual.x, y: this.__spotlightFocusVisual.y }
+          : null,
+        from: this.__discoLightFrame.lights.map(function(light) {
+          return { x: light.targetX, y: light.targetY };
+        })
+      };
+    }
+  }
   let focusFlashing = focusActive && focusElapsed < focus.flashDurationMs && focus.flashCount > 0;
   let focusFlashOn = focusFlashing
     && focusElapsed % (focus.flashDurationMs / focus.flashCount) < Math.min(360, focus.flashDurationMs / focus.flashCount * 0.38);

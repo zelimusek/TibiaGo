@@ -358,7 +358,24 @@ assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "resynci
 
 now += 8100;
 context.gameClient.renderer.debugger.__nFrames++;
-assert.strictEqual(weather.__getDiscoLightFrame().focusActive, false, "winner focus should end after 11.2 seconds");
+const expiryStartFrame = weather.__getDiscoLightFrame();
+const expiryStartTargets = expiryStartFrame.lights.map((light) => ({ x: light.targetX, y: light.targetY }));
+assert.strictEqual(expiryStartFrame.focusActive, false, "winner focus should end after 11.2 seconds");
+assert.strictEqual(expiryStartFrame.laserFocusAmount, 1, "naturally expiring winner lasers should begin their return from the focused ring");
+now += 650;
+context.gameClient.renderer.debugger.__nFrames++;
+const expiryMiddleFrame = weather.__getDiscoLightFrame();
+assert.ok(expiryMiddleFrame.laserFocusAmount > 0 && expiryMiddleFrame.laserFocusAmount < 1, "winner lasers should spread out smoothly after natural expiry");
+assert.ok(
+  expiryMiddleFrame.lights.some((light, index) =>
+    Math.abs(light.targetX - expiryStartTargets[index].x) > 1
+    || Math.abs(light.targetY - expiryStartTargets[index].y) > 1
+  ),
+  "winner spotlights should travel smoothly back toward their dance-floor routes"
+);
+now += 650;
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "winner lasers should finish returning to their normal fans after 1.3 seconds");
 
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515,
@@ -376,7 +393,7 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().focusActive, true, "manual focus should work until explicitly disabled");
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashing, false, "manual focus must never use winner flashes");
-assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 1, "/spotlight should begin by smoothly releasing previously focused lasers");
+assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "/spotlight should leave already released winner lasers in their normal mode");
 now += 1300;
 context.gameClient.renderer.debugger.__nFrames++;
 assert.strictEqual(weather.__getDiscoLightFrame().laserFocusAmount, 0, "/spotlight should leave the laser fans in their normal mode");
