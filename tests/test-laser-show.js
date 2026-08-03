@@ -44,8 +44,18 @@ try {
   assert.strictEqual(payload.durationMs, 75000);
   assert.ok(payload.elapsedMs >= 0);
 
+  commands.handle(gm, "/lasershow 1");
+  assert.strictEqual(handler.__laserShow.mode, "default");
+  assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 75000);
+
+  commands.handle(gm, "/lasershow 2");
+  assert.strictEqual(handler.__laserShow.mode, "overdrive");
+  assert.strictEqual(handler.__laserShow.text, "PARTY ZONE");
+  assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 100000);
+  assert.ok(/100-second NEON OVERDRIVE/i.test(messages.at(-1)));
+
   commands.handle(gm, "/lasershow status");
-  assert.ok(/CYRK.*remaining/i.test(messages.at(-1)));
+  assert.ok(/PARTY ZONE.*remaining/i.test(messages.at(-1)));
   commands.handle(gm, "/lasershow off");
   assert.ok(handler.__laserShow.endsAt - Date.now() <= 1300);
   assert.ok(/finishing smoothly/i.test(messages.at(-1)));

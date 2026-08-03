@@ -599,4 +599,57 @@ assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "the
 showFrame = setLaserShow("default", "CYRK", 75000, 75000);
 assert.strictEqual(showFrame, null, "a completed show should release temporarily enabled venue lights");
 
+const overdrivePhases = [
+  [2000, "beam-awakening"],
+  [9000, "neon-curtains"],
+  [18000, "laser-clock"],
+  [27000, "prism-split"],
+  [36000, "laser-snake"],
+  [46000, "neon-ping-pong"],
+  [54000, "closing-gates"],
+  [62000, "triple-orbit"],
+  [71000, "laser-equalizer"],
+  [79000, "dj-moment"],
+  [88000, "text"],
+  [94000, "text-hold"],
+  [98000, "overdrive-finale"]
+];
+overdrivePhases.forEach(function(sample) {
+  showFrame = setLaserShow("overdrive", "PARTY ZONE", sample[0], 100000);
+  assert.strictEqual(showFrame.laserShow.phase, sample[1]);
+  assert.strictEqual(showFrame.laserShow.targets.length, 9);
+  if(sample[1] !== "dj-moment") {
+    assert.ok(
+      showFrame.laserShow.targets.every((target) =>
+        target.x >= 240 - 192.01 && target.x <= 240 + 192.01
+        && target.y >= 368 - 192.01 && target.y <= 368 + 192.01
+      ),
+      sample[1] + " must keep its laser endpoints on the dance floor"
+    );
+  }
+});
+
+const overdriveBoundaries = [7000, 15000, 23000, 31000, 42000, 50000, 58000, 67000, 75000, 93000, 95000];
+overdriveBoundaries.forEach(function(boundary) {
+  showFrame = setLaserShow("overdrive", "PARTY ZONE", boundary - 100, 100000);
+  const before = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+  now += 200;
+  context.gameClient.renderer.debugger.__nFrames++;
+  showFrame = weather.__getDiscoLightFrame();
+  assert.ok(
+    showFrame.laserShow.targets.every((target, index) =>
+      Math.abs(target.x - before[index].x) < 0.01 && Math.abs(target.y - before[index].y) < 0.01
+    ),
+    "overdrive phase at " + boundary + "ms should physically depart from the previous laser positions"
+  );
+});
+
+showFrame = setLaserShow("overdrive", "PARTY ZONE", 89900, 100000);
+assert.strictEqual(showFrame.laserShow.phase, "text");
+assert.ok(showFrame.laserShow.trailLines.length > 20, "NEON OVERDRIVE should draw PARTY ZONE stroke by stroke");
+showFrame = setLaserShow("overdrive", "PARTY ZONE", 99500, 100000);
+assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "NEON OVERDRIVE should fade smoothly during its final 1.3 seconds");
+showFrame = setLaserShow("overdrive", "PARTY ZONE", 100000, 100000);
+assert.strictEqual(showFrame, null, "NEON OVERDRIVE should release the venue lights after 100 seconds");
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

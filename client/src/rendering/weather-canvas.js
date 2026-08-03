@@ -344,7 +344,7 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   let previousLaserFocus = previousFocusActive && previousFocus.includeLasers === true;
   let nextLaserFocus = validFocus === true && focus.includeLasers === true;
   let validLaserShow = laserShow
-    && (laserShow.mode === "default" || laserShow.mode === "text")
+    && (laserShow.mode === "default" || laserShow.mode === "overdrive" || laserShow.mode === "text")
     && typeof laserShow.text === "string"
     && Number.isFinite(laserShow.durationMs)
     && laserShow.durationMs > 0;
@@ -413,10 +413,10 @@ WeatherCanvas.prototype.__getLaserGlyphLines = function(character, centerX, cent
 
 }
 
-WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, centerX, centerY, radius, elapsedMs, entryTargets) {
+WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, centerX, centerY, radius, elapsedMs, entryTargets, maximumWidth) {
 
   text = text || "CYRK";
-  let availableWidth = Math.max(180, radius * 64 * 1.70);
+  let availableWidth = Number.isFinite(maximumWidth) ? maximumWidth : Math.max(180, radius * 64 * 1.70);
   let scale = Math.min(76, availableWidth / Math.max(1, text.length * 1.12));
   let advance = scale * 1.12;
   let startX = centerX - advance * (text.length - 1) * 0.5;
@@ -521,9 +521,9 @@ WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, ce
 
 }
 
-WeatherCanvas.prototype.__getLaserTextHoldChoreography = function(text, centerX, centerY, radius, elapsedMs) {
+WeatherCanvas.prototype.__getLaserTextHoldChoreography = function(text, centerX, centerY, radius, elapsedMs, maximumWidth, orbitPadding) {
 
-  let completed = this.__getLaserTextChoreography(text, 0.999999, centerX, centerY, radius, 1000);
+  let completed = this.__getLaserTextChoreography(text, 0.999999, centerX, centerY, radius, 1000, null, maximumWidth);
   let trailLines = completed.trailLines;
   trailLines.forEach(function(line) { line.alpha = 0.78; });
   let minX = Math.min.apply(null, trailLines.map(function(line) { return Math.min(line.x1, line.x2); }));
@@ -532,8 +532,9 @@ WeatherCanvas.prototype.__getLaserTextHoldChoreography = function(text, centerX,
   let maxY = Math.max.apply(null, trailLines.map(function(line) { return Math.max(line.y1, line.y2); }));
   let orbitCenterX = (minX + maxX) * 0.5;
   let orbitCenterY = (minY + maxY) * 0.5;
-  let orbitRadiusX = (maxX - minX) * 0.5 + 58;
-  let orbitRadiusY = (maxY - minY) * 0.5 + 52;
+  let padding = Number.isFinite(orbitPadding) ? orbitPadding : 58;
+  let orbitRadiusX = (maxX - minX) * 0.5 + padding;
+  let orbitRadiusY = (maxY - minY) * 0.5 + padding * 0.9;
   let orbitAngle = elapsedMs * Math.PI * 2 / 6500;
   let targets = Array.from({ length: 9 }, function(_, index) {
     let angle = orbitAngle + index * Math.PI * 2 / 9;
@@ -556,6 +557,7 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
   let phase = "opening";
   let angleTime = elapsedMs * Math.PI * 2 / 4200;
   let customSpotlightTargets = null;
+  let spotlightsFollowLaserTargets = false;
   let floorHalf = Math.max(32, radius * 32);
 
   function clamp(value, minimum, maximum) {
@@ -807,6 +809,222 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       addPartialSquare(finaleSizes[level], levelProgress, 1, level % 3);
       targets = squareTargets(finaleSizes[level], levelProgress * 0.8, level % 2 === 1);
     }
+  } else if(show.mode === "overdrive") {
+    if(elapsedMs < 7000) {
+      phase = "beam-awakening";
+      let progress = elapsedMs / 7000;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let wake = easeInOut((progress - index * 0.065) / 0.42);
+        let destination = squarePerimeterPoint(0.125 + index / 9, floorHalf);
+        let target = {
+          x: centerX + (destination.x - centerX) * wake,
+          y: centerY + (destination.y - centerY) * wake
+        };
+        if(wake > 0) addSegment(centerX, centerY, target.x, target.y, 0.16 + wake * 0.56, index % 3);
+        return target;
+      });
+    } else if(elapsedMs < 15000) {
+      phase = "neon-curtains";
+      let progress = (elapsedMs - 7000) / 8000;
+      let sweepPosition = Math.min(3.999999, progress * 4);
+      let sweep = Math.floor(sweepPosition);
+      let along = easeInOut(sweepPosition - sweep);
+      let moving = -floorHalf + along * floorHalf * 2;
+      if(sweep === 1 || sweep === 3) moving = -moving;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let distributed = -floorHalf + index * floorHalf * 2 / 8;
+        return sweep < 2
+          ? { x: centerX + moving, y: centerY + distributed }
+          : { x: centerX + distributed, y: centerY + moving };
+      });
+      if(sweep < 2) addSegment(centerX + moving, centerY - floorHalf, centerX + moving, centerY + floorHalf, 0.94, sweep);
+      else addSegment(centerX - floorHalf, centerY + moving, centerX + floorHalf, centerY + moving, 0.94, sweep);
+    } else if(elapsedMs < 23000) {
+      phase = "laser-clock";
+      let progress = (elapsedMs - 15000) / 8000;
+      let clockRadius = floorHalf * 0.86;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let speed = 1 + (index % 3) * 0.32;
+        let angle = -Math.PI / 2 + index * Math.PI * 2 / 9 + progress * Math.PI * 2 * speed;
+        let target = { x: centerX + Math.cos(angle) * clockRadius, y: centerY + Math.sin(angle) * clockRadius };
+        addSegment(centerX, centerY, target.x, target.y, 0.3 + (index % 3) * 0.13, index % 3);
+        return target;
+      });
+    } else if(elapsedMs < 31000) {
+      phase = "prism-split";
+      let progress = (elapsedMs - 23000) / 8000;
+      let prismProgress;
+      if(progress < 0.4) {
+        prismProgress = 1 - easeInOut(progress / 0.4);
+        targets = ringTargets(floorHalf * 0.86 * prismProgress, angleTime * 0.35, false);
+      } else {
+        prismProgress = easeInOut((progress - 0.4) / 0.6);
+        targets = squareTargets(floorHalf * prismProgress, 0.08, false);
+      }
+      targets.forEach(function(target, index) {
+        addSegment(centerX, centerY, target.x, target.y, 0.2 + prismProgress * 0.72, index % 3);
+      });
+    } else if(elapsedMs < 42000) {
+      phase = "laser-snake";
+      let progress = easeInOut((elapsedMs - 31000) / 11000);
+      let snakePoints = [
+        { x: centerX - floorHalf, y: centerY - floorHalf }, { x: centerX + floorHalf, y: centerY - floorHalf },
+        { x: centerX + floorHalf, y: centerY - 96 }, { x: centerX - floorHalf, y: centerY - 96 },
+        { x: centerX - floorHalf, y: centerY - 32 }, { x: centerX + floorHalf, y: centerY - 32 },
+        { x: centerX + floorHalf, y: centerY + 32 }, { x: centerX - floorHalf, y: centerY + 32 },
+        { x: centerX - floorHalf, y: centerY + 96 }, { x: centerX + floorHalf, y: centerY + 96 },
+        { x: centerX + floorHalf, y: centerY + floorHalf }, { x: centerX - floorHalf, y: centerY + floorHalf }
+      ];
+      let snakePath = buildPath(snakePoints);
+      let headDistance = snakePath.totalLength * progress;
+      let spacing = snakePath.totalLength * 0.028 * Math.sin(progress * Math.PI);
+      targets = Array.from({ length: 9 }, function(_, index) {
+        return pointAlongPath(snakePath, headDistance - index * spacing);
+      });
+      addPathTrail(snakePath, headDistance, 0.7);
+    } else if(elapsedMs < 50000) {
+      phase = "neon-ping-pong";
+      let progress = (elapsedMs - 42000) / 8000;
+      let paddleY = Math.sin(progress * Math.PI * 8) * 76;
+      let bounce = 1 - Math.abs((progress * 8) % 2 - 1);
+      let ballX = -floorHalf * 0.72 + bounce * floorHalf * 1.44;
+      let ballY = Math.sin(progress * Math.PI * 8) * 88;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        if(index === 8) return { x: centerX + ballX, y: centerY + ballY };
+        let left = index < 4;
+        let slot = index % 4;
+        return {
+          x: centerX + (left ? -floorHalf * 0.82 : floorHalf * 0.82),
+          y: centerY + paddleY + (slot - 1.5) * 24
+        };
+      });
+      addSegment(centerX - floorHalf * 0.82, centerY + paddleY - 48, centerX - floorHalf * 0.82, centerY + paddleY + 48, 0.88, 0);
+      addSegment(centerX + floorHalf * 0.82, centerY + paddleY - 48, centerX + floorHalf * 0.82, centerY + paddleY + 48, 0.88, 2);
+      let previousBall = null;
+      for(let sample = 0; sample <= 10; sample++) {
+        let sampleProgress = Math.max(0, progress - 0.1 + sample * 0.01);
+        let sampleBounce = 1 - Math.abs((sampleProgress * 8) % 2 - 1);
+        let ball = {
+          x: centerX - floorHalf * 0.72 + sampleBounce * floorHalf * 1.44,
+          y: centerY + Math.sin(sampleProgress * Math.PI * 8) * 88
+        };
+        if(previousBall) addSegment(previousBall.x, previousBall.y, ball.x, ball.y, 0.12 + sample * 0.055, sample % 3);
+        previousBall = ball;
+      }
+    } else if(elapsedMs < 58000) {
+      phase = "closing-gates";
+      let progress = (elapsedMs - 50000) / 8000;
+      let gateSpan = 42 + Math.abs(Math.sin(progress * Math.PI * 3)) * 125;
+      let rotation = progress * Math.PI * 1.5;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let firstGate = index < 5;
+        let count = firstGate ? 5 : 4;
+        let localIndex = firstGate ? index : index - 5;
+        let distance = count > 1 ? -gateSpan + localIndex * gateSpan * 2 / (count - 1) : 0;
+        let angle = rotation + (firstGate ? Math.PI / 4 : -Math.PI / 4);
+        let target = { x: centerX + Math.cos(angle) * distance, y: centerY + Math.sin(angle) * distance };
+        addSegment(centerX, centerY, target.x, target.y, 0.56, firstGate ? 0 : 2);
+        return target;
+      });
+    } else if(elapsedMs < 67000) {
+      phase = "triple-orbit";
+      let progress = (elapsedMs - 58000) / 9000;
+      let convergence = easeInOut((progress - 0.62) / 0.38);
+      let separation = 112 * (1 - convergence);
+      let orbitRadius = 36 + Math.sin(progress * Math.PI * 8) * 9;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let group = Math.floor(index / 3) - 1;
+        let member = index % 3;
+        let orbitX = centerX + group * separation;
+        let angle = progress * Math.PI * 5 * (group === 0 ? -1 : 1) + member * Math.PI * 2 / 3;
+        let target = { x: orbitX + Math.cos(angle) * orbitRadius, y: centerY + Math.sin(angle) * orbitRadius };
+        addSegment(orbitX, centerY, target.x, target.y, 0.52, group + 1);
+        return target;
+      });
+    } else if(elapsedMs < 75000) {
+      phase = "laser-equalizer";
+      let local = elapsedMs - 67000;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let x = centerX - 160 + index * 40;
+        let beat = (Math.sin(local / 210 + index * 1.37) + 1) * 0.5;
+        let height = 30 + beat * 150;
+        let target = { x: x, y: centerY + floorHalf - height };
+        addSegment(x, centerY + floorHalf, target.x, target.y, 0.38 + beat * 0.54, index % 3);
+        return target;
+      });
+    } else if(elapsedMs < 83000) {
+      phase = "dj-moment";
+      spotlightsFollowLaserTargets = true;
+      let progress = (elapsedMs - 75000) / 8000;
+      let thomas = { x: centerX - 32, y: centerY - 288 };
+      let hubertuse = { x: centerX + 32, y: centerY - 288 };
+      let borderTargets = squareTargets(floorHalf, 0.2, false);
+      function djTargets(dj, spin) {
+        return Array.from({ length: 9 }, function(_, index) {
+          let angle = spin + index * Math.PI * 2 / 9;
+          return { x: dj.x + Math.cos(angle) * 30, y: dj.y + Math.sin(angle) * 22 };
+        });
+      }
+      let thomasTargets = djTargets(thomas, progress * Math.PI * 3);
+      let hubertuseTargets = djTargets(hubertuse, -progress * Math.PI * 3);
+      if(progress < 0.42) {
+        targets = thomasTargets;
+      } else if(progress < 0.82) {
+        let transfer = easeInOut((progress - 0.42) / 0.4);
+        targets = thomasTargets.map(function(target, index) {
+          return {
+            x: target.x + (hubertuseTargets[index].x - target.x) * transfer,
+            y: target.y + (hubertuseTargets[index].y - target.y) * transfer
+          };
+        });
+      } else {
+        let release = easeInOut((progress - 0.82) / 0.18);
+        targets = hubertuseTargets.map(function(target, index) {
+          return {
+            x: target.x + (borderTargets[index].x - target.x) * release,
+            y: target.y + (borderTargets[index].y - target.y) * release
+          };
+        });
+      }
+    } else if(elapsedMs < 93000) {
+      phase = "text";
+      let textElapsed = elapsedMs - 83000;
+      let textEntryTargets = squareTargets(floorHalf, 0.2, false);
+      let textFrame = this.__getLaserTextChoreography("PARTY ZONE", Math.max(0, textElapsed - 700) / 9300, centerX, centerY, radius, textElapsed, textEntryTargets, floorHalf * 1.8);
+      targets = textFrame.targets;
+      trailLines = textFrame.trailLines;
+    } else if(elapsedMs < 95000) {
+      phase = "text-hold";
+      let holdFrame = this.__getLaserTextHoldChoreography("PARTY ZONE", centerX, centerY, radius, elapsedMs - 93000, floorHalf * 1.8, 14);
+      targets = holdFrame.targets;
+      trailLines = holdFrame.trailLines;
+    } else {
+      phase = "overdrive-finale";
+      let progress = clamp((elapsedMs - 95000) / 5000, 0, 1);
+      let completedText = this.__getLaserTextHoldChoreography("PARTY ZONE", centerX, centerY, radius, 2000, floorHalf * 1.8, 14);
+      if(progress < 0.3) {
+        targets = completedText.targets;
+        trailLines = completedText.trailLines.map(function(line) {
+          line.alpha *= 1 - progress * 1.5;
+          return line;
+        });
+      } else if(progress < 0.62) {
+        let collapse = easeInOut((progress - 0.3) / 0.32);
+        targets = completedText.targets.map(function(target) {
+          return { x: target.x + (centerX - target.x) * collapse, y: target.y + (centerY - target.y) * collapse };
+        });
+        trailLines = completedText.trailLines.map(function(line) {
+          line.alpha *= Math.max(0, 1 - collapse);
+          return line;
+        });
+      } else {
+        let explosion = easeInOut((progress - 0.62) / 0.38);
+        targets = squareTargets(floorHalf * explosion, 0.125 + explosion * 0.2, false);
+        targets.forEach(function(target, index) {
+          addSegment(centerX, centerY, target.x, target.y, 0.25 + explosion * 0.7, index % 3);
+        });
+      }
+    }
   } else {
     let textStart = 3000;
     let textWriteEnd = Math.max(textStart + 1000, show.durationMs - 8000);
@@ -870,6 +1088,7 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
 
   let spotlightTargets = customSpotlightTargets || [0, 2, 4, 6].map(function(index) {
     let target = targets[index] || { x: centerX, y: centerY };
+    if(spotlightsFollowLaserTargets) return { x: target.x, y: target.y };
     return {
       x: centerX + (target.x - centerX) * 0.82,
       y: centerY + (target.y - centerY) * 0.82

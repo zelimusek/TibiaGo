@@ -30,6 +30,7 @@ const SPOTLIGHT_FOCUS_DURATION_MS = 11200;
 const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
 const LASER_SHOW_DEFAULT_DURATION_MS = 75000;
+const LASER_SHOW_OVERDRIVE_DURATION_MS = 100000;
 const LASER_SHOW_OUTRO_MS = 1300;
 const LASER_SHOW_MAX_TEXT_LENGTH = 12;
 const PARTY_READABLE_POSITIONS = {
@@ -455,9 +456,13 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
   };
 }
 
-CreatureHandler.prototype.startLaserShow = function (text) {
-  let mode = typeof text === "string" && text.trim().length > 0 ? "text" : "default";
-  let normalizedText = mode === "text" ? text.trim().toUpperCase() : "CYRK";
+CreatureHandler.prototype.startLaserShow = function (text, variant) {
+  let mode = variant === 2
+    ? "overdrive"
+    : (typeof text === "string" && text.trim().length > 0 ? "text" : "default");
+  let normalizedText = mode === "text"
+    ? text.trim().toUpperCase()
+    : (mode === "overdrive" ? "PARTY ZONE" : "CYRK");
   if (normalizedText.length > LASER_SHOW_MAX_TEXT_LENGTH) {
     return { ok: false, message: "Laser show text can contain at most %s characters.".format(LASER_SHOW_MAX_TEXT_LENGTH) };
   }
@@ -469,7 +474,9 @@ CreatureHandler.prototype.startLaserShow = function (text) {
   let visibleCharacters = normalizedText.replace(/\s/g, "").length;
   let durationMs = mode === "default"
     ? LASER_SHOW_DEFAULT_DURATION_MS
-    : 11000 + Math.max(1, visibleCharacters) * 1400;
+    : (mode === "overdrive"
+      ? LASER_SHOW_OVERDRIVE_DURATION_MS
+      : 11000 + Math.max(1, visibleCharacters) * 1400);
   this.__spotlightFocus = null;
   this.__laserShow = {
     mode: mode,
@@ -482,7 +489,9 @@ CreatureHandler.prototype.startLaserShow = function (text) {
     ok: true,
     message: mode === "default"
       ? "The 75-second CYRK laser show has started!"
-      : "Laser show is drawing '%s' for %s seconds.".format(normalizedText, Math.ceil(durationMs / 1000))
+      : (mode === "overdrive"
+        ? "The 100-second NEON OVERDRIVE laser show has started!"
+        : "Laser show is drawing '%s' for %s seconds.".format(normalizedText, Math.ceil(durationMs / 1000)))
   };
 }
 
