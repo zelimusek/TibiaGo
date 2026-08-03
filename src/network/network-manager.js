@@ -77,7 +77,10 @@ NetworkManager.prototype.readIncomingBuffer = function (gameSocket) {
 
   // Block excessively large inputs by the users
   if (buffer.length > CONFIG.SERVER.MAX_PACKET_SIZE) {
-    return gameSocket.close();
+    return gameSocket.close("incoming-packet-too-large", {
+      bytes: buffer.length,
+      maximum: CONFIG.SERVER.MAX_PACKET_SIZE
+    });
   }
 
   // Class to easily read a buffer sequentially
@@ -101,7 +104,12 @@ NetworkManager.prototype.readIncomingBuffer = function (gameSocket) {
       this.__readPacket(gameSocket, packet);
     } catch (exception) {
       console.trace(exception);
-      return gameSocket.close();
+      return gameSocket.close("client-packet-parse-error", {
+        opcode: gameSocket.__lastClientOpcode,
+        packetIndex: packet.index,
+        packetBytes: packet.buffer.length,
+        message: exception && exception.message ? exception.message : String(exception)
+      });
     }
 
   }
@@ -118,6 +126,7 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
 
   // Read the opcode of the packet
   let opcode = packet.readUInt8();
+  gameSocket.recordClientOpcode(opcode);
 
   // The packet operational code
   switch (opcode) {
@@ -259,7 +268,11 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
 
     // Unknown opcode sent: close the socket immediately
     default: {
-      return gameSocket.close();
+      return gameSocket.close("unknown-client-opcode", {
+        opcode: opcode,
+        packetIndex: packet.index,
+        packetBytes: packet.buffer.length
+      });
     }
 
   }

@@ -680,6 +680,13 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
       gameClient.interface.soundManager.setRadioEnvironmentalMute(ambience.radioEnvironmentalMute === true);
     } catch (error) {
       console.warn("Could not apply radio ambience:", error);
+      if (window.tibiaDiagnostics) {
+        window.tibiaDiagnostics.record("radio-ambience-error", {
+          message: error && error.message ? String(error.message) : String(error),
+          stack: error && error.stack ? String(error.stack).slice(0, 6000) : "",
+          payloadBytes: packet.url.length
+        }, true);
+      }
     }
     return;
   }

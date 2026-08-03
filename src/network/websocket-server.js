@@ -296,13 +296,46 @@ WebsocketServer.prototype.__acceptCharacterConnection = function (
   return gameSocket.closeError("This character is already online.");
 };
 
-WebsocketServer.prototype.__handleSocketClose = function (gameSocket) {
+WebsocketServer.prototype.__handleSocketClose = function (gameSocket, code, reason) {
   /*
    * Function WebsocketServer.__handleSocketClose
    * Closes a game socket and removes the player from the game world
    */
 
-  console.log("A client has left the server: %s.".format(gameSocket.__address));
+  let playerName = null;
+  try {
+    playerName = gameSocket.player
+      ? gameSocket.player.getProperty(CONST.PROPERTIES.NAME)
+      : null;
+  } catch (error) {
+    playerName = null;
+  }
+
+  let diagnostic = gameSocket.getDisconnectDiagnostic();
+  let closeReason = Buffer.isBuffer(reason) ? reason.toString("utf8") : String(reason || "");
+  let partyEffects = null;
+  try {
+    let creatureHandler = gameServer.world.creatureHandler;
+    partyEffects = {
+      spotlightFocus: creatureHandler.__getSpotlightFocusPayload(),
+      floorLava: creatureHandler.floorLava.getStatus()
+    };
+  } catch (error) {
+    partyEffects = { diagnosticError: error.message };
+  }
+  console.log("[WEBSOCKET CLOSE] %s", JSON.stringify({
+    address: gameSocket.__address,
+    player: playerName,
+    code: Number.isInteger(code) ? code : null,
+    reason: closeReason.slice(0, 256),
+    connectedMs: Math.max(0, Date.now() - diagnostic.connectedAt),
+    lastClientOpcode: diagnostic.lastClientOpcode,
+    alive: diagnostic.alive,
+    lastPingAt: diagnostic.lastPingAt,
+    lastPongAt: diagnostic.lastPongAt,
+    initiated: diagnostic.initiated,
+    partyEffects: partyEffects
+  }));
 
   // Dereference from the list of gamesockets
   this.socketHandler.dereferenceSocket(gameSocket);

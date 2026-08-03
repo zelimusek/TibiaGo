@@ -377,6 +377,8 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
     center: center && Number.isInteger(center.x) && Number.isInteger(center.y) && Number.isInteger(center.z) ? center : null,
     focus: validFocus ? {
       targetId: focus.targetId,
+      targetName: typeof focus.targetName === "string" ? focus.targetName.slice(0, 80) : "",
+      source: typeof focus.source === "string" ? focus.source.slice(0, 80) : "unknown",
       targetPosition: focus.targetPosition,
       elapsedMs: Math.max(0, Number(focus.elapsedMs) || 0),
       persistent: focus.persistent === true,

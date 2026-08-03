@@ -14,6 +14,9 @@ const NetworkManager = function () {
   this.state.add("connected", null);
 
   this.nPacketsSent = 0;
+  this.__lastServerOpcode = null;
+  this.__diagnosticConnectionId = null;
+  this.__connectedAt = null;
 
   // The handler for all incoming packets
   this.packetHandler = new PacketHandler();
@@ -52,7 +55,10 @@ NetworkManager.prototype.readPacket = function (packet) {
   this.state.nPackets++;
 
   // What operation the server sends is the first byte
-  switch (packet.readUInt8()) {
+  let opcode = packet.readUInt8();
+  this.__lastServerOpcode = opcode;
+
+  switch (opcode) {
 
     case CONST.PROTOCOL.SERVER.SPELL_ADD: {
       return gameClient.interface.updateSpells(packet.readUInt16());
@@ -449,6 +455,8 @@ NetworkManager.prototype.connect = function () {
   }).then(function (response) {
 
     // Open the websocket connection: binary transfer of data
+    this.__diagnosticConnectionId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    this.__lastServerOpcode = null;
     this.socket = new WebSocket(this.getConnectionString(response));
     this.socket.binaryType = "arraybuffer";
 
@@ -484,9 +492,25 @@ NetworkManager.prototype.__handlePacket = function (event) {
   // Save the number of received bytes
   this.state.bytesRecv += packet.buffer.length;
 
-  // Can still read the packet
-  while (packet.readable()) {
-    this.readPacket(packet);
+  try {
+    // Can still read the packet
+    while (packet.readable()) {
+      this.readPacket(packet);
+    }
+  } catch (error) {
+    if (window.tibiaDiagnostics) {
+      window.tibiaDiagnostics.record("server-packet-parse-error", {
+        opcode: this.__lastServerOpcode,
+        packetIndex: packet.index,
+        packetBytes: packet.buffer.length,
+        error: {
+          name: error && error.name ? String(error.name) : "Error",
+          message: error && error.message ? String(error.message) : String(error),
+          stack: error && error.stack ? String(error.stack).slice(0, 6000) : ""
+        }
+      }, true);
+    }
+    throw error;
   }
 
 }
@@ -497,6 +521,12 @@ NetworkManager.prototype.__handleError = function (event) {
    * Function GameClient.__handleError
    * Gracefully handle websocket errors..
    */
+
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("websocket-error", {
+      readyState: event && event.target ? event.target.readyState : null
+    }, true);
+  }
 
   gameClient.interface.modalManager.open("floater-connecting", new ConnectionError("Could not connect to the Gameworld. <br> Please try again later."));
 
@@ -512,14 +542,31 @@ NetworkManager.prototype.__handleClose = function (event) {
   // A late close event from an older socket must not reset a newly logged-in
   // session. This can otherwise leave the new renderer on a black screen.
   if (event.target !== this.socket) {
+    if (window.tibiaDiagnostics) {
+      window.tibiaDiagnostics.record("stale-websocket-close", {
+        code: event.code,
+        reason: event.reason || "",
+        wasClean: event.wasClean === true
+      }, true);
+    }
     return;
   }
 
   console.log("Disconnected");
 
   let wasConnected = this.state.connected;
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("websocket-close", {
+      code: event.code,
+      reason: event.reason || "",
+      wasClean: event.wasClean === true,
+      wasConnected: wasConnected === true,
+      connectedMs: this.__connectedAt === null ? null : Math.max(0, Date.now() - this.__connectedAt)
+    }, true);
+  }
   this.socket = null;
   this.state.connected = false;
+  this.__connectedAt = null;
 
   // If we are connected to the game world: handle a reset
   if (wasConnected && gameClient.renderer) {
@@ -536,6 +583,13 @@ NetworkManager.prototype.__handleConnection = function (event) {
    */
 
   this.state.connected = true;
+  this.__connectedAt = Date.now();
+
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("websocket-open", {
+      connectionId: this.__diagnosticConnectionId
+    }, false);
+  }
 
   console.log("You are connected to the gameserver.");
 

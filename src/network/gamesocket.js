@@ -39,6 +39,10 @@ const GameSocket = function (socket, account, connectionDetails) {
 
   // State variable to kick inactive sockets that no longer respond
   this.__alive = true;
+  this.__lastPingAt = null;
+  this.__lastPongAt = Date.now();
+  this.__lastClientOpcode = null;
+  this.__disconnectDiagnostic = null;
 
   // Buffer incoming & outgoing messages are read and send once per server tick
   this.incomingBuffer = new PacketBuffer();
@@ -73,14 +77,16 @@ GameSocket.prototype.getBytesRead = function () {
 
 }
 
-GameSocket.prototype.__handleSocketError = function (gameSocket) {
+GameSocket.prototype.__handleSocketError = function (error) {
 
   /*
    * Function WebsocketServer.__handleSocketError
    * Delegates to the close socket handler
    */
 
-  this.close();
+  this.close("socket-error", {
+    message: error && error.message ? error.message : String(error || "Unknown WebSocket error")
+  });
 
 }
 
@@ -92,6 +98,7 @@ GameSocket.prototype.__handlePong = function (gameSocket) {
    */
 
   this.__alive = true;
+  this.__lastPongAt = Date.now();
 
 }
 
@@ -153,13 +160,17 @@ GameSocket.prototype.ping = function () {
 
   // Not alive from previous ping: bye bye
   if (!this.isAlive()) {
-    return this.terminate();
+    return this.terminate("ping-timeout", {
+      lastPingAt: this.__lastPingAt,
+      lastPongAt: this.__lastPongAt
+    });
   }
 
   // Set to not being alive: will be set to alive after receiving the pong
   this.__alive = false;
 
   // Send a ping
+  this.__lastPingAt = Date.now();
   this.socket.ping();
 
 }
@@ -262,7 +273,9 @@ GameSocket.prototype.__handleSocketData = function (buffer) {
 
   // Array buffer was not received
   if (!Buffer.isBuffer(buffer)) {
-    return this.close();
+    return this.close("non-binary-client-packet", {
+      receivedType: buffer === null ? "null" : typeof buffer
+    });
   }
 
   // If latency request do not buffer: immediately write the response
@@ -280,7 +293,7 @@ GameSocket.prototype.__handleSocketData = function (buffer) {
 
 }
 
-GameSocket.prototype.closeError = function (message) {
+GameSocket.prototype.closeError = function (message, diagnosticReason, diagnosticDetails) {
 
   /*
    * Function GameSocket.closeError
@@ -290,7 +303,8 @@ GameSocket.prototype.closeError = function (message) {
   this.socket.send(new ServerErrorPacket(message).getBuffer());
 
   // Gracefully close
-  this.close();
+  let details = Object.assign({ message: message }, diagnosticDetails || {});
+  this.close(diagnosticReason || "server-error", details);
 
 }
 
@@ -303,7 +317,9 @@ GameSocket.prototype.write = function (packet) {
 
   // Exceeds the maximum size: disconnect the game socket for safety
   if (packet.overflow()) {
-    return this.closeError("Internal server error: game packet overflow.");
+    return this.closeError("Internal server error: game packet overflow.", "outgoing-packet-overflow", {
+      packetType: packet && packet.constructor ? packet.constructor.name : "UnknownPacket"
+    });
   }
 
   // Add it
@@ -311,24 +327,59 @@ GameSocket.prototype.write = function (packet) {
 
 }
 
-GameSocket.prototype.terminate = function () {
+GameSocket.prototype.recordClientOpcode = function (opcode) {
+
+  this.__lastClientOpcode = opcode;
+
+}
+
+GameSocket.prototype.__setDisconnectDiagnostic = function (reason, details) {
+
+  if (!reason) {
+    return;
+  }
+
+  this.__disconnectDiagnostic = {
+    reason: reason,
+    details: details || null,
+    timestamp: Date.now()
+  };
+
+}
+
+GameSocket.prototype.getDisconnectDiagnostic = function () {
+
+  return {
+    connectedAt: this.__connected,
+    lastClientOpcode: this.__lastClientOpcode,
+    lastPingAt: this.__lastPingAt,
+    lastPongAt: this.__lastPongAt,
+    alive: this.__alive,
+    initiated: this.__disconnectDiagnostic
+  };
+
+}
+
+GameSocket.prototype.terminate = function (reason, details) {
 
   /*
    * Function GameSocket.terminate
    * Terminates the websocket
    */
 
+  this.__setDisconnectDiagnostic(reason || "server-terminate", details);
   this.socket.terminate();
 
 }
 
-GameSocket.prototype.close = function () {
+GameSocket.prototype.close = function (reason, details) {
 
   /*
    * Function GameSocket.close
    * Closes the websocket
    */
 
+  this.__setDisconnectDiagnostic(reason || "server-close", details);
   this.socket.close();
 
 }

@@ -529,7 +529,8 @@ CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
   let result = gameServer.world.creatureHandler.focusSpotlightsOnPlayer(found.target, {
     durationMs: durationMs,
     flashing: false,
-    includeLasers: includeLasers
+    includeLasers: includeLasers,
+    source: "gm-command"
   });
   return player.sendCancelMessage(result.message);
 };

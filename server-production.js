@@ -85,6 +85,12 @@ const MEMORY_LOG_INTERVAL_MS = Math.max(
 );
 const MEMORY_LOG_MAX_BYTES = 5 * 1024 * 1024;
 const MEMORY_LOG_PATH = path.join(__dirname, "logs", "memory.jsonl");
+const CLIENT_DIAGNOSTIC_LOG_PATH = path.join(__dirname, "logs", "client-diagnostics.jsonl");
+const CLIENT_DIAGNOSTIC_LOG_MAX_BYTES = 5 * 1024 * 1024;
+const CLIENT_DIAGNOSTIC_BODY_MAX_BYTES = 16 * 1024;
+const CLIENT_DIAGNOSTIC_RATE_WINDOW_MS = 60 * 1000;
+const CLIENT_DIAGNOSTIC_RATE_MAX = 30;
+const clientDiagnosticRate = new Map();
 const configuredMemoryAlertRssMiB =
   parseFloat(process.env.MEMORY_ALERT_RSS_MIB);
 const MEMORY_ALERT_RSS_MIB =
@@ -218,6 +224,159 @@ function writeMemoryTelemetry() {
   }
 }
 
+function sanitizeClientDiagnostic(value, depth) {
+  if (depth > 5 || value === null || value === undefined) {
+    return value === undefined ? null : value;
+  }
+  if (typeof value === "string") {
+    return value.slice(0, 6000);
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 30).map(entry => sanitizeClientDiagnostic(entry, depth + 1));
+  }
+  if (typeof value === "object") {
+    const clean = {};
+    Object.keys(value).slice(0, 40).forEach(key => {
+      clean[String(key).slice(0, 120)] = sanitizeClientDiagnostic(value[key], depth + 1);
+    });
+    return clean;
+  }
+  return String(value).slice(0, 1000);
+}
+
+function rotateClientDiagnosticLogIfNeeded() {
+  try {
+    if (!fs.existsSync(CLIENT_DIAGNOSTIC_LOG_PATH)) {
+      return;
+    }
+    if (fs.statSync(CLIENT_DIAGNOSTIC_LOG_PATH).size < CLIENT_DIAGNOSTIC_LOG_MAX_BYTES) {
+      return;
+    }
+
+    const rotatedPath = CLIENT_DIAGNOSTIC_LOG_PATH + ".1";
+    if (fs.existsSync(rotatedPath)) {
+      fs.unlinkSync(rotatedPath);
+    }
+    fs.renameSync(CLIENT_DIAGNOSTIC_LOG_PATH, rotatedPath);
+  } catch (error) {
+    console.error("Could not rotate client diagnostic log:", error.message);
+  }
+}
+
+function writeClientDiagnostic(payload, req) {
+  const record = {
+    serverTimestamp: new Date().toISOString(),
+    userAgent: String(req.headers["user-agent"] || "").slice(0, 500),
+    diagnostic: sanitizeClientDiagnostic(payload, 0)
+  };
+  const serialized = JSON.stringify(record);
+
+  try {
+    fs.mkdirSync(path.dirname(CLIENT_DIAGNOSTIC_LOG_PATH), { recursive: true });
+    rotateClientDiagnosticLogIfNeeded();
+    fs.appendFileSync(CLIENT_DIAGNOSTIC_LOG_PATH, serialized + "\n", "utf8");
+  } catch (error) {
+    console.error("Could not write client diagnostic:", error.message);
+  }
+
+  console.warn("[CLIENT DIAGNOSTIC] %s", serialized);
+}
+
+function allowClientDiagnostic(req) {
+  const now = Date.now();
+  const address = req.socket && req.socket.remoteAddress ? req.socket.remoteAddress : "unknown";
+  let state = clientDiagnosticRate.get(address);
+
+  if (!state || now - state.startedAt >= CLIENT_DIAGNOSTIC_RATE_WINDOW_MS) {
+    state = { startedAt: now, count: 0 };
+    clientDiagnosticRate.set(address, state);
+  }
+  state.count++;
+
+  if (clientDiagnosticRate.size > 500) {
+    clientDiagnosticRate.forEach((entry, key) => {
+      if (now - entry.startedAt >= CLIENT_DIAGNOSTIC_RATE_WINDOW_MS) {
+        clientDiagnosticRate.delete(key);
+      }
+    });
+  }
+
+  return state.count <= CLIENT_DIAGNOSTIC_RATE_MAX;
+}
+
+function handleClientDiagnosticsAPI(req, res) {
+  if (req.method !== "POST") {
+    res.writeHead(405, { "Allow": "POST" });
+    res.end();
+    return;
+  }
+
+  const requestOrigin = req.headers.origin;
+  if (requestOrigin) {
+    try {
+      if (new URL(requestOrigin).host !== req.headers.host) {
+        res.writeHead(403);
+        res.end();
+        return;
+      }
+    } catch (error) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+  }
+
+  if (!allowClientDiagnostic(req)) {
+    res.writeHead(429);
+    res.end();
+    return;
+  }
+
+  let bytes = 0;
+  let tooLarge = false;
+  const chunks = [];
+  req.on("data", chunk => {
+    bytes += chunk.length;
+    if (bytes > CLIENT_DIAGNOSTIC_BODY_MAX_BYTES) {
+      tooLarge = true;
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on("end", () => {
+    if (tooLarge) {
+      res.writeHead(413);
+      res.end();
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new Error("Diagnostic payload must be an object.");
+      }
+      writeClientDiagnostic(payload, req);
+      res.writeHead(204);
+      res.end();
+    } catch (error) {
+      res.writeHead(400);
+      res.end();
+    }
+  });
+  req.on("error", () => {
+    if (!res.headersSent) {
+      res.writeHead(400);
+      res.end();
+    }
+  });
+}
+
 // Keep a small, rotating history so memory regressions can be diagnosed
 // without relying solely on the hosting panel.
 writeMemoryTelemetry();
@@ -320,19 +479,24 @@ httpServer.removeAllListeners("request");
 httpServer.on("request", (req, res) => {
   const pathname = url.parse(req.url).pathname;
 
-  // 1. Login API
+  // 1. Client-side crash and disconnect diagnostics
+  if (pathname === "/api/client-diagnostics") {
+    return handleClientDiagnosticsAPI(req, res);
+  }
+
+  // 2. Login API
   if (pathname.startsWith("/api/login")) {
     return handleLoginAPI(req, res);
   }
 
-  // 2. Health check
+  // 3. Health check
   if (pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(getRuntimeStats()));
     return;
   }
 
-  // 3. Static files (HTML5 client)
+  // 4. Static files (HTML5 client)
   serveStaticFile(req, res);
 });
 

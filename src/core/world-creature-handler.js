@@ -436,12 +436,22 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
     targetId: player.getId(),
     targetName: player.getProperty(CONST.PROPERTIES.NAME),
     target: player,
+    source: options.source || "unknown",
     startedAt: now,
     endsAt: duration === null ? null : now + duration,
     flashDurationMs: flashing ? Math.min(SPOTLIGHT_FOCUS_FLASH_DURATION_MS, duration) : 0,
     flashCount: flashing ? SPOTLIGHT_FOCUS_FLASH_COUNT : 0,
     includeLasers: includeLasers
   };
+  console.log("[SPOTLIGHT FOCUS] %s", JSON.stringify({
+    action: "start",
+    source: this.__spotlightFocus.source,
+    targetId: this.__spotlightFocus.targetId,
+    targetName: this.__spotlightFocus.targetName,
+    durationMs: duration,
+    flashing: flashing,
+    includeLasers: includeLasers
+  }));
   this.__resyncRadioAmbience();
 
   return {
@@ -546,7 +556,8 @@ CreatureHandler.prototype.celebratePartyWinner = function (player) {
   return this.focusSpotlightsOnPlayer(player, {
     durationMs: SPOTLIGHT_FOCUS_DURATION_MS,
     flashing: true,
-    includeLasers: true
+    includeLasers: true,
+    source: "floor-lava-winner"
   });
 }
 
@@ -555,6 +566,12 @@ CreatureHandler.prototype.clearSpotlightFocus = function () {
     return { ok: false, message: "The spotlights are not following anyone." };
   }
 
+  console.log("[SPOTLIGHT FOCUS] %s", JSON.stringify({
+    action: "stop",
+    source: this.__spotlightFocus.source,
+    targetId: this.__spotlightFocus.targetId,
+    targetName: this.__spotlightFocus.targetName
+  }));
   this.__spotlightFocus = null;
   this.__resyncRadioAmbience();
   return { ok: true, message: "Spotlight focus stopped." };
@@ -570,6 +587,7 @@ CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
   return {
     targetId: focus.targetId,
     targetName: focus.targetName,
+    source: focus.source,
     targetPosition: {
       x: focus.target.position.x,
       y: focus.target.position.y,
