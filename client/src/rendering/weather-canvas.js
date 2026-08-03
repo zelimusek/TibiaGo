@@ -1758,14 +1758,6 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
   let effectAmount = requestedEffect === "all"
     ? Math.max(0, Math.min(1, effectElapsedMs / 180, (effectDurationMs - effectElapsedMs) / 220))
     : 1;
-  let effectLabels = {
-    laser: "VIP LASER SHOW", hologram: "HOLOGRAM CLONES", wings: "NEON WINGS",
-    equalizer: "FLOOR EQUALIZER", vortex: "ENERGY VORTEX", portal: "PORTAL SHOW",
-    comet: "COMET RAIN", rewind: "FREEZE & REWIND", helix: "DNA HELIX",
-    pixel: "PIXEL EXPLOSION", soundwave: "SOUNDWAVE TUNNEL", cage: "ELECTRIC CAGE",
-    duel: "LIGHT SWORD DUEL", discoball: "DISCO BALL", constellation: "CLUB CONSTELLATION",
-    combo: "DANCE COMBO", name: "LASER NAME REVEAL"
-  };
   let stage;
   let stageProgress;
 
@@ -1868,11 +1860,10 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
     effectDurationMs: effectDurationMs,
     effectProgress: effectProgress,
     effectAmount: effectAmount,
-    effectLabel: effectLabels[effect] || "VIP SHOW",
     preset: focus.vipShow.preset,
     intensityName: focus.vipShow.intensity,
     intensityMultiplier: intensityMultiplier,
-    title: requestedEffect === "all" ? effectLabels[effect] : focus.vipShow.title,
+    title: focus.vipShow.title,
     targetName: focus.targetName,
     targetId: focus.targetId,
     centerX: focusScreen.x,
@@ -2447,8 +2438,8 @@ WeatherCanvas.prototype.__drawVipSpecialEffect = function(context, frame, mobile
     });
   }
 
-  // Every special scene gets a compact synchronized caption. It also makes
-  // transitions in /show ... all immediately understandable to spectators.
+  // Keep one consistent stage title. Internal effect names are deliberately
+  // hidden so the show feels like one production instead of a debug preview.
   if(typeof context.fillText === "function") {
     context.globalAlpha = 0.78 * strength;
     context.font = mobile ? "bold 10px Arial" : "bold 13px Arial";
@@ -2458,9 +2449,9 @@ WeatherCanvas.prototype.__drawVipSpecialEffect = function(context, frame, mobile
     if(typeof context.strokeText === "function") {
       context.lineWidth = 3;
       context.strokeStyle = "rgba(0,0,0,0.9)";
-      context.strokeText(show.effectLabel, centerX, centerY - (mobile ? 42 : 58));
+      context.strokeText(show.title, centerX, centerY - (mobile ? 42 : 58));
     }
-    context.fillText(show.effectLabel, centerX, centerY - (mobile ? 42 : 58));
+    context.fillText(show.title, centerX, centerY - (mobile ? 42 : 58));
   }
 
 }

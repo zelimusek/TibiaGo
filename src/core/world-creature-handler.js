@@ -555,7 +555,7 @@ CreatureHandler.prototype.startVipShow = function (player, effect, preset, inten
       effect: effect,
       preset: preset,
       intensity: intensity,
-      title: effect === "name" ? "LASER NAME REVEAL!" : "DANCE FLOOR STAR!",
+      title: "DANCE FLOOR STAR!",
       participants: participants
     }
   });

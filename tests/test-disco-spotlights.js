@@ -942,5 +942,7 @@ assert.strictEqual(showFrame.vipShow.effect, "laser");
 assert.strictEqual(showFrame.vipShow.effectCount, 17);
 showFrame = setVipShow(54000 / 17 * 4 + 200, "fire", "intense", "all", 54000);
 assert.strictEqual(showFrame.vipShow.effect, "vortex", "all mode must advance through the complete choreography");
+assert.strictEqual(showFrame.vipShow.title, "DANCE FLOOR STAR!", "all scenes must keep one public stage title");
+assert.strictEqual(showFrame.vipShow.effectLabel, undefined, "internal projection names must stay hidden");
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");
