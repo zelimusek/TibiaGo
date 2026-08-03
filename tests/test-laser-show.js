@@ -60,8 +60,14 @@ try {
   assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 100000);
   assert.ok(/100-second CYRK DIMENSION/i.test(messages.at(-1)));
 
+  commands.handle(gm, "/lasershow 4");
+  assert.strictEqual(handler.__laserShow.mode, "arcade");
+  assert.strictEqual(handler.__laserShow.text, "NEON ARCADE");
+  assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 100000);
+  assert.ok(/100-second NEON ARCADE/i.test(messages.at(-1)));
+
   commands.handle(gm, "/lasershow status");
-  assert.ok(/CYRK PARTY ZONE.*remaining/i.test(messages.at(-1)));
+  assert.ok(/NEON ARCADE.*remaining/i.test(messages.at(-1)));
   commands.handle(gm, "/lasershow off");
   assert.ok(handler.__laserShow.endsAt - Date.now() <= 1300);
   assert.ok(/finishing smoothly/i.test(messages.at(-1)));

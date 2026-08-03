@@ -736,4 +736,88 @@ assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "CYR
 showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", 100000, 100000);
 assert.strictEqual(showFrame, null, "CYRK DIMENSION should release the venue lights after 100 seconds");
 
+const arcadePhases = [
+  [2000, "arcade-callout"],
+  [15000, "insert-coin"],
+  [23000, "arcade-tetris"],
+  [39000, "arcade-pong"],
+  [51000, "arcade-breakout"],
+  [63000, "arcade-snake"],
+  [75000, "space-invaders"],
+  [85000, "pacman-chase"],
+  [93000, "arcade-high-score"],
+  [98500, "arcade-high-score"]
+];
+arcadePhases.forEach(function(sample) {
+  showFrame = setLaserShow("arcade", "NEON ARCADE", sample[0], 100000);
+  assert.strictEqual(showFrame.laserShow.phase, sample[1]);
+  assert.strictEqual(showFrame.laserShow.targets.length, 9);
+});
+
+for(let elapsed = 0; elapsed < 100000; elapsed += 1000) {
+  showFrame = setLaserShow("arcade", "NEON ARCADE", elapsed, 100000);
+  const arcadeEndpoints = showFrame.laserShow.targets
+    .concat(showFrame.laserShow.spotlightTargets)
+    .concat(showFrame.laserShow.trailLines.reduce((points, line) => points.concat([
+      { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 }
+    ]), []));
+  assert.ok(
+    arcadeEndpoints.every((target) =>
+      target.x >= 240 - 176.01 && target.x <= 240 + 176.01
+      && target.y >= 368 - 176.01 && target.y <= 368 + 176.01
+    ),
+    "NEON ARCADE must keep every endpoint, stroke and spotlight inside the protected floor at " + elapsed + "ms"
+  );
+}
+
+const arcadeBoundaries = [13000, 18000, 34000, 45000, 57000, 69000, 81000, 90000];
+arcadeBoundaries.forEach(function(boundary) {
+  showFrame = setLaserShow("arcade", "NEON ARCADE", boundary - 100, 100000);
+  const before = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+  now += 200;
+  context.gameClient.renderer.debugger.__nFrames++;
+  showFrame = weather.__getDiscoLightFrame();
+  assert.ok(
+    showFrame.laserShow.targets.every((target, index) =>
+      Math.abs(target.x - before[index].x) < 0.01 && Math.abs(target.y - before[index].y) < 0.01
+    ),
+    "NEON ARCADE phase at " + boundary + "ms should physically depart from the previous game object"
+  );
+});
+
+[21200, 24400, 27600, 30800].forEach(function(boundary) {
+  showFrame = setLaserShow("arcade", "NEON ARCADE", boundary - 1, 100000);
+  const settledPiece = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+  now += 1;
+  context.gameClient.renderer.debugger.__nFrames++;
+  showFrame = weather.__getDiscoLightFrame();
+  assert.ok(
+    showFrame.laserShow.targets.every((target, index) => Math.hypot(target.x - settledPiece[index].x, target.y - settledPiece[index].y) < 2),
+    "the next Tetris piece should physically travel from the previously locked tetrimino at " + boundary + "ms"
+  );
+});
+
+[[4200, 100], [7800, 100], [95999, 1]].forEach(function(sample) {
+  showFrame = setLaserShow("arcade", "NEON ARCADE", sample[0], 100000);
+  const before = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+  now += sample[1];
+  context.gameClient.renderer.debugger.__nFrames++;
+  showFrame = weather.__getDiscoLightFrame();
+  assert.ok(
+    showFrame.laserShow.targets.every((target, index) => Math.hypot(target.x - before[index].x, target.y - before[index].y) < 22),
+    "arcade message transition at " + sample[0] + "ms should hand its physical laser positions to the next centered message"
+  );
+});
+
+showFrame = setLaserShow("arcade", "NEON ARCADE", 3500, 100000);
+assert.ok(showFrame.laserShow.trailLines.length > 5, "LET'S should remain visible for its one-second presentation");
+showFrame = setLaserShow("arcade", "NEON ARCADE", 6500, 100000);
+assert.ok(showFrame.laserShow.trailLines.length > 2, "DO should be drawn in the same center position");
+showFrame = setLaserShow("arcade", "NEON ARCADE", 10800, 100000);
+assert.ok(showFrame.laserShow.trailLines.length > 4, "THIS should complete the arcade callout before becoming a coin");
+showFrame = setLaserShow("arcade", "NEON ARCADE", 99500, 100000);
+assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "PARTY ON should fade with the final arcade screen");
+showFrame = setLaserShow("arcade", "NEON ARCADE", 100000, 100000);
+assert.strictEqual(showFrame, null, "NEON ARCADE should release the venue lights after 100 seconds");
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

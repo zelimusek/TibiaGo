@@ -547,6 +547,8 @@ CommandHandler.prototype.handleCommandLaserShow = function (player, message) {
     result = handler.startLaserShow(null, 2);
   } else if (action === "3") {
     result = handler.startLaserShow(null, 3);
+  } else if (action === "4") {
+    result = handler.startLaserShow(null, 4);
   } else if (action === "off") {
     result = handler.stopLaserShow();
   } else if (action === "status") {
