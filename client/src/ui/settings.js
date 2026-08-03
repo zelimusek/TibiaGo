@@ -22,8 +22,10 @@ const Settings = function (element) {
   document.getElementById("volume-slider").oninput = this.setVolume;
   document.getElementById("volume-slider-value").innerHTML = document.getElementById("volume-slider").value + "%";
 
-  document.getElementById("enable-resolution").addEventListener("change", Interface.prototype.handleResize.bind(Interface.prototype));
-  document.getElementById("resolution").addEventListener("change", Interface.prototype.handleResize.bind(Interface.prototype));
+  let enableResolution = document.getElementById("enable-resolution");
+  let resolution = document.getElementById("resolution");
+  if (enableResolution) enableResolution.addEventListener("change", Interface.prototype.handleResize.bind(Interface.prototype));
+  if (resolution) resolution.addEventListener("change", Interface.prototype.handleResize.bind(Interface.prototype));
   document.getElementById("anti-aliasing").addEventListener("change", this.__setAA);
   document.getElementById("show-performance").addEventListener("change", this.__togglePerformance);
   document.getElementById("fps-mode").addEventListener("change", this.__setFPSMode);
@@ -298,8 +300,8 @@ Settings.prototype.__getCleanState = function () {
     "enable-wasd-movement": document.getElementById("enable-wasd-movement").checked,
     "fps-mode": document.getElementById("fps-mode").value,
     "mouse-control-mode": "regular",
-    "enable-resolution": document.getElementById("enable-resolution").checked,
-    "resolution": document.getElementById("resolution").value
+    "enable-resolution": document.getElementById("enable-resolution") ? document.getElementById("enable-resolution").checked : false,
+    "resolution": document.getElementById("resolution") ? document.getElementById("resolution").value : ""
   });
 
 }
@@ -312,6 +314,7 @@ Settings.prototype.__applyState = function (id) {
    */
 
   let element = document.getElementById(id);
+  if (!element) return;
 
   element.addEventListener("change", this.__toggle.bind(this));
 

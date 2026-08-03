@@ -816,6 +816,7 @@ Interface.prototype.addAvailableResolutions = function () {
    */
 
   let selectElement = document.getElementById("resolution");
+  if (!selectElement) return;
 
   // Complete list of available game resolutions (from 1x up to 4x Full HD)
   let resolutions = new Array(
@@ -876,9 +877,11 @@ Interface.prototype.getResolutionScale = function () {
    */
 
   // Fixed resolution is requested: divide the requested with by the minimum width to get the scale
-  if (document.getElementById("enable-resolution").checked) {
+  let enableResolution = document.getElementById("enable-resolution");
+  let resolution = document.getElementById("resolution");
+  if (enableResolution && resolution && enableResolution.checked) {
     return (
-      Number(document.getElementById("resolution").value) /
+      Number(resolution.value) /
       this.SCREEN_WIDTH_MIN
     );
   }
