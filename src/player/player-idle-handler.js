@@ -14,7 +14,7 @@ const PlayerIdleHandler = function(player) {
 
   // When these locks run out apply these callback functions
   this.__informLock.on("unlock", this.__warnPlayer.bind(this, player));
-  this.__kickLock.on("unlock", player.disconnect.bind(player));
+  this.__kickLock.on("unlock", this.__kickPlayer.bind(this, player));
 
   // Start them locked
   this.extend();
@@ -41,9 +41,30 @@ PlayerIdleHandler.prototype.__warnPlayer = function(player) {
    * Warns the player they have been idle and are about to be disconnected from the game 
    */
 
+  // A no-logout tile is also an idle-logout safe zone. Do not even send the
+  // warning there, because the scheduled kick is ignored for the same reason.
+  if(player.isInNoLogoutZone()) {
+    return;
+  }
+
   let warning = "You have been idle for %s seconds and will be disconnected after %s seconds.".format(CONFIG.WORLD.IDLE.WARN_SECONDS, CONFIG.WORLD.IDLE.KICK_SECONDS);
 
   player.write(new ServerMessagePacket(warning));
+
+}
+
+PlayerIdleHandler.prototype.__kickPlayer = function(player) {
+
+  /*
+   * PlayerIdleHandler.__kickPlayer
+   * Disconnects an idle player unless their current tile forbids logout
+   */
+
+  if(player.isInNoLogoutZone()) {
+    return;
+  }
+
+  player.disconnect();
 
 }
 

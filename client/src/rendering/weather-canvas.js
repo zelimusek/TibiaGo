@@ -1748,20 +1748,15 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     let desiredX = (desiredScreen.x + 0.5) * 32;
     let desiredY = (desiredScreen.y + 0.5) * 32;
 
-    if(!this.__spotlightFocusVisual || this.__spotlightFocusVisual.targetId !== focus.targetId) {
-      this.__spotlightFocusVisual = {
-        targetId: focus.targetId,
-        x: desiredX,
-        y: desiredY,
-        updatedAt: now
-      };
-    } else {
-      let deltaMs = Math.max(0, Math.min(100, now - this.__spotlightFocusVisual.updatedAt));
-      let followFactor = 1 - Math.exp(-deltaMs / 180);
-      this.__spotlightFocusVisual.x += (desiredX - this.__spotlightFocusVisual.x) * followFactor;
-      this.__spotlightFocusVisual.y += (desiredY - this.__spotlightFocusVisual.y) * followFactor;
-      this.__spotlightFocusVisual.updatedAt = now;
-    }
+    // Use the exact screen-space anchor used by the creature renderer. Creature
+    // movement is already interpolated there; smoothing this value a second time
+    // makes an observer's camera movement leak into the focused light position.
+    this.__spotlightFocusVisual = {
+      targetId: focus.targetId,
+      x: desiredX,
+      y: desiredY,
+      updatedAt: now
+    };
 
     focusScreen = this.__spotlightFocusVisual;
   } else {

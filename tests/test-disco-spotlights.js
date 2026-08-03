@@ -18,6 +18,7 @@ let strokeLengths = [];
 let strokeEndpoints = [];
 let arcRadii = [];
 let arcCenters = [];
+const observerCameraOffset = { x: 0, y: 0 };
 
 function gradient() {
   return { addColorStop() {} };
@@ -89,7 +90,11 @@ const context = vm.createContext({
     renderer: {
       debugger: { __nFrames: 1 },
       getStaticScreenPosition(position) {
-        return new Position(position.x - 32508, position.y - 32335, 0);
+        return new Position(
+          position.x - 32508 + observerCameraOffset.x,
+          position.y - 32335 + observerCameraOffset.y,
+          0
+        );
       },
     },
   },
@@ -327,13 +332,29 @@ lights.length = 0;
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 focusedTargets = lights.filter((entry, index) => index % 2 === 0);
-const previousFocusedX = (focusedPosition.x - 1 - 32508 + 0.5) * 32;
 const desiredFocusedX = (focusedPosition.x - 32508 + 0.5) * 32;
 const followedCenterX = focusedTargets.reduce((total, entry) => total + entry[0], 0) / focusedTargets.length;
-assert.ok(
-  followedCenterX > previousFocusedX && followedCenterX < desiredFocusedX,
-  "spotlights should glide toward a moving player instead of snapping to the next tile"
+assert.ok(Math.abs(followedCenterX - desiredFocusedX) < 0.01,
+  "spotlights should use the creature renderer's exact screen anchor without a second movement delay"
 );
+
+observerCameraOffset.x = -0.35;
+observerCameraOffset.y = 0.2;
+now += 16;
+lights.length = 0;
+context.gameClient.renderer.debugger.__nFrames++;
+weather.renderDiscoIllumination(lightCanvas);
+focusedTargets = lights.filter((entry, index) => index % 2 === 0);
+const observerAdjustedCenterX = focusedTargets.reduce((total, entry) => total + entry[0], 0) / focusedTargets.length;
+const observerAdjustedCenterY = focusedTargets.reduce((total, entry) => total + entry[1], 0) / focusedTargets.length;
+assert.ok(Math.abs(observerAdjustedCenterX - (desiredFocusedX + observerCameraOffset.x * 32)) < 0.01,
+  "a moving observer should see focused lights remain locked to the target on the same frame"
+);
+assert.ok(Math.abs(observerAdjustedCenterY - ((focusedPosition.y - 32335 + 0.5 + observerCameraOffset.y) * 32)) < 0.01,
+  "observer camera movement should not leave a vertical spotlight trail"
+);
+observerCameraOffset.x = 0;
+observerCameraOffset.y = 0;
 assert.strictEqual(weather.__getDiscoLightFrame().focusFlashOn, true, "the third one-second flash should switch on");
 
 now += 1100;
