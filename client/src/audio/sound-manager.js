@@ -28,10 +28,15 @@ const SoundManager = function(enabled) {
   this.__currentAmbientTrace = null;
   this.__radioStream = null;
   this.__radioUrl = "";
+  this.__radioEnvironmentalMute = false;
 
 }
 
 SoundManager.prototype.playWalkBit = function(position) {
+
+  if (this.__radioEnvironmentalMute) {
+    return;
+  }
 
   let tile = gameClient.world.getTileFromWorldPosition(position);
 
@@ -57,10 +62,19 @@ SoundManager.prototype.setMasterVolume = function(amount) {
 
   this.__masterVolume = amount;
   if(this.__currentAmbientTrace !== null) {
-    this.__currentAmbientTrace.setVolume(amount);
+    this.__currentAmbientTrace.setVolume(this.__radioEnvironmentalMute ? 0 : amount);
   }
   if(this.__radioStream !== null) {
     this.__radioStream.volume = amount;
+  }
+
+}
+
+SoundManager.prototype.setRadioEnvironmentalMute = function (muted) {
+
+  this.__radioEnvironmentalMute = muted === true;
+  if (this.__currentAmbientTrace !== null) {
+    this.__currentAmbientTrace.setVolume(this.__radioEnvironmentalMute ? 0 : this.__masterVolume);
   }
 
 }
@@ -129,7 +143,7 @@ SoundManager.prototype.setAmbientTrace = function(id) {
     this.__currentAmbientTrace.setVolume(0);
   }
 
-  this.__currentAmbientTrace = this.setAmbientVolume(id, 1);
+  this.__currentAmbientTrace = this.setAmbientVolume(id, this.__radioEnvironmentalMute ? 0 : 1);
 
 }
 

@@ -641,9 +641,10 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       laserShow: this.__getLaserShowPayload(),
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
-      beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0
+      beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
+      radioEnvironmentalMute: true
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0 };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0, radioEnvironmentalMute: false };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser

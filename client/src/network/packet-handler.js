@@ -677,12 +677,14 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
         gameClient.renderer.weatherCanvas.setThunder();
       }
       gameClient.renderer.setAmbientColor(color[0], color[1], color[2], color[3]);
+      gameClient.interface.soundManager.setRadioEnvironmentalMute(ambience.radioEnvironmentalMute === true);
     } catch (error) {
       console.warn("Could not apply radio ambience:", error);
     }
     return;
   }
 
+  gameClient.interface.soundManager.setRadioEnvironmentalMute(false);
   gameClient.interface.soundManager.setRadioStream(packet.enabled ? packet.url : "", packet.volume);
 
 }
