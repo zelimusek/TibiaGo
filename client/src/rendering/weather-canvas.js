@@ -344,7 +344,7 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   let previousLaserFocus = previousFocusActive && previousFocus.includeLasers === true;
   let nextLaserFocus = validFocus === true && focus.includeLasers === true;
   let validLaserShow = laserShow
-    && (laserShow.mode === "default" || laserShow.mode === "overdrive" || laserShow.mode === "text")
+    && (laserShow.mode === "default" || laserShow.mode === "overdrive" || laserShow.mode === "dimension" || laserShow.mode === "text")
     && typeof laserShow.text === "string"
     && Number.isFinite(laserShow.durationMs)
     && laserShow.durationMs > 0;
@@ -542,6 +542,82 @@ WeatherCanvas.prototype.__getLaserTextHoldChoreography = function(text, centerX,
       x: orbitCenterX + Math.cos(angle) * orbitRadiusX,
       y: orbitCenterY + Math.sin(angle) * orbitRadiusY
     };
+  });
+  return { targets: targets, trailLines: trailLines };
+
+}
+
+WeatherCanvas.prototype.__getLaserStackedTextChoreography = function(progress, centerX, centerY, radius, elapsedMs, entryTargets) {
+
+  let rows = [
+    { text: "CYRK", y: centerY - 108, width: 310 },
+    { text: "PARTY", y: centerY, width: 340 },
+    { text: "ZONE", y: centerY + 108, width: 310 }
+  ];
+  let rowDuration = 10000 / rows.length;
+  let rowPosition = Math.min(rows.length - 0.001, Math.max(0, progress) * rows.length);
+  let currentRow = Math.floor(rowPosition);
+  let trailLines = [];
+  let previousTargets = entryTargets;
+
+  for(let index = 0; index < currentRow; index++) {
+    let completed = this.__getLaserTextChoreography(rows[index].text, 0.999999, centerX, rows[index].y, radius, 1000, null, rows[index].width);
+    completed.trailLines.forEach(function(line) {
+      line.alpha = 0.54;
+      trailLines.push(line);
+    });
+    previousTargets = completed.targets;
+  }
+
+  let localProgress = rowPosition - currentRow;
+  let rowElapsed = localProgress * rowDuration;
+  let drawProgress = Math.max(0, rowElapsed - 700) / Math.max(1, rowDuration - 700);
+  let row = rows[currentRow];
+  let current = this.__getLaserTextChoreography(
+    row.text,
+    drawProgress,
+    centerX,
+    row.y,
+    radius,
+    rowElapsed,
+    previousTargets,
+    row.width
+  );
+  current.trailLines.forEach(function(line) { trailLines.push(line); });
+  return { targets: current.targets, trailLines: trailLines };
+
+}
+
+WeatherCanvas.prototype.__getLaserStackedTextHoldChoreography = function(centerX, centerY, radius, elapsedMs) {
+
+  let rows = [
+    { text: "CYRK", y: centerY - 108, width: 310 },
+    { text: "PARTY", y: centerY, width: 340 },
+    { text: "ZONE", y: centerY + 108, width: 310 }
+  ];
+  let trailLines = [];
+  rows.forEach(function(row) {
+    let completed = this.__getLaserTextChoreography(row.text, 0.999999, centerX, row.y, radius, 1000, null, row.width);
+    completed.trailLines.forEach(function(line) {
+      line.alpha = 0.74;
+      trailLines.push(line);
+    });
+  }, this);
+
+  function framePoint(position) {
+    let edgePosition = ((position % 1) + 1) % 1 * 4;
+    let edge = Math.floor(edgePosition);
+    let along = edgePosition - edge;
+    let half = 176;
+    if(edge === 0) return { x: centerX - half + along * half * 2, y: centerY - half };
+    if(edge === 1) return { x: centerX + half, y: centerY - half + along * half * 2 };
+    if(edge === 2) return { x: centerX + half - along * half * 2, y: centerY + half };
+    return { x: centerX - half, y: centerY + half - along * half * 2 };
+  }
+
+  let offset = elapsedMs / 7200;
+  let targets = Array.from({ length: 9 }, function(_, index) {
+    return framePoint(offset + index / 9);
   });
   return { targets: targets, trailLines: trailLines };
 
@@ -1025,6 +1101,244 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
         });
       }
     }
+  } else if(show.mode === "dimension") {
+    let safeHalf = Math.min(176, floorHalf - 16);
+
+    function addRecentTrail(pointFunction, progress, length, samples, colorIndex) {
+      let previous = null;
+      for(let sample = 0; sample <= samples; sample++) {
+        let sampleProgress = Math.max(0, progress - length + length * sample / samples);
+        let point = pointFunction(sampleProgress);
+        if(previous) addSegment(previous.x, previous.y, point.x, point.y, 0.12 + sample / samples * 0.6, colorIndex);
+        previous = point;
+      }
+    }
+
+    function triangleWave(value) {
+      let wrapped = ((value % 2) + 2) % 2;
+      return 1 - Math.abs(wrapped - 1);
+    }
+
+    if(elapsedMs < 7000) {
+      phase = "corner-awakening";
+      let progress = elapsedMs / 7000;
+      let destinations = [
+        { x: -safeHalf, y: -safeHalf }, { x: safeHalf, y: -safeHalf },
+        { x: safeHalf, y: safeHalf }, { x: -safeHalf, y: safeHalf },
+        { x: 0, y: -safeHalf }, { x: safeHalf, y: 0 },
+        { x: 0, y: safeHalf }, { x: -safeHalf, y: 0 }, { x: 0, y: 0 }
+      ];
+      targets = destinations.map(function(destination, index) {
+        let wake = easeInOut((progress - index * 0.055) / 0.5);
+        let target = { x: centerX + destination.x * wake, y: centerY + destination.y * wake };
+        if(wake > 0) addSegment(centerX, centerY, target.x, target.y, 0.18 + wake * 0.56, index % 3);
+        return target;
+      });
+    } else if(elapsedMs < 17000) {
+      phase = "neon-labyrinth";
+      let progress = easeInOut((elapsedMs - 7000) / 10000);
+      let mazePoints = [
+        { x: centerX - safeHalf, y: centerY - safeHalf }, { x: centerX + safeHalf, y: centerY - safeHalf },
+        { x: centerX + safeHalf, y: centerY + safeHalf }, { x: centerX - safeHalf, y: centerY + safeHalf },
+        { x: centerX - safeHalf, y: centerY - 112 }, { x: centerX + 112, y: centerY - 112 },
+        { x: centerX + 112, y: centerY + 112 }, { x: centerX - 112, y: centerY + 112 },
+        { x: centerX - 112, y: centerY - 48 }, { x: centerX + 48, y: centerY - 48 },
+        { x: centerX + 48, y: centerY + 48 }, { x: centerX - 48, y: centerY + 48 },
+        { x: centerX - 48, y: centerY }, { x: centerX, y: centerY }
+      ];
+      let mazePath = buildPath(mazePoints);
+      let headDistance = mazePath.totalLength * progress;
+      let trainSpacing = mazePath.totalLength * 0.024 * Math.sin(progress * Math.PI);
+      targets = Array.from({ length: 9 }, function(_, index) {
+        return pointAlongPath(mazePath, headDistance - index * trainSpacing);
+      });
+      addPathTrail(mazePath, headDistance, 0.68);
+    } else if(elapsedMs < 25000) {
+      phase = "mirror-wings";
+      let progress = (elapsedMs - 17000) / 8000;
+      function wingPoint(left, member, sampleProgress) {
+        let angle = sampleProgress * Math.PI * 2 + member * Math.PI / 2;
+        let reach = 44 + Math.abs(Math.sin(angle)) * 104;
+        return {
+          x: centerX + (left ? -1 : 1) * reach,
+          y: centerY + Math.sin(angle * 2) * 94
+        };
+      }
+      targets = Array.from({ length: 9 }, function(_, index) {
+        if(index === 8) return { x: centerX, y: centerY - 148 + easeInOut(progress) * 296 };
+        let left = index < 4;
+        let member = index % 4;
+        addRecentTrail(function(sampleProgress) { return wingPoint(left, member, sampleProgress); }, progress, 0.12, 8, left ? 0 : 2);
+        return wingPoint(left, member, progress);
+      });
+      addSegment(centerX, centerY - 148, centerX, targets[8].y, 0.72, 1);
+    } else if(elapsedMs < 33000) {
+      phase = "diamond-gearbox";
+      let progress = (elapsedMs - 25000) / 8000;
+      let gearCenters = [-104, 0, 104];
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let group = Math.floor(index / 3);
+        let member = index % 3;
+        let gearCenterX = centerX + gearCenters[group];
+        let direction = group === 1 ? -1 : 1;
+        let angle = direction * progress * Math.PI * 4 + member * Math.PI * 2 / 3;
+        return { x: gearCenterX + Math.cos(angle) * 42, y: centerY + Math.sin(angle) * 42 };
+      });
+      gearCenters.forEach(function(offset, group) {
+        let rotation = (group === 1 ? -1 : 1) * progress * Math.PI * 4 + Math.PI / 4;
+        let corners = Array.from({ length: 4 }, function(_, index) {
+          let angle = rotation + index * Math.PI / 2;
+          return { x: centerX + offset + Math.cos(angle) * 52, y: centerY + Math.sin(angle) * 52 };
+        });
+        corners.forEach(function(corner, index) {
+          let next = corners[(index + 1) % corners.length];
+          addSegment(corner.x, corner.y, next.x, next.y, 0.64, (group + index) % 3);
+        });
+      });
+    } else if(elapsedMs < 42000) {
+      phase = "laser-dna";
+      let progress = easeInOut((elapsedMs - 33000) / 9000);
+      let leftPoints = [];
+      let rightPoints = [];
+      for(let row = 0; row <= 16; row++) {
+        let y = -160 + row * 20;
+        let x = Math.sin(row * 0.72) * 76;
+        leftPoints.push({ x: centerX + x, y: centerY + y });
+        rightPoints.push({ x: centerX - x, y: centerY + y });
+      }
+      let leftPath = buildPath(leftPoints);
+      let rightPath = buildPath(rightPoints);
+      let leftDistance = leftPath.totalLength * progress;
+      let rightDistance = rightPath.totalLength * progress;
+      let spacing = leftPath.totalLength * 0.038 * Math.sin(progress * Math.PI);
+      targets = Array.from({ length: 9 }, function(_, index) {
+        if(index < 4) return pointAlongPath(leftPath, leftDistance - index * spacing);
+        if(index < 8) return pointAlongPath(rightPath, rightDistance - (index - 4) * spacing);
+        let left = pointAlongPath(leftPath, leftDistance);
+        let right = pointAlongPath(rightPath, rightDistance);
+        addSegment(left.x, left.y, right.x, right.y, 0.86, 1);
+        return { x: (left.x + right.x) * 0.5, y: (left.y + right.y) * 0.5 };
+      });
+      addPathTrail(leftPath, leftDistance, 0.56);
+      addPathTrail(rightPath, rightDistance, 0.56);
+    } else if(elapsedMs < 51000) {
+      phase = "neon-pinball";
+      let progress = (elapsedMs - 42000) / 9000;
+      function ballPoint(ball, sampleProgress) {
+        let x = -145 + triangleWave(sampleProgress * (5 + ball * 0.7) + ball * 0.43) * 290;
+        let y = -135 + triangleWave(sampleProgress * (7 - ball * 0.55) + ball * 0.71) * 270;
+        return { x: centerX + x, y: centerY + y };
+      }
+      targets = Array.from({ length: 9 }, function(_, index) {
+        if(index < 3) {
+          addRecentTrail(function(sampleProgress) { return ballPoint(index, sampleProgress); }, progress, 0.07, 7, index);
+          return ballPoint(index, progress);
+        }
+        let bumper = index - 3;
+        let angle = bumper * Math.PI * 2 / 6 + progress * Math.PI * 0.5;
+        return { x: centerX + Math.cos(angle) * 92, y: centerY + Math.sin(angle) * 92 };
+      });
+    } else if(elapsedMs < 60000) {
+      phase = "big-top";
+      let progress = (elapsedMs - 51000) / 9000;
+      let strokes = [
+        [-160, 150, 160, 150], [-160, 150, -160, 18], [-160, 18, 0, -130],
+        [0, -130, 160, 18], [160, 18, 160, 150], [-48, 150, -48, 55],
+        [-48, 55, 0, 18], [0, 18, 48, 55]
+      ];
+      let sequence = Math.min(1, progress / 0.72) * strokes.length;
+      targets = strokes.map(function(stroke, index) {
+        let portion = easeInOut(sequence - index);
+        let x1 = centerX + stroke[0];
+        let y1 = centerY + stroke[1];
+        let x2 = centerX + stroke[2];
+        let y2 = centerY + stroke[3];
+        let target = { x: x1 + (x2 - x1) * portion, y: y1 + (y2 - y1) * portion };
+        if(portion > 0) addSegment(x1, y1, target.x, target.y, 0.9, index % 3);
+        return target;
+      });
+      let flagSequence = clamp((progress - 0.72) / 0.28, 0, 0.999999) * 3;
+      let poleProgress = easeInOut(flagSequence);
+      let topProgress = easeInOut(flagSequence - 1);
+      let closeProgress = easeInOut(flagSequence - 2);
+      let flagTarget = { x: centerX, y: centerY - 130 - poleProgress * 40 };
+      if(poleProgress > 0) addSegment(centerX, centerY - 130, centerX, flagTarget.y, 0.9, 2);
+      if(flagSequence > 1) {
+        addSegment(centerX, centerY - 170, centerX + 52 * topProgress, centerY - 170 + 16 * topProgress, 0.9, 2);
+        flagTarget = { x: centerX + 52 * topProgress, y: centerY - 170 + 16 * topProgress };
+      }
+      if(flagSequence > 2) {
+        addSegment(centerX, centerY - 170, centerX + 52, centerY - 154, 0.9, 2);
+        addSegment(centerX + 52, centerY - 154, centerX + 52 * (1 - closeProgress), centerY - 154 + 10 * closeProgress, 0.78, 2);
+        flagTarget = { x: centerX + 52 * (1 - closeProgress), y: centerY - 154 + 10 * closeProgress };
+      }
+      targets.push(flagTarget);
+    } else if(elapsedMs < 69000) {
+      phase = "prism-flowers";
+      let progress = (elapsedMs - 60000) / 9000;
+      let flowerCenters = [-108, 0, 108];
+      function flowerPoint(group, member, sampleProgress) {
+        let angle = sampleProgress * Math.PI * 4 + member * Math.PI * 2 / 3;
+        let petal = 25 + Math.abs(Math.sin(angle * 2.5)) * 24;
+        return { x: centerX + flowerCenters[group] + Math.cos(angle) * petal, y: centerY + Math.sin(angle) * petal };
+      }
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let group = Math.floor(index / 3);
+        let member = index % 3;
+        addRecentTrail(function(sampleProgress) { return flowerPoint(group, member, sampleProgress); }, progress, 0.16, 9, group);
+        return flowerPoint(group, member, progress);
+      });
+    } else if(elapsedMs < 78000) {
+      phase = "nine-tile-sequencer";
+      let progress = (elapsedMs - 69000) / 9000;
+      let grid = [
+        [-112, -112], [0, -112], [112, -112], [112, 0], [112, 112],
+        [0, 112], [-112, 112], [-112, 0], [0, 0], [-112, -112]
+      ].map(function(point) { return { x: centerX + point[0], y: centerY + point[1] }; });
+      let gridPath = buildPath(grid);
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let distance = (progress * gridPath.totalLength * 1.8 + index * gridPath.totalLength / 9) % gridPath.totalLength;
+        let target = pointAlongPath(gridPath, distance);
+        let previous = pointAlongPath(gridPath, (distance - 22 + gridPath.totalLength) % gridPath.totalLength);
+        addSegment(previous.x, previous.y, target.x, target.y, 0.64, index % 3);
+        return target;
+      });
+    } else if(elapsedMs < 86000) {
+      phase = "laser-heartbeat";
+      let progress = easeInOut((elapsedMs - 78000) / 8000);
+      let rows = [-92, 0, 92];
+      targets = [];
+      rows.forEach(function(row, group) {
+        let amplitude = group === 1 ? 62 : 44;
+        let points = [
+          { x: centerX - safeHalf, y: centerY + row }, { x: centerX - 105, y: centerY + row },
+          { x: centerX - 72, y: centerY + row - amplitude }, { x: centerX - 38, y: centerY + row + amplitude },
+          { x: centerX, y: centerY + row - amplitude * 1.35 }, { x: centerX + 38, y: centerY + row + amplitude },
+          { x: centerX + 72, y: centerY + row }, { x: centerX + safeHalf, y: centerY + row }
+        ];
+        let path = buildPath(points);
+        let headDistance = path.totalLength * progress;
+        let spacing = path.totalLength * 0.045 * Math.sin(progress * Math.PI);
+        for(let member = 0; member < 3; member++) targets.push(pointAlongPath(path, headDistance - member * spacing));
+        addPathTrail(path, headDistance, 0.68);
+      });
+    } else if(elapsedMs < 96000) {
+      phase = "stacked-text";
+      let textElapsed = elapsedMs - 86000;
+      let heartbeatEntryTargets = [
+        { x: centerX + safeHalf, y: centerY - 92 }, { x: centerX + safeHalf, y: centerY - 92 }, { x: centerX + safeHalf, y: centerY - 92 },
+        { x: centerX + safeHalf, y: centerY }, { x: centerX + safeHalf, y: centerY }, { x: centerX + safeHalf, y: centerY },
+        { x: centerX + safeHalf, y: centerY + 92 }, { x: centerX + safeHalf, y: centerY + 92 }, { x: centerX + safeHalf, y: centerY + 92 }
+      ];
+      let textFrame = this.__getLaserStackedTextChoreography(textElapsed / 10000, centerX, centerY, radius, textElapsed, heartbeatEntryTargets);
+      targets = textFrame.targets;
+      trailLines = textFrame.trailLines;
+    } else {
+      phase = "grand-presentation";
+      let holdFrame = this.__getLaserStackedTextHoldChoreography(centerX, centerY, radius, elapsedMs - 96000);
+      targets = holdFrame.targets;
+      trailLines = holdFrame.trailLines;
+    }
   } else {
     let textStart = 3000;
     let textWriteEnd = Math.max(textStart + 1000, show.durationMs - 8000);
@@ -1062,7 +1376,7 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
   if(!previousShowFrame) {
     this.__laserShowPhaseTransition = null;
   } else if(previousShowFrame.phase !== phase) {
-    if(phase === "text") {
+    if(phase === "text" || phase === "stacked-text") {
       this.__laserShowPhaseTransition = null;
     } else {
       this.__laserShowPhaseTransition = {

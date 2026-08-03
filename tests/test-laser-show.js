@@ -54,8 +54,14 @@ try {
   assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 100000);
   assert.ok(/100-second NEON OVERDRIVE/i.test(messages.at(-1)));
 
+  commands.handle(gm, "/lasershow 3");
+  assert.strictEqual(handler.__laserShow.mode, "dimension");
+  assert.strictEqual(handler.__laserShow.text, "CYRK PARTY ZONE");
+  assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 100000);
+  assert.ok(/100-second CYRK DIMENSION/i.test(messages.at(-1)));
+
   commands.handle(gm, "/lasershow status");
-  assert.ok(/PARTY ZONE.*remaining/i.test(messages.at(-1)));
+  assert.ok(/CYRK PARTY ZONE.*remaining/i.test(messages.at(-1)));
   commands.handle(gm, "/lasershow off");
   assert.ok(handler.__laserShow.endsAt - Date.now() <= 1300);
   assert.ok(/finishing smoothly/i.test(messages.at(-1)));

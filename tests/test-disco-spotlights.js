@@ -652,4 +652,88 @@ assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "NEO
 showFrame = setLaserShow("overdrive", "PARTY ZONE", 100000, 100000);
 assert.strictEqual(showFrame, null, "NEON OVERDRIVE should release the venue lights after 100 seconds");
 
+const dimensionPhases = [
+  [2000, "corner-awakening"],
+  [11000, "neon-labyrinth"],
+  [21000, "mirror-wings"],
+  [29000, "diamond-gearbox"],
+  [38000, "laser-dna"],
+  [47000, "neon-pinball"],
+  [56000, "big-top"],
+  [65000, "prism-flowers"],
+  [74000, "nine-tile-sequencer"],
+  [83000, "laser-heartbeat"],
+  [92000, "stacked-text"],
+  [98000, "grand-presentation"]
+];
+dimensionPhases.forEach(function(sample) {
+  showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", sample[0], 100000);
+  assert.strictEqual(showFrame.laserShow.phase, sample[1]);
+  assert.strictEqual(showFrame.laserShow.targets.length, 9);
+  const endpoints = showFrame.laserShow.targets.concat(
+    showFrame.laserShow.trailLines.reduce((points, line) => points.concat([
+      { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 }
+    ]), [])
+  );
+  assert.ok(
+    endpoints.every((target) =>
+      target.x >= 240 - 176.01 && target.x <= 240 + 176.01
+      && target.y >= 368 - 176.01 && target.y <= 368 + 176.01
+    ),
+    sample[1] + " must keep every endpoint and drawn stroke strictly inside the dance floor"
+  );
+});
+
+for(let elapsed = 0; elapsed < 100000; elapsed += 1000) {
+  showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", elapsed, 100000);
+  const sampledEndpoints = showFrame.laserShow.targets
+    .concat(showFrame.laserShow.spotlightTargets)
+    .concat(showFrame.laserShow.trailLines.reduce((points, line) => points.concat([
+      { x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 }
+    ]), []));
+  assert.ok(
+    sampledEndpoints.every((target) =>
+      target.x >= 240 - 176.01 && target.x <= 240 + 176.01
+      && target.y >= 368 - 176.01 && target.y <= 368 + 176.01
+    ),
+    "CYRK DIMENSION must remain inside the protected dance-floor margin at " + elapsed + "ms"
+  );
+}
+
+const dimensionBoundaries = [7000, 17000, 25000, 33000, 42000, 51000, 60000, 69000, 78000, 96000];
+dimensionBoundaries.forEach(function(boundary) {
+  showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", boundary - 100, 100000);
+  const before = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+  now += 200;
+  context.gameClient.renderer.debugger.__nFrames++;
+  showFrame = weather.__getDiscoLightFrame();
+  assert.ok(
+    showFrame.laserShow.targets.every((target, index) =>
+      Math.abs(target.x - before[index].x) < 0.01 && Math.abs(target.y - before[index].y) < 0.01
+    ),
+    "CYRK DIMENSION phase at " + boundary + "ms should depart from the previous physical laser positions"
+  );
+});
+
+showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", 85900, 100000);
+const heartbeatDeparture = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+now += 100;
+context.gameClient.renderer.debugger.__nFrames++;
+showFrame = weather.__getDiscoLightFrame();
+assert.strictEqual(showFrame.laserShow.phase, "stacked-text");
+assert.ok(
+  showFrame.laserShow.targets.every((target, index) => Math.hypot(target.x - heartbeatDeparture[index].x, target.y - heartbeatDeparture[index].y) < 10),
+  "the first stacked word should be approached physically from the heartbeat finale"
+);
+
+showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", 95900, 100000);
+assert.strictEqual(showFrame.laserShow.phase, "stacked-text");
+assert.ok(showFrame.laserShow.trailLines.length > 35, "CYRK, PARTY and ZONE should all remain visible after being drawn on three rows");
+const stackedYs = showFrame.laserShow.trailLines.reduce((values, line) => values.concat([line.y1, line.y2]), []);
+assert.ok(Math.min.apply(null, stackedYs) < 368 - 100 && Math.max.apply(null, stackedYs) > 368 + 100, "the stacked inscription should fill the upper, middle and lower dance floor");
+showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", 99500, 100000);
+assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "CYRK DIMENSION should fade its framed inscription smoothly");
+showFrame = setLaserShow("dimension", "CYRK PARTY ZONE", 100000, 100000);
+assert.strictEqual(showFrame, null, "CYRK DIMENSION should release the venue lights after 100 seconds");
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

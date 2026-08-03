@@ -31,6 +31,7 @@ const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
 const LASER_SHOW_DEFAULT_DURATION_MS = 75000;
 const LASER_SHOW_OVERDRIVE_DURATION_MS = 100000;
+const LASER_SHOW_DIMENSION_DURATION_MS = 100000;
 const LASER_SHOW_OUTRO_MS = 1300;
 const LASER_SHOW_MAX_TEXT_LENGTH = 12;
 const PARTY_READABLE_POSITIONS = {
@@ -457,13 +458,15 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
 }
 
 CreatureHandler.prototype.startLaserShow = function (text, variant) {
-  let mode = variant === 2
-    ? "overdrive"
-    : (typeof text === "string" && text.trim().length > 0 ? "text" : "default");
+  let mode = variant === 3
+    ? "dimension"
+    : (variant === 2
+      ? "overdrive"
+      : (typeof text === "string" && text.trim().length > 0 ? "text" : "default"));
   let normalizedText = mode === "text"
     ? text.trim().toUpperCase()
-    : (mode === "overdrive" ? "PARTY ZONE" : "CYRK");
-  if (normalizedText.length > LASER_SHOW_MAX_TEXT_LENGTH) {
+    : (mode === "dimension" ? "CYRK PARTY ZONE" : (mode === "overdrive" ? "PARTY ZONE" : "CYRK"));
+  if (mode === "text" && normalizedText.length > LASER_SHOW_MAX_TEXT_LENGTH) {
     return { ok: false, message: "Laser show text can contain at most %s characters.".format(LASER_SHOW_MAX_TEXT_LENGTH) };
   }
   if (!/^[A-Z0-9 '!.-]+$/.test(normalizedText)) {
@@ -476,7 +479,9 @@ CreatureHandler.prototype.startLaserShow = function (text, variant) {
     ? LASER_SHOW_DEFAULT_DURATION_MS
     : (mode === "overdrive"
       ? LASER_SHOW_OVERDRIVE_DURATION_MS
-      : 11000 + Math.max(1, visibleCharacters) * 1400);
+      : (mode === "dimension"
+        ? LASER_SHOW_DIMENSION_DURATION_MS
+        : 11000 + Math.max(1, visibleCharacters) * 1400));
   this.__spotlightFocus = null;
   this.__laserShow = {
     mode: mode,
@@ -491,7 +496,9 @@ CreatureHandler.prototype.startLaserShow = function (text, variant) {
       ? "The 75-second CYRK laser show has started!"
       : (mode === "overdrive"
         ? "The 100-second NEON OVERDRIVE laser show has started!"
-        : "Laser show is drawing '%s' for %s seconds.".format(normalizedText, Math.ceil(durationMs / 1000)))
+        : (mode === "dimension"
+          ? "The 100-second CYRK DIMENSION laser show has started!"
+          : "Laser show is drawing '%s' for %s seconds.".format(normalizedText, Math.ceil(durationMs / 1000))))
   };
 }
 
