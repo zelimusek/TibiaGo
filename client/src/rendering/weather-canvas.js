@@ -30,14 +30,15 @@ const WeatherCanvas = function(screen) {
     g: [-0.42, 0.55, 0.42, 0.55], h: [0, -0.50, 0, -0.05],
     i: [0, 0.05, 0, 0.50], j: [-0.40, -0.50, 0, -0.02],
     k: [0.40, -0.50, 0, -0.02], l: [-0.40, 0.50, 0, 0.02],
-    m: [0.40, 0.50, 0, 0.02], p: [0.36, 0.48, 0.42, 0.48]
+    m: [0.40, 0.50, 0, 0.02], p: [0.36, 0.48, 0.42, 0.48],
+    q: [0, -0.02, 0.40, -0.50], r: [0, 0.02, 0.40, 0.50]
   };
   this.__laserGlyphMap = {
     "0": "abcefg", "1": "cf", "2": "acdeg", "3": "acdfg", "4": "bcdf",
     "5": "abdfg", "6": "abdefg", "7": "acf", "8": "abcdefg", "9": "abcdfg",
     A: "abcdef", B: "bdefghi", C: "abeg", D: "cefghi", E: "abdeg", F: "abde",
-    G: "abefgd", H: "bcdef", I: "aghi", J: "cefg", K: "bejklm",
-    L: "beg", M: "bcjk", N: "bckl", O: "abcefg", P: "abcde", Q: "abcefgm",
+    G: "abefgd", H: "bcdef", I: "aghi", J: "cefg", K: "beqr",
+    L: "beg", M: "bejqcf", N: "bckl", O: "abcefg", P: "abcde", Q: "abcefgm",
     R: "abcdem", S: "abdfg", T: "ahi", U: "bcefg", V: "bclm", W: "bceflm",
     X: "jklm", Y: "jki", Z: "aklg", " ": "", "'": "c", ".": "p", "-": "d", "!": "hip"
   };
@@ -410,23 +411,29 @@ WeatherCanvas.prototype.__getLaserGlyphLines = function(character, centerX, cent
 
 }
 
-WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, centerX, centerY, radius, elapsedMs) {
+WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, centerX, centerY, radius, elapsedMs, entryTargets) {
 
   text = text || "CYRK";
   let availableWidth = Math.max(180, radius * 64 * 1.70);
   let scale = Math.min(76, availableWidth / Math.max(1, text.length * 1.12));
   let advance = scale * 1.12;
   let startX = centerX - advance * (text.length - 1) * 0.5;
-  let revealPosition = Math.max(0, Math.min(text.length - 0.001, progress * text.length));
-  let currentIndex = Math.floor(revealPosition);
-  while(currentIndex < text.length - 1 && text[currentIndex] === " ") currentIndex++;
+  let drawableIndices = [];
+  for(let textIndex = 0; textIndex < text.length; textIndex++) {
+    if(text[textIndex] !== " ") drawableIndices.push(textIndex);
+  }
+  if(drawableIndices.length === 0) drawableIndices.push(0);
+  let revealPosition = Math.max(0, Math.min(drawableIndices.length - 0.001, progress * drawableIndices.length));
+  let currentSlot = Math.floor(revealPosition);
+  let currentIndex = drawableIndices[currentSlot];
+  let letterProgress = revealPosition - currentSlot;
   let trailLines = [];
 
-  for(let index = 0; index <= currentIndex; index++) {
-    if(text[index] === " ") continue;
+  for(let slot = 0; slot < currentSlot; slot++) {
+    let index = drawableIndices[slot];
     let lines = this.__getLaserGlyphLines(text[index], startX + index * advance, centerY, scale);
     lines.forEach(function(line) {
-      line.alpha = index === currentIndex ? 1 : 0.46;
+      line.alpha = 0.46;
       line.colorIndex = index % 3;
       trailLines.push(line);
     });
@@ -434,15 +441,79 @@ WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, ce
 
   let currentLines = this.__getLaserGlyphLines(text[currentIndex] || "-", startX + currentIndex * advance, centerY, scale);
   if(currentLines.length === 0) currentLines = this.__getLaserGlyphLines("-", centerX, centerY, scale);
-  let targets = Array.from({ length: 9 }, function(_, index) {
-    let line = currentLines[index % currentLines.length];
-    let travel = (elapsedMs / 520 + index * 0.137) % 1;
-    if(index % 2 === 1) travel = 1 - travel;
-    return {
-      x: line.x1 + (line.x2 - line.x1) * travel,
-      y: line.y1 + (line.y2 - line.y1) * travel
-    };
+  let pathSteps = [];
+  currentLines.forEach(function(line, index) {
+    if(index > 0) {
+      let previous = currentLines[index - 1];
+      let travelLength = Math.hypot(line.x1 - previous.x2, line.y1 - previous.y2);
+      if(travelLength > 0.5) {
+        pathSteps.push({
+          x1: previous.x2, y1: previous.y2,
+          x2: line.x1, y2: line.y1,
+          length: travelLength,
+          draw: false
+        });
+      }
+    }
+    pathSteps.push({
+      x1: line.x1, y1: line.y1,
+      x2: line.x2, y2: line.y2,
+      length: Math.hypot(line.x2 - line.x1, line.y2 - line.y1),
+      draw: true
+    });
   });
+  let totalLength = pathSteps.reduce(function(total, step) { return total + step.length; }, 0);
+  let writtenLength = totalLength * letterProgress;
+  let remainingWritten = writtenLength;
+  pathSteps.forEach(function(step) {
+    let length = step.length;
+    if(remainingWritten <= 0) return;
+    let portion = Math.min(1, remainingWritten / length);
+    if(step.draw) {
+      trailLines.push({
+        x1: step.x1,
+        y1: step.y1,
+        x2: step.x1 + (step.x2 - step.x1) * portion,
+        y2: step.y1 + (step.y2 - step.y1) * portion,
+        alpha: 1,
+        colorIndex: currentIndex % 3
+      });
+    }
+    remainingWritten -= length;
+  });
+
+  function pointAtDistance(distance) {
+    let remaining = Math.max(0, Math.min(totalLength, distance));
+    for(let index = 0; index < pathSteps.length; index++) {
+      let step = pathSteps[index];
+      let length = step.length;
+      if(remaining <= length || index === pathSteps.length - 1) {
+        let portion = length > 0 ? Math.min(1, remaining / length) : 0;
+        return {
+          x: step.x1 + (step.x2 - step.x1) * portion,
+          y: step.y1 + (step.y2 - step.y1) * portion
+        };
+      }
+      remaining -= length;
+    }
+    return { x: pathSteps[0].x1, y: pathSteps[0].y1 };
+  }
+
+  let targets = Array.from({ length: 9 }, function(_, index) {
+    return pointAtDistance(writtenLength - index * totalLength * 0.028);
+  });
+
+  let approachProgress = Math.min(1, Math.max(0, elapsedMs / 700));
+  let approachEase = 1 - Math.pow(1 - approachProgress, 3);
+  if(entryTargets && approachProgress < 1) {
+    targets = targets.map(function(target, index) {
+      let entry = entryTargets[index] || entryTargets[0] || target;
+      return {
+        x: entry.x + (target.x - entry.x) * approachEase,
+        y: entry.y + (target.y - entry.y) * approachEase
+      };
+    });
+  }
 
   return { targets: targets, trailLines: trailLines };
 
@@ -499,7 +570,15 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       });
     } else if(elapsedMs < 27000) {
       phase = "text";
-      let textFrame = this.__getLaserTextChoreography("CYRK", (elapsedMs - 20000) / 7000, centerX, centerY, radius, elapsedMs);
+      let textElapsed = elapsedMs - 20000;
+      let tunnelEntryAngle = 20000 * Math.PI * 2 / 4200;
+      let textEntryTargets = Array.from({ length: 9 }, function(_, index) {
+        let ring = index % 3;
+        let tunnelRadius = 38 + ring * 42 + Math.sin(20000 / 310 + ring) * 12;
+        let angle = -tunnelEntryAngle * (1 + ring * 0.18) + index * Math.PI * 2 / 9;
+        return { x: centerX + Math.cos(angle) * tunnelRadius, y: centerY + Math.sin(angle) * tunnelRadius * 0.72 };
+      });
+      let textFrame = this.__getLaserTextChoreography("CYRK", Math.max(0, textElapsed - 700) / 6300, centerX, centerY, radius, textElapsed, textEntryTargets);
       targets = textFrame.targets;
       trailLines = textFrame.trailLines;
     } else {
@@ -515,7 +594,17 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       targets = ringTargets(165 - elapsedMs / textStart * 65, angleTime, true);
     } else if(elapsedMs < textEnd) {
       phase = "text";
-      let textFrame = this.__getLaserTextChoreography(show.text, (elapsedMs - textStart) / (textEnd - textStart), centerX, centerY, radius, elapsedMs);
+      let textElapsed = elapsedMs - textStart;
+      let textEntryTargets = ringTargets(100, textStart * Math.PI * 2 / 4200, true);
+      let textFrame = this.__getLaserTextChoreography(
+        show.text,
+        Math.max(0, textElapsed - 700) / Math.max(1, textEnd - textStart - 700),
+        centerX,
+        centerY,
+        radius,
+        textElapsed,
+        textEntryTargets
+      );
       targets = textFrame.targets;
       trailLines = textFrame.trailLines;
     } else {

@@ -481,6 +481,25 @@ function setLaserShow(mode, text, elapsedMs, durationMs) {
   return weather.__getDiscoLightFrame();
 }
 
+const kGlyph = weather.__getLaserGlyphLines("K", 0, 0, 100);
+const mGlyph = weather.__getLaserGlyphLines("M", 0, 0, 100);
+assert.strictEqual(kGlyph.length, 4, "K should use one complete stem and two clean diagonals");
+assert.strictEqual(mGlyph.length, 6, "M should use two complete stems and two inward diagonals");
+assert.strictEqual(
+  mGlyph.filter((line) => Math.abs(line.x1 - line.x2) < 0.01).length,
+  4,
+  "M should retain both upper and lower halves of its vertical legs"
+);
+
+const partialLetter = weather.__getLaserTextChoreography("K", 0.4, 240, 176, 6, 900);
+assert.ok(partialLetter.trailLines.length > 0 && partialLetter.trailLines.length < kGlyph.length, "the current letter should appear stroke by stroke instead of all at once");
+const firstStrokeTarget = weather.__getLaserTextChoreography("K", 0, 240, 176, 6, 700);
+assert.strictEqual(
+  new Set(firstStrokeTarget.targets.map((target) => target.x.toFixed(3) + ":" + target.y.toFixed(3))).size,
+  1,
+  "all lasers should meet at the first writing stroke before drawing begins"
+);
+
 let showFrame = setLaserShow("default", "CYRK", 0, 30000);
 assert.strictEqual(showFrame.laserShow.phase, "opening");
 assert.strictEqual(showFrame.laserShow.targets.length, 9);
