@@ -684,7 +684,9 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
     return;
   }
 
-  gameClient.interface.soundManager.setRadioEnvironmentalMute(false);
+  if (!packet.enabled) {
+    gameClient.interface.soundManager.setRadioEnvironmentalMute(false);
+  }
   gameClient.interface.soundManager.setRadioStream(packet.enabled ? packet.url : "", packet.volume);
 
 }
