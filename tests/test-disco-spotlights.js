@@ -483,12 +483,30 @@ function setLaserShow(mode, text, elapsedMs, durationMs) {
 
 const kGlyph = weather.__getLaserGlyphLines("K", 0, 0, 100);
 const mGlyph = weather.__getLaserGlyphLines("M", 0, 0, 100);
+const nGlyph = weather.__getLaserGlyphLines("N", 0, 0, 100);
+const bGlyph = weather.__getLaserGlyphLines("B", 0, 0, 100);
 assert.strictEqual(kGlyph.length, 4, "K should use one complete stem and two clean diagonals");
 assert.strictEqual(mGlyph.length, 6, "M should use two complete stems and two inward diagonals");
 assert.strictEqual(
   mGlyph.filter((line) => Math.abs(line.x1 - line.x2) < 0.01).length,
   4,
   "M should retain both upper and lower halves of its vertical legs"
+);
+assert.strictEqual(nGlyph.length, 5, "N should use two complete stems and one long diagonal");
+assert.strictEqual(
+  nGlyph.filter((line) => Math.abs(line.x1 - line.x2) < 0.01).length,
+  4,
+  "N should retain both halves of both vertical legs"
+);
+assert.ok(
+  nGlyph.some((line) => line.x1 < 0 && line.y1 < 0 && line.x2 > 0 && line.y2 > 0),
+  "N should contain one readable top-left to bottom-right diagonal"
+);
+assert.strictEqual(bGlyph.length, 7, "B should have a complete stem and two closed block-shaped bowls");
+assert.strictEqual(
+  bGlyph.filter((line) => Math.abs(line.y1 - line.y2) < 0.01).length,
+  3,
+  "B should include clear top, middle and bottom bars"
 );
 
 const partialLetter = weather.__getLaserTextChoreography("K", 0.4, 240, 176, 6, 900);
@@ -500,23 +518,47 @@ assert.strictEqual(
   "all lasers should meet at the first writing stroke before drawing begins"
 );
 
-let showFrame = setLaserShow("default", "CYRK", 0, 30000);
+let showFrame = setLaserShow("default", "CYRK", 0, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "opening");
 assert.strictEqual(showFrame.laserShow.targets.length, 9);
 assert.strictEqual(showFrame.spotlightsEnabled, true, "laser shows should temporarily enable their four choreographed spotlights");
 assert.strictEqual(showFrame.legacyLasersEnabled, true, "laser shows should temporarily enable all nine laser beams");
 
-showFrame = setLaserShow("default", "CYRK", 5000, 30000);
+showFrame = setLaserShow("default", "CYRK", 3900, 35000);
+const phaseDepartureTargets = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
+now += 200;
+context.gameClient.renderer.debugger.__nFrames++;
+showFrame = weather.__getDiscoLightFrame();
+assert.strictEqual(showFrame.laserShow.phase, "double-spiral");
+assert.ok(
+  showFrame.laserShow.targets.every((target, index) =>
+    Math.abs(target.x - phaseDepartureTargets[index].x) < 0.01
+    && Math.abs(target.y - phaseDepartureTargets[index].y) < 0.01
+  ),
+  "a new figure should begin from the previous figure's physical laser positions"
+);
+now += 450;
+context.gameClient.renderer.debugger.__nFrames++;
+showFrame = weather.__getDiscoLightFrame();
+assert.ok(
+  showFrame.laserShow.targets.some((target, index) =>
+    Math.abs(target.x - phaseDepartureTargets[index].x) > 1
+    || Math.abs(target.y - phaseDepartureTargets[index].y) > 1
+  ),
+  "lasers should visibly drive between figures instead of teleporting"
+);
+
+showFrame = setLaserShow("default", "CYRK", 5000, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "double-spiral");
 assert.strictEqual(new Set(showFrame.laserShow.targets.map((target) => target.x.toFixed(2) + ":" + target.y.toFixed(2))).size, 9);
-showFrame = setLaserShow("default", "CYRK", 9000, 30000);
+showFrame = setLaserShow("default", "CYRK", 9000, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "star");
-showFrame = setLaserShow("default", "CYRK", 13000, 30000);
+showFrame = setLaserShow("default", "CYRK", 13000, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "wave");
-showFrame = setLaserShow("default", "CYRK", 17000, 30000);
+showFrame = setLaserShow("default", "CYRK", 17000, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "tunnel");
 
-showFrame = setLaserShow("default", "CYRK", 22000, 30000);
+showFrame = setLaserShow("default", "CYRK", 22000, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "text");
 assert.ok(showFrame.laserShow.trailLines.length > 0, "the CYRK phase should retain already drawn laser letter strokes");
 strokes = 0;
@@ -525,14 +567,23 @@ weather.drawDiscoLights();
 assert.ok(strokes > 9, "letter trails should be drawn in addition to the nine controlled beams");
 assert.strictEqual(arcRadii.length, 9, "each choreographed laser should retain its bright endpoint dot");
 
-showFrame = setLaserShow("default", "CYRK", 28000, 30000);
+showFrame = setLaserShow("default", "CYRK", 29000, 35000);
+assert.strictEqual(showFrame.laserShow.phase, "text-hold");
+assert.ok(showFrame.laserShow.trailLines.length > 10, "the complete CYRK text should remain visible during its five-second presentation");
+assert.strictEqual(new Set(showFrame.laserShow.targets.map((target) => target.x.toFixed(2) + ":" + target.y.toFixed(2))).size, 9, "all nine lasers should orbit the completed text at separate positions");
+assert.ok(showFrame.laserShow.trailLines.every((line) => line.alpha === 0.78), "the completed text should use an even presentation glow");
+
+showFrame = setLaserShow("default", "CYRK", 33000, 35000);
 assert.strictEqual(showFrame.laserShow.phase, "finale");
-showFrame = setLaserShow("text", "PARTY ZONE", 7000, 18600);
+showFrame = setLaserShow("text", "PARTY ZONE", 7000, 23600);
 assert.strictEqual(showFrame.laserShow.phase, "text");
 assert.ok(showFrame.laserShow.trailLines.length > 0, "custom text should use the synchronized vector laser alphabet");
-showFrame = setLaserShow("default", "CYRK", 29500, 30000);
+showFrame = setLaserShow("text", "PARTY ZONE", 18000, 23600);
+assert.strictEqual(showFrame.laserShow.phase, "text-hold");
+assert.ok(showFrame.laserShow.trailLines.length > 20, "custom text should also remain fully visible for five seconds");
+showFrame = setLaserShow("default", "CYRK", 34500, 35000);
 assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "the final 1.3 seconds should fade the show smoothly");
-showFrame = setLaserShow("default", "CYRK", 30000, 30000);
+showFrame = setLaserShow("default", "CYRK", 35000, 35000);
 assert.strictEqual(showFrame, null, "a completed show should release temporarily enabled venue lights");
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

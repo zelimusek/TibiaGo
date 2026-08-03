@@ -23,6 +23,7 @@ const WeatherCanvas = function(screen) {
   this.__discoLightFrame = null;
   this.__spotlightFocusVisual = null;
   this.__spotlightFocusTransition = null;
+  this.__laserShowPhaseTransition = null;
   this.__laserGlyphSegments = {
     a: [-0.42, -0.55, 0.42, -0.55], b: [-0.45, -0.50, -0.45, -0.05],
     c: [0.45, -0.50, 0.45, -0.05], d: [-0.40, 0, 0.40, 0],
@@ -31,14 +32,15 @@ const WeatherCanvas = function(screen) {
     i: [0, 0.05, 0, 0.50], j: [-0.40, -0.50, 0, -0.02],
     k: [0.40, -0.50, 0, -0.02], l: [-0.40, 0.50, 0, 0.02],
     m: [0.40, 0.50, 0, 0.02], p: [0.36, 0.48, 0.42, 0.48],
-    q: [0, -0.02, 0.40, -0.50], r: [0, 0.02, 0.40, 0.50]
+    q: [0, -0.02, 0.40, -0.50], r: [0, 0.02, 0.40, 0.50],
+    s: [-0.40, -0.50, 0.40, 0.50]
   };
   this.__laserGlyphMap = {
     "0": "abcefg", "1": "cf", "2": "acdeg", "3": "acdfg", "4": "bcdf",
     "5": "abdfg", "6": "abdefg", "7": "acf", "8": "abcdefg", "9": "abcdfg",
-    A: "abcdef", B: "bdefghi", C: "abeg", D: "cefghi", E: "abdeg", F: "abde",
+    A: "abcdef", B: "beacdfg", C: "abeg", D: "cefghi", E: "abdeg", F: "abde",
     G: "abefgd", H: "bcdef", I: "aghi", J: "cefg", K: "beqr",
-    L: "beg", M: "bejqcf", N: "bckl", O: "abcefg", P: "abcde", Q: "abcefgm",
+    L: "beg", M: "bejqcf", N: "bescf", O: "abcefg", P: "abcde", Q: "abcefgm",
     R: "abcdem", S: "abdfg", T: "ahi", U: "bcefg", V: "bclm", W: "bceflm",
     X: "jklm", Y: "jki", Z: "aklg", " ": "", "'": "c", ".": "p", "-": "d", "!": "hip"
   };
@@ -519,6 +521,31 @@ WeatherCanvas.prototype.__getLaserTextChoreography = function(text, progress, ce
 
 }
 
+WeatherCanvas.prototype.__getLaserTextHoldChoreography = function(text, centerX, centerY, radius, elapsedMs) {
+
+  let completed = this.__getLaserTextChoreography(text, 0.999999, centerX, centerY, radius, 1000);
+  let trailLines = completed.trailLines;
+  trailLines.forEach(function(line) { line.alpha = 0.78; });
+  let minX = Math.min.apply(null, trailLines.map(function(line) { return Math.min(line.x1, line.x2); }));
+  let maxX = Math.max.apply(null, trailLines.map(function(line) { return Math.max(line.x1, line.x2); }));
+  let minY = Math.min.apply(null, trailLines.map(function(line) { return Math.min(line.y1, line.y2); }));
+  let maxY = Math.max.apply(null, trailLines.map(function(line) { return Math.max(line.y1, line.y2); }));
+  let orbitCenterX = (minX + maxX) * 0.5;
+  let orbitCenterY = (minY + maxY) * 0.5;
+  let orbitRadiusX = (maxX - minX) * 0.5 + 58;
+  let orbitRadiusY = (maxY - minY) * 0.5 + 52;
+  let orbitAngle = elapsedMs * Math.PI * 2 / 6500;
+  let targets = Array.from({ length: 9 }, function(_, index) {
+    let angle = orbitAngle + index * Math.PI * 2 / 9;
+    return {
+      x: orbitCenterX + Math.cos(angle) * orbitRadiusX,
+      y: orbitCenterY + Math.sin(angle) * orbitRadiusY
+    };
+  });
+  return { targets: targets, trailLines: trailLines };
+
+}
+
 WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, radius, now) {
 
   let elapsedMs = show.elapsedMs + Math.max(0, now - show.receivedAt);
@@ -581,24 +608,30 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       let textFrame = this.__getLaserTextChoreography("CYRK", Math.max(0, textElapsed - 700) / 6300, centerX, centerY, radius, textElapsed, textEntryTargets);
       targets = textFrame.targets;
       trailLines = textFrame.trailLines;
+    } else if(elapsedMs < 32000) {
+      phase = "text-hold";
+      let holdFrame = this.__getLaserTextHoldChoreography("CYRK", centerX, centerY, radius, elapsedMs - 27000);
+      targets = holdFrame.targets;
+      trailLines = holdFrame.trailLines;
     } else {
       phase = "finale";
-      let finaleProgress = Math.min(1, (elapsedMs - 27000) / 3000);
+      let finaleProgress = Math.min(1, (elapsedMs - 32000) / 3000);
       targets = ringTargets(55 + finaleProgress * 135, angleTime * 1.8, true);
     }
   } else {
     let textStart = 3000;
-    let textEnd = Math.max(textStart + 1000, show.durationMs - 3000);
+    let textWriteEnd = Math.max(textStart + 1000, show.durationMs - 8000);
+    let textHoldEnd = Math.max(textWriteEnd + 5000, show.durationMs - 3000);
     if(elapsedMs < textStart) {
       phase = "opening";
       targets = ringTargets(165 - elapsedMs / textStart * 65, angleTime, true);
-    } else if(elapsedMs < textEnd) {
+    } else if(elapsedMs < textWriteEnd) {
       phase = "text";
       let textElapsed = elapsedMs - textStart;
       let textEntryTargets = ringTargets(100, textStart * Math.PI * 2 / 4200, true);
       let textFrame = this.__getLaserTextChoreography(
         show.text,
-        Math.max(0, textElapsed - 700) / Math.max(1, textEnd - textStart - 700),
+        Math.max(0, textElapsed - 700) / Math.max(1, textWriteEnd - textStart - 700),
         centerX,
         centerY,
         radius,
@@ -607,10 +640,43 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       );
       targets = textFrame.targets;
       trailLines = textFrame.trailLines;
+    } else if(elapsedMs < textHoldEnd) {
+      phase = "text-hold";
+      let holdFrame = this.__getLaserTextHoldChoreography(show.text, centerX, centerY, radius, elapsedMs - textWriteEnd);
+      targets = holdFrame.targets;
+      trailLines = holdFrame.trailLines;
     } else {
       phase = "finale";
-      targets = ringTargets(65 + Math.min(1, (elapsedMs - textEnd) / 3000) * 125, angleTime * 1.7, true);
+      targets = ringTargets(65 + Math.min(1, (elapsedMs - textHoldEnd) / 3000) * 125, angleTime * 1.7, true);
     }
+  }
+
+  let previousShowFrame = this.__discoLightFrame && this.__discoLightFrame.laserShow;
+  if(!previousShowFrame) {
+    this.__laserShowPhaseTransition = null;
+  } else if(previousShowFrame.phase !== phase) {
+    if(phase === "text") {
+      this.__laserShowPhaseTransition = null;
+    } else {
+      this.__laserShowPhaseTransition = {
+        phase: phase,
+        startedAt: now,
+        from: previousShowFrame.targets.map(function(target) { return { x: target.x, y: target.y }; })
+      };
+    }
+  }
+  let phaseTransition = this.__laserShowPhaseTransition;
+  if(phaseTransition && phaseTransition.phase === phase) {
+    let phaseProgress = Math.min(1, Math.max(0, (now - phaseTransition.startedAt) / 900));
+    let phaseEase = phaseProgress * phaseProgress * (3 - 2 * phaseProgress);
+    targets = targets.map(function(target, index) {
+      let origin = phaseTransition.from[index] || target;
+      return {
+        x: origin.x + (target.x - origin.x) * phaseEase,
+        y: origin.y + (target.y - origin.y) * phaseEase
+      };
+    });
+    if(phaseProgress >= 1) this.__laserShowPhaseTransition = null;
   }
 
   let spotlightTargets = [0, 2, 4, 6].map(function(index) {
