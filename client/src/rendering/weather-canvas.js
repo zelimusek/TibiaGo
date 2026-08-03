@@ -24,6 +24,8 @@ const WeatherCanvas = function(screen) {
   this.__spotlightFocusVisual = null;
   this.__spotlightFocusTransition = null;
   this.__laserShowPhaseTransition = null;
+  this.__vipShowTrail = [];
+  this.__vipShowTrailTarget = null;
   this.__laserGlyphSegments = {
     a: [-0.42, -0.55, 0.42, -0.55], b: [-0.45, -0.50, -0.45, -0.05],
     c: [0.45, -0.50, 0.45, -0.05], d: [-0.40, 0, 0.40, 0],
@@ -386,6 +388,17 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
       flashDurationMs: Math.max(0, Number(focus.flashDurationMs) || 0),
       flashCount: Math.max(0, Number(focus.flashCount) || 0),
       includeLasers: focus.includeLasers === true,
+      vipShow: focus.vipShow && typeof focus.vipShow === "object"
+        && ["rainbow", "fire", "ice", "toxic", "romance"].includes(focus.vipShow.preset)
+        && ["soft", "normal", "intense"].includes(focus.vipShow.intensity)
+        ? {
+          preset: focus.vipShow.preset,
+          intensity: focus.vipShow.intensity,
+          title: typeof focus.vipShow.title === "string"
+            ? focus.vipShow.title.slice(0, 40)
+            : "DANCE FLOOR STAR!"
+        }
+        : null,
       receivedAt: performance.now()
     } : null,
     laserShow: validLaserShow ? {
@@ -1680,6 +1693,127 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
 
 }
 
+WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsedMs, now, beatBpm) {
+
+  if(!focus || !focus.vipShow || !focusScreen || !Number.isFinite(focus.durationMs)) {
+    return null;
+  }
+
+  let remainingMs = Math.max(0, focus.durationMs - elapsedMs);
+  if(remainingMs <= 0) return null;
+
+  let presetPalettes = {
+    rainbow: [[45, 150, 255], [244, 55, 255], [35, 255, 194], [255, 70, 115], [255, 210, 55], [135, 80, 255]],
+    fire: [[255, 55, 22], [255, 125, 20], [255, 210, 45], [255, 35, 90]],
+    ice: [[65, 170, 255], [110, 245, 255], [190, 235, 255], [115, 95, 255]],
+    toxic: [[70, 255, 60], [185, 255, 30], [30, 225, 150], [220, 255, 70]],
+    romance: [[255, 50, 135], [255, 105, 205], [195, 75, 255], [255, 175, 220]]
+  };
+  let intensityMultipliers = { soft: 0.72, normal: 1, intense: 1.28 };
+  let colors = presetPalettes[focus.vipShow.preset] || presetPalettes.rainbow;
+  let intensityMultiplier = intensityMultipliers[focus.vipShow.intensity] || 1;
+  let amount = Math.max(0, Math.min(1, elapsedMs / 500, remainingMs / 800));
+  let stage;
+  let stageProgress;
+
+  if(elapsedMs < 1300) {
+    stage = "lock";
+    stageProgress = elapsedMs / 1300;
+  } else if(elapsedMs < 4200) {
+    stage = "orbit";
+    stageProgress = (elapsedMs - 1300) / 2900;
+  } else if(elapsedMs < 7000) {
+    stage = "tunnel";
+    stageProgress = (elapsedMs - 4200) / 2800;
+  } else if(elapsedMs < 9500) {
+    stage = "spiral";
+    stageProgress = (elapsedMs - 7000) / 2500;
+  } else {
+    stage = "finale";
+    stageProgress = Math.min(1, (elapsedMs - 9500) / 2500);
+  }
+
+  let ease = stageProgress * stageProgress * (3 - 2 * stageProgress);
+  let spotlightOrbitRadius = 30;
+  if(stage === "lock") spotlightOrbitRadius = 50 - ease * 28;
+  if(stage === "tunnel") spotlightOrbitRadius = 42 + Math.sin(stageProgress * Math.PI * 4) * 8;
+  if(stage === "spiral") spotlightOrbitRadius = 24 + (0.5 + 0.5 * Math.sin(stageProgress * Math.PI * 6)) * 18;
+  if(stage === "finale") {
+    spotlightOrbitRadius = stageProgress < 0.46
+      ? 32 * (1 - stageProgress / 0.46)
+      : 6 + 48 * ((stageProgress - 0.46) / 0.54);
+  }
+
+  let orbitPeriod = focus.vipShow.intensity === "soft" ? 2500 : (focus.vipShow.intensity === "intense" ? 1350 : 1850);
+  let spotlightOrbitAngle = -Math.PI * 0.5 + elapsedMs * Math.PI * 2 / orbitPeriod;
+  if(stage === "spiral") spotlightOrbitAngle *= -1;
+
+  let laserTargets = Array.from({ length: 9 }, function(_, beamIndex) {
+    let head = Math.floor(beamIndex / 3);
+    let beam = beamIndex % 3 - 1;
+    let direction = head === 1 ? -1 : 1;
+    let angle;
+    let radius;
+
+    if(stage === "lock") {
+      angle = head * Math.PI * 2 / 3 + beam * 0.34 + elapsedMs * Math.PI * 2 / 3600;
+      radius = 112 - ease * 58 + Math.abs(beam) * 7;
+    } else if(stage === "orbit") {
+      angle = head * Math.PI * 2 / 3
+        + direction * (elapsedMs - 1300) * Math.PI * 2 / 1950
+        + beam * 0.34;
+      radius = 46 + Math.abs(beam) * 18;
+    } else if(stage === "tunnel") {
+      angle = (elapsedMs - 4200) * Math.PI * 2 / 1750 + beamIndex * Math.PI * 2 / 9;
+      radius = 34 + (beam + 1) * 18;
+    } else if(stage === "spiral") {
+      angle = head * Math.PI * 2 / 3
+        + direction * (elapsedMs - 7000) * Math.PI * 2 / 1450
+        + beam * 0.52;
+      radius = 22 + (((elapsedMs - 7000) / 900 + beamIndex / 9) % 1) * 78;
+    } else {
+      let convergence = stageProgress < 0.46
+        ? 1 - stageProgress / 0.46
+        : (stageProgress - 0.46) / 0.54;
+      angle = beamIndex * Math.PI * 2 / 9 + elapsedMs * Math.PI * 2 / 1800;
+      radius = stageProgress < 0.46 ? 4 + convergence * 62 : 4 + convergence * 108;
+    }
+
+    return {
+      x: focusScreen.x + Math.cos(angle) * radius,
+      y: focusScreen.y + Math.sin(angle) * radius * 0.72
+    };
+  });
+
+  let beatDuration = beatBpm > 0 ? 60000 / beatBpm : 520;
+  let beatProgress = (elapsedMs % beatDuration) / beatDuration;
+
+  return {
+    preset: focus.vipShow.preset,
+    intensityName: focus.vipShow.intensity,
+    intensityMultiplier: intensityMultiplier,
+    title: focus.vipShow.title,
+    targetId: focus.targetId,
+    centerX: focusScreen.x,
+    centerY: focusScreen.y,
+    elapsedMs: elapsedMs,
+    durationMs: focus.durationMs,
+    remainingMs: remainingMs,
+    amount: amount,
+    stage: stage,
+    stageProgress: stageProgress,
+    colors: colors,
+    spotlightColors: [colors[0], colors[1 % colors.length], colors[2 % colors.length], colors[3 % colors.length]],
+    laserColors: [colors[0], colors[2 % colors.length], colors[4 % colors.length]],
+    spotlightOrbitRadius: spotlightOrbitRadius,
+    spotlightOrbitAngle: spotlightOrbitAngle,
+    laserTargets: laserTargets,
+    beatProgress: beatProgress,
+    beatStrength: 1 - beatProgress
+  };
+
+}
+
 WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   let disco = this.__discoLights;
@@ -1687,7 +1821,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let show = disco.laserShow;
   let showElapsed = show ? show.elapsedMs + Math.max(0, now - show.receivedAt) : 0;
   let showActive = show != null && showElapsed < show.durationMs;
-  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive) || !disco.center || disco.radius <= 0) {
+  let vipRequested = disco.focus && disco.focus.vipShow;
+  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive && !vipRequested) || !disco.center || disco.radius <= 0) {
     return null;
   }
 
@@ -1764,7 +1899,14 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   } else {
     this.__spotlightFocusVisual = null;
   }
-  let colors = [
+  let vipShowFrame = focusActive && focus.vipShow && focusScreen
+    ? this.__getVipShowFrame(focus, focusScreen, focusElapsed, now, disco.beatBpm)
+    : null;
+  if(!vipShowFrame) {
+    this.__vipShowTrail = [];
+    this.__vipShowTrailTarget = null;
+  }
+  let colors = vipShowFrame ? vipShowFrame.spotlightColors : [
     [42, 120, 255],
     [232, 48, 255],
     [35, 255, 194],
@@ -1777,8 +1919,10 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     [1.00, 0.55]
   ];
   let motionTime = now * disco.spotlightSpeed / 100;
-  let focusOrbitAngle = -Math.PI * 0.5 + now * Math.PI * 2 / 4500;
-  let focusOrbitRadius = 22;
+  let focusOrbitAngle = vipShowFrame
+    ? vipShowFrame.spotlightOrbitAngle
+    : -Math.PI * 0.5 + now * Math.PI * 2 / 4500;
+  let focusOrbitRadius = vipShowFrame ? vipShowFrame.spotlightOrbitRadius : 22;
   let focusTransition = this.__spotlightFocusTransition;
   let transitionProgress = focusTransition
     ? Math.min(1, Math.max(0, (now - focusTransition.startedAt) / 1300))
@@ -1844,8 +1988,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     beatBpm: disco.beatBpm,
     pulse: pulse,
     intensity: intensity,
-    spotlightsEnabled: disco.spotlightsEnabled || showActive,
-    legacyLasersEnabled: disco.legacyLasersEnabled || showActive,
+    spotlightsEnabled: disco.spotlightsEnabled || showActive || Boolean(vipShowFrame),
+    legacyLasersEnabled: disco.legacyLasersEnabled || showActive || Boolean(vipShowFrame),
     radius: radius,
     centerX: centerX,
     centerY: centerY,
@@ -1858,6 +2002,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
     laserFocusRadius: laserFocusRadius,
     laserShow: laserShowFrame,
+    vipShow: vipShowFrame,
+    vipLaserTargets: vipShowFrame ? vipShowFrame.laserTargets : null,
     clip: {
       x: centerX - radius * 32 - 16,
       y: centerY - radius * 32 - 16,
@@ -1880,6 +2026,7 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
 
   let mobileScale = gameClient.touch && gameClient.touch.isMobileMode ? 0.82 : 1;
   let strength = frame.intensity * frame.pulse * mobileScale;
+  if(frame.vipShow) strength *= frame.vipShow.intensityMultiplier;
 
   frame.lights.forEach(function(light) {
     let mobile = gameClient.touch && gameClient.touch.isMobileMode;
@@ -1925,6 +2072,220 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
 
 }
 
+WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
+
+  let show = frame.vipShow;
+  if(!show || show.amount <= 0) return;
+
+  let centerX = show.centerX;
+  let centerY = show.centerY;
+  let colors = show.colors;
+  let intensity = show.intensityMultiplier * show.amount;
+  let now = frame.now;
+
+  if(this.__vipShowTrailTarget !== show.targetId) {
+    this.__vipShowTrailTarget = show.targetId;
+    this.__vipShowTrail = [];
+  }
+  let previousTrailPoint = this.__vipShowTrail.length > 0
+    ? this.__vipShowTrail[this.__vipShowTrail.length - 1]
+    : null;
+  if(!previousTrailPoint || now - previousTrailPoint.at >= 70) {
+    this.__vipShowTrail.push({ x: centerX, y: centerY, at: now });
+  }
+  this.__vipShowTrail = this.__vipShowTrail.filter(function(point) {
+    return now - point.at <= 720;
+  }).slice(-8);
+
+  function rgb(color, alpha) {
+    return "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], alpha);
+  }
+
+  function drawGlow(x, y, radius, color, alpha) {
+    let glow = context.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, rgb(color, alpha));
+    glow.addColorStop(0.42, rgb(color, alpha * 0.55));
+    glow.addColorStop(1, rgb(color, 0));
+    context.fillStyle = glow;
+    context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.beginPath();
+  context.rect(frame.clip.x, frame.clip.y, frame.clip.width, frame.clip.height);
+  context.clip();
+
+  // A short afterglow follows the selected participant without leaving a
+  // permanent screen-space smear.
+  this.__vipShowTrail.forEach(function(point, index, trail) {
+    let age = Math.max(0, now - point.at);
+    let alpha = (1 - age / 720) * 0.20 * intensity;
+    let color = colors[index % colors.length];
+    drawGlow(point.x, point.y, (mobile ? 18 : 24) + index / Math.max(1, trail.length) * 8, color, alpha);
+  });
+
+  // Bass waves expand from the dancer on every configured radio beat.
+  for(let wave = 0; wave < 3; wave++) {
+    let progress = (show.beatProgress + wave / 3) % 1;
+    let radius = 22 + progress * (mobile ? 78 : 105);
+    context.globalAlpha = (1 - progress) * 0.42 * intensity;
+    context.strokeStyle = rgb(colors[(wave + 1) % colors.length], 1);
+    context.lineWidth = mobile ? 1.5 : 2.2;
+    context.beginPath();
+    context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    context.stroke();
+  }
+
+  // Two counter-rotating neon orbits and their beat-synchronised particles.
+  for(let ring = 0; ring < 2; ring++) {
+    let radius = (mobile ? 27 : 34) + ring * (mobile ? 13 : 18)
+      + Math.sin(show.elapsedMs / 230 + ring * Math.PI) * 3;
+    context.globalAlpha = 0.48 * intensity;
+    context.strokeStyle = rgb(colors[(ring * 2) % colors.length], 1);
+    context.lineWidth = ring === 0 ? 2.4 : 1.8;
+    if(typeof context.setLineDash === "function") {
+      context.setLineDash(ring === 0 ? [8, 5] : [4, 7]);
+      context.lineDashOffset = (ring === 0 ? -1 : 1) * show.elapsedMs / 34;
+    }
+    context.beginPath();
+    context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    context.stroke();
+    if(typeof context.setLineDash === "function") context.setLineDash([]);
+
+    let particleCount = show.intensityName === "soft" ? 5 : (show.intensityName === "intense" ? 9 : 7);
+    for(let particle = 0; particle < particleCount; particle++) {
+      let direction = ring === 0 ? 1 : -1;
+      let angle = direction * show.elapsedMs / (ring === 0 ? 360 : 470)
+        + particle * Math.PI * 2 / particleCount;
+      let x = centerX + Math.cos(angle) * radius;
+      let y = centerY + Math.sin(angle) * radius * 0.72;
+      let color = colors[(particle + ring * 2) % colors.length];
+      context.globalAlpha = 0.78 * intensity;
+      context.fillStyle = rgb(color, 1);
+      context.beginPath();
+      context.arc(x, y, mobile ? 2.8 : 3.8, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+
+  // During the tunnel and spiral phases, deterministic electric arcs bridge
+  // the orbit rings without random client-to-client differences.
+  if(show.stage === "tunnel" || show.stage === "spiral") {
+    let arcRadius = mobile ? 52 : 70;
+    let arcPoints = 9;
+    context.globalAlpha = 0.62 * intensity;
+    context.lineWidth = mobile ? 1.2 : 1.7;
+    context.strokeStyle = rgb(colors[2 % colors.length], 1);
+    context.beginPath();
+    for(let point = 0; point <= arcPoints; point++) {
+      let angle = point * Math.PI * 2 / arcPoints + show.elapsedMs / 780;
+      let jitter = Math.sin(show.elapsedMs / 75 + point * 4.17) * (mobile ? 5 : 8);
+      let x = centerX + Math.cos(angle) * (arcRadius + jitter);
+      let y = centerY + Math.sin(angle) * (arcRadius + jitter) * 0.70;
+      if(point === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    context.stroke();
+  }
+
+  // A small neon crown marks the star while leaving the name and health bar
+  // readable. The title is drawn only when text rendering is available.
+  let crownY = centerY - (mobile ? 40 : 50);
+  context.globalAlpha = 0.88 * intensity;
+  context.fillStyle = rgb(colors[4 % colors.length], 1);
+  context.beginPath();
+  context.moveTo(centerX - 13, crownY + 8);
+  context.lineTo(centerX - 11, crownY - 5);
+  context.lineTo(centerX - 4, crownY + 1);
+  context.lineTo(centerX, crownY - 9);
+  context.lineTo(centerX + 5, crownY + 1);
+  context.lineTo(centerX + 12, crownY - 5);
+  context.lineTo(centerX + 13, crownY + 8);
+  context.closePath();
+  context.fill();
+  if(typeof context.fillText === "function") {
+    context.globalAlpha = 0.86 * intensity;
+    context.font = (mobile ? "bold 11px Arial" : "bold 13px Arial");
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.lineWidth = 3;
+    if(typeof context.strokeText === "function") {
+      context.strokeStyle = "rgba(0, 0, 0, 0.9)";
+      context.strokeText(show.title, centerX, crownY - 11);
+    }
+    context.fillStyle = rgb(colors[1 % colors.length], 1);
+    context.fillText(show.title, centerX, crownY - 11);
+  }
+
+  // Romance uses orbiting hearts; other presets get compact neon stars.
+  let decorationCount = show.intensityName === "intense" ? 8 : 5;
+  for(let decoration = 0; decoration < decorationCount; decoration++) {
+    let angle = decoration * Math.PI * 2 / decorationCount - show.elapsedMs / 620;
+    let radius = (mobile ? 56 : 72) + Math.sin(show.elapsedMs / 310 + decoration) * 8;
+    let x = centerX + Math.cos(angle) * radius;
+    let y = centerY + Math.sin(angle) * radius * 0.62;
+    let size = mobile ? 3 : 4;
+    context.globalAlpha = 0.72 * intensity;
+    context.fillStyle = rgb(colors[decoration % colors.length], 1);
+    context.beginPath();
+    if(show.preset === "romance") {
+      context.moveTo(x, y + size * 1.7);
+      context.quadraticCurveTo(x - size * 2.2, y, x - size, y - size);
+      context.quadraticCurveTo(x, y - size * 2, x, y - size * 0.4);
+      context.quadraticCurveTo(x, y - size * 2, x + size, y - size);
+      context.quadraticCurveTo(x + size * 2.2, y, x, y + size * 1.7);
+    } else {
+      for(let ray = 0; ray < 8; ray++) {
+        let starAngle = ray * Math.PI / 4;
+        let starRadius = ray % 2 === 0 ? size * 1.8 : size * 0.65;
+        let starX = x + Math.cos(starAngle) * starRadius;
+        let starY = y + Math.sin(starAngle) * starRadius;
+        if(ray === 0) context.moveTo(starX, starY);
+        else context.lineTo(starX, starY);
+      }
+      context.closePath();
+    }
+    context.fill();
+  }
+
+  // The final convergence releases a radial burst and deterministic confetti.
+  if(show.stage === "finale") {
+    let finale = show.stageProgress;
+    let burst = Math.max(0, (finale - 0.35) / 0.65);
+    context.lineWidth = mobile ? 1.7 : 2.4;
+    for(let ray = 0; ray < 18; ray++) {
+      let angle = ray * Math.PI * 2 / 18 + show.elapsedMs / 1200;
+      let innerRadius = 12 + burst * 22;
+      let outerRadius = 24 + burst * (mobile ? 82 : 118);
+      context.globalAlpha = (1 - burst * 0.45) * 0.88 * intensity;
+      context.strokeStyle = rgb(colors[ray % colors.length], 1);
+      context.beginPath();
+      context.moveTo(
+        centerX + Math.cos(angle) * innerRadius,
+        centerY + Math.sin(angle) * innerRadius * 0.72
+      );
+      context.lineTo(
+        centerX + Math.cos(angle) * outerRadius,
+        centerY + Math.sin(angle) * outerRadius * 0.72
+      );
+      context.stroke();
+    }
+    for(let confetti = 0; confetti < 24; confetti++) {
+      let angle = confetti * 2.399963 + show.elapsedMs / 1600;
+      let distance = burst * (35 + (confetti % 7) * 12);
+      let x = centerX + Math.cos(angle) * distance;
+      let y = centerY + Math.sin(angle) * distance * 0.72 + burst * burst * 16;
+      context.globalAlpha = (1 - burst * 0.35) * 0.85 * intensity;
+      context.fillStyle = rgb(colors[confetti % colors.length], 1);
+      context.fillRect(x - 2, y - 2, mobile ? 3 : 4, mobile ? 3 : 4);
+    }
+  }
+
+  context.restore();
+
+}
+
 WeatherCanvas.prototype.drawDiscoLights = function() {
 
   let frame = this.__getDiscoLightFrame();
@@ -1934,6 +2295,7 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
 
   let context = this.screen.context;
   let intensity = frame.intensity * frame.pulse;
+  if(frame.vipShow) intensity *= frame.vipShow.intensityMultiplier;
   let mobile = gameClient.touch && gameClient.touch.isMobileMode;
 
   if(frame.spotlightsEnabled) {
@@ -2001,7 +2363,9 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     return;
   }
 
-  let legacyColors = [[42, 120, 255], [232, 48, 255], [35, 255, 194]];
+  let legacyColors = frame.vipShow
+    ? frame.vipShow.laserColors
+    : [[42, 120, 255], [232, 48, 255], [35, 255, 194]];
   let legacyFixtures = [
     [0, -frame.radius],
     [-frame.radius, frame.radius * 0.5],
@@ -2018,7 +2382,9 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let laserOrbitAngle = -Math.PI * 0.5 + frame.now * Math.PI * 2 / 3200;
   let laserBrightness = laserShow
     ? 1.08 + 0.22 * Math.max(0, Math.sin(frame.now / 180))
-    : 1 + (frame.focusStrength - 1) * laserFocusAmount;
+    : frame.vipShow
+      ? 1.16 + 0.30 * frame.vipShow.beatStrength
+      : 1 + (frame.focusStrength - 1) * laserFocusAmount;
   let laserAlpha = Math.min(1, 0.72 * frame.intensity * legacyPulse * laserBrightness);
   let focusedEndpoints = [];
 
@@ -2041,14 +2407,19 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       let normalBeamAngle = normalAngle + beam * 0.24;
       let focusTargetAngle = laserOrbitAngle + beamIndex * Math.PI * 2 / 9;
       let showEndpoint = laserShow && laserShow.targets[beamIndex];
-      let hasControlledTarget = Boolean(showEndpoint) || hasFocusCenter;
+      let vipEndpoint = frame.vipLaserTargets && frame.vipLaserTargets[beamIndex];
+      let hasControlledTarget = Boolean(showEndpoint) || Boolean(vipEndpoint) || hasFocusCenter;
       let focusedTargetX = showEndpoint
         ? showEndpoint.x
+        : vipEndpoint
+          ? vipEndpoint.x
         : hasFocusCenter
           ? frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius
         : x + Math.cos(normalBeamAngle) * beamLength;
       let focusedTargetY = showEndpoint
         ? showEndpoint.y
+        : vipEndpoint
+          ? vipEndpoint.y
         : hasFocusCenter
           ? frame.laserFocusCenterY + Math.sin(focusTargetAngle) * focusedLaserRadius
         : y + Math.sin(normalBeamAngle) * beamLength;
@@ -2102,6 +2473,10 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     });
   }
   context.restore();
+
+  if(frame.vipShow) {
+    this.__drawVipShow(context, frame, mobile);
+  }
 
 }
 

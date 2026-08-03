@@ -86,7 +86,12 @@ ServerError.prototype = Error.prototype;
           persistent: focus.persistent === true,
           includeLasers: focus.includeLasers === true,
           elapsedMs: focus.elapsedMs,
-          durationMs: focus.durationMs
+          durationMs: focus.durationMs,
+          vipShow: focus.vipShow ? {
+            preset: truncate(focus.vipShow.preset, 40),
+            intensity: truncate(focus.vipShow.intensity, 40),
+            title: truncate(focus.vipShow.title, 80)
+          } : null
         } : null,
         laserShow: laserShow ? {
           mode: truncate(laserShow.mode, 80),

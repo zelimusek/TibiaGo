@@ -80,12 +80,29 @@ try {
   assert.strictEqual(handler.__spotlightFocus.includeLasers, true);
   handler.clearSpotlightFocus();
 
+  commands.handle(gm, "/show Party Hero fire intense");
+  assert.strictEqual(handler.__spotlightFocus.source, "vip-show");
+  assert.strictEqual(handler.__spotlightFocus.includeLasers, true);
+  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 12000);
+  assert.deepStrictEqual(handler.__spotlightFocus.vipShow, {
+    preset: "fire",
+    intensity: "intense",
+    title: "DANCE FLOOR STAR!"
+  });
+  assert.ok(/fire VIP laser show \(intense\)/i.test(messages.at(-1)));
+  assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.preset, "fire");
+  commands.handle(gm, "/show status");
+  assert.ok(/Party Hero has the fire VIP show/i.test(messages.at(-1)));
+  commands.handle(gm, "/show stop");
+  assert.strictEqual(handler.__spotlightFocus, null);
+  assert.ok(/VIP laser show stopped/i.test(messages.at(-1)));
+
   handler.isInsidePartyRadioZone = () => false;
   commands.handle(gm, "/spotlight Party Hero");
   assert.strictEqual(handler.__spotlightFocus, null);
   assert.ok(/inside the dance hall/i.test(messages.at(-1)));
 
-  console.log("PASS: manual spotlight focus is steady and optional-timed while winner celebrations last 11.2 seconds.");
+  console.log("PASS: manual spotlight focus, winner celebrations and targeted VIP shows synchronize correctly.");
 } finally {
   process.gameServer = originalProcessGameServer;
   global.gameServer = originalGlobalGameServer;

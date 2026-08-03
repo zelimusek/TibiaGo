@@ -76,7 +76,12 @@ context.window.gameClient = {
           persistent: false,
           includeLasers: true,
           elapsedMs: 500,
-          durationMs: 11200
+          durationMs: 11200,
+          vipShow: {
+            preset: "rainbow",
+            intensity: "normal",
+            title: "DANCE FLOOR STAR!"
+          }
         },
         laserShow: null
       }
@@ -91,6 +96,7 @@ assert.strictEqual(entries.length, 1);
 assert.strictEqual(entries[0].context.character, "Zell");
 assert.strictEqual(entries[0].context.lastServerOpcode, 25);
 assert.strictEqual(entries[0].context.disco.focus.source, "floor-lava-winner");
+assert.strictEqual(entries[0].context.disco.focus.vipShow.preset, "rainbow");
 assert.strictEqual(beacons.length, 1);
 assert.strictEqual(beacons[0].url, "/api/client-diagnostics");
 

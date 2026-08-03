@@ -866,4 +866,53 @@ assert.ok(showFrame.laserShow.trailLines.length > 12, "the large two-line PARTY 
 showFrame = setLaserShow("arcade", "NEON ARCADE", 100000, 100000);
 assert.strictEqual(showFrame, null, "NEON ARCADE should release the venue lights after 100 seconds");
 
+function setVipShow(elapsedMs, preset, intensityName) {
+  weather.setDiscoLights(false, false, 80, 100, 120, 6, {
+    x: 32515,
+    y: 32346,
+    z: 7,
+  }, {
+    targetId: 777,
+    targetName: "Party Hero",
+    source: "vip-show",
+    targetPosition: { x: 32515, y: 32346, z: 7 },
+    elapsedMs: elapsedMs,
+    persistent: false,
+    durationMs: 12000,
+    flashDurationMs: 0,
+    flashCount: 0,
+    includeLasers: true,
+    vipShow: {
+      preset: preset,
+      intensity: intensityName,
+      title: "DANCE FLOOR STAR!",
+    },
+  }, null);
+  context.gameClient.renderer.debugger.__nFrames++;
+  return weather.__getDiscoLightFrame();
+}
+
+showFrame = setVipShow(2100, "rainbow", "normal");
+assert.strictEqual(showFrame.vipShow.stage, "orbit");
+assert.strictEqual(showFrame.spotlightsEnabled, true, "VIP show should temporarily enable all four spotlights");
+assert.strictEqual(showFrame.legacyLasersEnabled, true, "VIP show should temporarily enable all three laser heads");
+assert.strictEqual(showFrame.lights.length, 4, "VIP show must choreograph four spotlights");
+assert.strictEqual(showFrame.vipLaserTargets.length, 9, "three laser heads must retain their three beams each");
+assert.strictEqual(new Set(showFrame.vipLaserTargets.map((target) => target.x.toFixed(2) + ":" + target.y.toFixed(2))).size, 9);
+
+showFrame = setVipShow(5200, "ice", "soft");
+assert.strictEqual(showFrame.vipShow.stage, "tunnel");
+assert.strictEqual(showFrame.vipShow.preset, "ice");
+assert.ok(showFrame.vipShow.intensityMultiplier < 1);
+
+showFrame = setVipShow(7900, "toxic", "normal");
+assert.strictEqual(showFrame.vipShow.stage, "spiral");
+
+showFrame = setVipShow(10400, "romance", "intense");
+assert.strictEqual(showFrame.vipShow.stage, "finale");
+assert.ok(showFrame.vipShow.intensityMultiplier > 1);
+const vipStrokeCount = strokes;
+weather.drawDiscoLights();
+assert.ok(strokes > vipStrokeCount, "VIP finale should draw lasers, bass rings, neon orbits and its radial burst");
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

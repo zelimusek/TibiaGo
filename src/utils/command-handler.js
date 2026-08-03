@@ -567,6 +567,54 @@ CommandHandler.prototype.handleCommandLaserShow = function (player, message) {
   return player.sendCancelMessage(result.message);
 };
 
+CommandHandler.prototype.handleCommandVipShow = function (player, message) {
+  let argumentsList = message.slice(1).filter(function (entry) { return entry.length > 0; });
+  let handler = gameServer.world.creatureHandler;
+  let action = (argumentsList[0] || "").toLowerCase();
+
+  if (!action) {
+    return player.sendCancelMessage(
+      "Usage: /show Player Name [rainbow|fire|ice|toxic|romance] [soft|normal|intense], /show status or /show stop."
+    );
+  }
+  if (action === "off" || action === "stop") {
+    return player.sendCancelMessage(handler.stopVipShow().message);
+  }
+  if (action === "status") {
+    return player.sendCancelMessage(handler.getVipShowStatus().message);
+  }
+
+  let presets = new Set(["rainbow", "fire", "ice", "toxic", "romance"]);
+  let intensities = new Set(["soft", "normal", "intense"]);
+  let preset = "rainbow";
+  let intensity = "normal";
+  let finalArgument = (argumentsList.at(-1) || "").toLowerCase();
+
+  if (intensities.has(finalArgument)) {
+    intensity = finalArgument;
+    argumentsList.pop();
+    finalArgument = (argumentsList.at(-1) || "").toLowerCase();
+  }
+  if (presets.has(finalArgument)) {
+    preset = finalArgument;
+    argumentsList.pop();
+  }
+
+  let targetName = argumentsList.join(" ").trim();
+  if (!targetName) {
+    return player.sendCancelMessage("Enter the player name after /show.");
+  }
+
+  let found = this.findCreatureByName(targetName);
+  if (!found.target || typeof found.target.is !== "function" || !found.target.is("Player")) {
+    return player.sendCancelMessage("That player is not online.");
+  }
+
+  return player.sendCancelMessage(
+    handler.startVipShow(found.target, preset, intensity).message
+  );
+};
+
 CommandHandler.prototype.handleCommandBomb = function (player) {
 
   let result = gameServer.world.creatureHandler.bomberman.placeBomb(player);
@@ -770,6 +818,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/lasershow") {
     return this.handleCommandLaserShow(player, message);
+  }
+
+  if (message[0] === "/show") {
+    return this.handleCommandVipShow(player, message);
   }
 
   if (message[0] === "/bouncers") {
