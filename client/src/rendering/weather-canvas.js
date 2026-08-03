@@ -555,6 +555,124 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
   let trailLines = [];
   let phase = "opening";
   let angleTime = elapsedMs * Math.PI * 2 / 4200;
+  let customSpotlightTargets = null;
+  let floorHalf = Math.max(32, radius * 32);
+
+  function clamp(value, minimum, maximum) {
+    return Math.max(minimum, Math.min(maximum, value));
+  }
+
+  function easeInOut(progress) {
+    progress = clamp(progress, 0, 1);
+    return progress * progress * (3 - 2 * progress);
+  }
+
+  function squarePerimeterPoint(position, halfSize) {
+    let edgePosition = ((position % 1) + 1) % 1 * 4;
+    let edge = Math.floor(edgePosition);
+    let along = edgePosition - edge;
+    if(edge === 0) return { x: centerX - halfSize + along * halfSize * 2, y: centerY - halfSize };
+    if(edge === 1) return { x: centerX + halfSize, y: centerY - halfSize + along * halfSize * 2 };
+    if(edge === 2) return { x: centerX + halfSize - along * halfSize * 2, y: centerY + halfSize };
+    return { x: centerX - halfSize, y: centerY + halfSize - along * halfSize * 2 };
+  }
+
+  function squareTargets(halfSize, offset, reverse) {
+    return Array.from({ length: 9 }, function(_, index) {
+      let position = offset + (reverse ? -index : index) / 9;
+      return squarePerimeterPoint(position, halfSize);
+    });
+  }
+
+  function addSegment(x1, y1, x2, y2, alpha, colorIndex) {
+    trailLines.push({ x1: x1, y1: y1, x2: x2, y2: y2, alpha: alpha, colorIndex: colorIndex });
+  }
+
+  function addSquare(halfSize, alpha, colorIndex, angle) {
+    let corners = [
+      { x: -halfSize, y: -halfSize }, { x: halfSize, y: -halfSize },
+      { x: halfSize, y: halfSize }, { x: -halfSize, y: halfSize }
+    ];
+    if(angle) {
+      corners = corners.map(function(point) {
+        return {
+          x: point.x * Math.cos(angle) - point.y * Math.sin(angle),
+          y: point.x * Math.sin(angle) + point.y * Math.cos(angle)
+        };
+      });
+    }
+    corners.forEach(function(point) { point.x += centerX; point.y += centerY; });
+    for(let index = 0; index < 4; index++) {
+      let next = corners[(index + 1) % 4];
+      addSegment(corners[index].x, corners[index].y, next.x, next.y, alpha, (colorIndex + index) % 3);
+    }
+  }
+
+  function addPartialSquare(halfSize, progress, alpha, colorIndex) {
+    let remaining = clamp(progress, 0, 1) * 4;
+    for(let edge = 0; edge < 4 && remaining > 0; edge++) {
+      let portion = Math.min(1, remaining);
+      let start = squarePerimeterPoint(edge / 4, halfSize);
+      let end = squarePerimeterPoint((edge + portion) / 4, halfSize);
+      addSegment(start.x, start.y, end.x, end.y, alpha, (colorIndex + edge) % 3);
+      remaining -= portion;
+    }
+  }
+
+  function buildSquareSpiral(halfSize, step) {
+    let points = [];
+    for(let inset = 0; halfSize - inset >= 0; inset += step) {
+      let low = -halfSize + inset;
+      let high = halfSize - inset;
+      if(low > high) break;
+      if(points.length === 0) points.push({ x: low, y: low });
+      else points.push({ x: low, y: low });
+      points.push({ x: high, y: low });
+      points.push({ x: high, y: high });
+      points.push({ x: low, y: high });
+      if(high - low <= step) break;
+    }
+    return points.map(function(point) { return { x: centerX + point.x, y: centerY + point.y }; });
+  }
+
+  function buildPath(points) {
+    let segments = [];
+    let totalLength = 0;
+    for(let index = 1; index < points.length; index++) {
+      let length = Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+      segments.push({ from: points[index - 1], to: points[index], start: totalLength, length: length });
+      totalLength += length;
+    }
+    return { segments: segments, totalLength: totalLength };
+  }
+
+  function pointAlongPath(path, distance) {
+    distance = clamp(distance, 0, path.totalLength);
+    for(let index = 0; index < path.segments.length; index++) {
+      let segment = path.segments[index];
+      if(distance <= segment.start + segment.length || index === path.segments.length - 1) {
+        let portion = segment.length > 0 ? clamp((distance - segment.start) / segment.length, 0, 1) : 0;
+        return {
+          x: segment.from.x + (segment.to.x - segment.from.x) * portion,
+          y: segment.from.y + (segment.to.y - segment.from.y) * portion
+        };
+      }
+    }
+    return { x: centerX, y: centerY };
+  }
+
+  function addPathTrail(path, distance, alpha) {
+    path.segments.forEach(function(segment, index) {
+      if(segment.start >= distance) return;
+      let portion = clamp((distance - segment.start) / Math.max(1, segment.length), 0, 1);
+      addSegment(
+        segment.from.x, segment.from.y,
+        segment.from.x + (segment.to.x - segment.from.x) * portion,
+        segment.from.y + (segment.to.y - segment.from.y) * portion,
+        alpha, index % 3
+      );
+    });
+  }
 
   function ringTargets(ringRadius, twist, alternate) {
     return Array.from({ length: 9 }, function(_, index) {
@@ -566,57 +684,128 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
 
   if(show.mode === "default") {
     if(elapsedMs < 4000) {
-      phase = "opening";
-      let progress = elapsedMs / 4000;
-      targets = ringTargets(170 - progress * 90, angleTime, false);
-    } else if(elapsedMs < 8000) {
-      phase = "double-spiral";
-      let pulse = 78 + Math.sin((elapsedMs - 4000) / 430) * 34;
-      targets = ringTargets(pulse, -angleTime * 1.25, true);
-    } else if(elapsedMs < 12000) {
-      phase = "star";
-      targets = Array.from({ length: 9 }, function(_, index) {
-        let point = (index * 4) % 10;
-        let starRadius = point % 2 === 0 ? 126 : 54;
-        let angle = angleTime * 0.55 - Math.PI / 2 + point * Math.PI / 5;
-        return { x: centerX + Math.cos(angle) * starRadius, y: centerY + Math.sin(angle) * starRadius * 0.72 };
-      });
-    } else if(elapsedMs < 16000) {
-      phase = "wave";
-      targets = Array.from({ length: 9 }, function(_, index) {
-        let x = centerX - 145 + index * 36.25;
-        return { x: x, y: centerY + Math.sin(elapsedMs / 360 + index * 0.82) * 76 };
-      });
+      phase = "border-ignition";
+      let progress = easeInOut(elapsedMs / 4000);
+      let halfSize = 28 + (floorHalf - 28) * progress;
+      targets = squareTargets(halfSize, elapsedMs / 9000, false);
+      addPartialSquare(floorHalf, progress, 0.92, 0);
+      customSpotlightTargets = [
+        squarePerimeterPoint(0, halfSize), squarePerimeterPoint(0.25, halfSize),
+        squarePerimeterPoint(0.5, halfSize), squarePerimeterPoint(0.75, halfSize)
+      ];
+    } else if(elapsedMs < 9000) {
+      phase = "neon-frame";
+      let local = elapsedMs - 4000;
+      targets = squareTargets(floorHalf, local / 7000, false);
+      addSquare(floorHalf, 0.78 + Math.sin(local / 230) * 0.12, 0, 0);
     } else if(elapsedMs < 20000) {
-      phase = "tunnel";
+      phase = "square-implosion";
+      let local = elapsedMs - 9000;
+      let squareSizes = [floorHalf, 160, 128, 96, 64, 32];
+      let position = clamp(local / 11000, 0, 0.999999) * squareSizes.length;
+      let level = Math.min(squareSizes.length - 1, Math.floor(position));
+      let levelProgress = position - level;
+      let halfSize = squareSizes[level];
+      for(let complete = 0; complete < level; complete++) addSquare(squareSizes[complete], 0.22, complete % 3, 0);
+      addPartialSquare(halfSize, levelProgress, 0.94, level % 3);
+      targets = squareTargets(halfSize, levelProgress * 0.72, level % 2 === 1);
+    } else if(elapsedMs < 29000) {
+      phase = "square-spiral";
+      let local = elapsedMs - 20000;
+      let progress = easeInOut(local / 9000);
+      let spiralPath = buildPath(buildSquareSpiral(floorHalf, 32));
+      let headDistance = spiralPath.totalLength * progress;
+      let trainSpacing = spiralPath.totalLength * 0.026 * Math.sin(progress * Math.PI);
       targets = Array.from({ length: 9 }, function(_, index) {
-        let ring = index % 3;
-        let tunnelRadius = 38 + ring * 42 + Math.sin(elapsedMs / 310 + ring) * 12;
-        let angle = -angleTime * (1 + ring * 0.18) + index * Math.PI * 2 / 9;
-        return { x: centerX + Math.cos(angle) * tunnelRadius, y: centerY + Math.sin(angle) * tunnelRadius * 0.72 };
+        return pointAlongPath(spiralPath, headDistance - index * trainSpacing);
       });
-    } else if(elapsedMs < 27000) {
+      addPathTrail(spiralPath, headDistance, 0.72);
+    } else if(elapsedMs < 36000) {
+      phase = "square-reactor";
+      let local = elapsedMs - 29000;
+      let progress = local / 7000;
+      let reactorAngle = Math.sin(progress * Math.PI * 4) * Math.PI / 4;
+      let reactorHalf = 76 + Math.sin(progress * Math.PI * 6) * 34;
+      let baseTargets = squareTargets(reactorHalf, progress * 1.5, false);
+      targets = baseTargets.map(function(target) {
+        let x = target.x - centerX;
+        let y = target.y - centerY;
+        return {
+          x: centerX + x * Math.cos(reactorAngle) - y * Math.sin(reactorAngle),
+          y: centerY + x * Math.sin(reactorAngle) + y * Math.cos(reactorAngle)
+        };
+      });
+      addSquare(reactorHalf, 0.88, 1, reactorAngle);
+    } else if(elapsedMs < 43000) {
+      phase = "grid-scanner";
+      let local = elapsedMs - 36000;
+      let scan = (Math.sin(local / 7000 * Math.PI * 3 - Math.PI / 2) + 1) * 0.5;
+      let scanPosition = -floorHalf + scan * floorHalf * 2;
+      targets = [
+        { x: centerX + scanPosition, y: centerY - floorHalf }, { x: centerX + scanPosition, y: centerY }, { x: centerX + scanPosition, y: centerY + floorHalf },
+        { x: centerX - floorHalf, y: centerY + scanPosition }, { x: centerX, y: centerY + scanPosition }, { x: centerX + floorHalf, y: centerY + scanPosition },
+        { x: centerX + scanPosition, y: centerY + scanPosition }, { x: centerX - scanPosition, y: centerY + scanPosition }, { x: centerX + scanPosition, y: centerY - scanPosition }
+      ];
+      [-28, 0, 28].forEach(function(offset, index) {
+        let vertical = clamp(scanPosition + offset, -floorHalf, floorHalf);
+        let horizontal = clamp(scanPosition + offset, -floorHalf, floorHalf);
+        addSegment(centerX + vertical, centerY - floorHalf, centerX + vertical, centerY + floorHalf, index === 1 ? 0.58 : 0.2, index);
+        addSegment(centerX - floorHalf, centerY + horizontal, centerX + floorHalf, centerY + horizontal, index === 1 ? 0.58 : 0.2, index + 1);
+      });
+    } else if(elapsedMs < 49000) {
+      phase = "power-grid";
+      let local = elapsedMs - 43000;
+      let progress = local / 6000;
+      let spacing = 104 + Math.sin(progress * Math.PI * 6) * 18;
+      let rotation = Math.sin(progress * Math.PI * 2) * Math.PI / 4;
+      targets = Array.from({ length: 9 }, function(_, index) {
+        let x = (index % 3 - 1) * spacing;
+        let y = (Math.floor(index / 3) - 1) * spacing;
+        return {
+          x: centerX + x * Math.cos(rotation) - y * Math.sin(rotation),
+          y: centerY + x * Math.sin(rotation) + y * Math.cos(rotation)
+        };
+      });
+      for(let row = -1; row <= 1; row++) {
+        addSegment(centerX - spacing, centerY + row * spacing, centerX + spacing, centerY + row * spacing, 0.38, row + 1);
+        addSegment(centerX + row * spacing, centerY - spacing, centerX + row * spacing, centerY + spacing, 0.38, row + 2);
+      }
+    } else if(elapsedMs < 54000) {
+      phase = "center-explosion";
+      let local = elapsedMs - 49000;
+      if(local < 2800) {
+        let progress = easeInOut(local / 2800);
+        let spacing = 104 * (1 - progress);
+        targets = Array.from({ length: 9 }, function(_, index) {
+          return { x: centerX + (index % 3 - 1) * spacing, y: centerY + (Math.floor(index / 3) - 1) * spacing };
+        });
+      } else {
+        let progress = easeInOut((local - 2800) / 2200);
+        targets = squareTargets(floorHalf * progress, 0.35 * progress, false);
+        addPartialSquare(floorHalf, progress, 1, 2);
+      }
+    } else if(elapsedMs < 61000) {
       phase = "text";
-      let textElapsed = elapsedMs - 20000;
-      let tunnelEntryAngle = 20000 * Math.PI * 2 / 4200;
-      let textEntryTargets = Array.from({ length: 9 }, function(_, index) {
-        let ring = index % 3;
-        let tunnelRadius = 38 + ring * 42 + Math.sin(20000 / 310 + ring) * 12;
-        let angle = -tunnelEntryAngle * (1 + ring * 0.18) + index * Math.PI * 2 / 9;
-        return { x: centerX + Math.cos(angle) * tunnelRadius, y: centerY + Math.sin(angle) * tunnelRadius * 0.72 };
-      });
+      let textElapsed = elapsedMs - 54000;
+      let textEntryTargets = squareTargets(floorHalf, 0.35, false);
       let textFrame = this.__getLaserTextChoreography("CYRK", Math.max(0, textElapsed - 700) / 6300, centerX, centerY, radius, textElapsed, textEntryTargets);
       targets = textFrame.targets;
       trailLines = textFrame.trailLines;
-    } else if(elapsedMs < 32000) {
+    } else if(elapsedMs < 66000) {
       phase = "text-hold";
-      let holdFrame = this.__getLaserTextHoldChoreography("CYRK", centerX, centerY, radius, elapsedMs - 27000);
+      let holdFrame = this.__getLaserTextHoldChoreography("CYRK", centerX, centerY, radius, elapsedMs - 61000);
       targets = holdFrame.targets;
       trailLines = holdFrame.trailLines;
     } else {
-      phase = "finale";
-      let finaleProgress = Math.min(1, (elapsedMs - 32000) / 3000);
-      targets = ringTargets(55 + finaleProgress * 135, angleTime * 1.8, true);
+      phase = "square-finale";
+      let finaleProgress = clamp((elapsedMs - 66000) / 9000, 0, 1);
+      let finaleSizes = [32, 64, 96, 128, 160, floorHalf];
+      let position = Math.min(finaleSizes.length - 0.001, finaleProgress * finaleSizes.length);
+      let level = Math.floor(position);
+      let levelProgress = position - level;
+      for(let complete = 0; complete < level; complete++) addSquare(finaleSizes[complete], 0.2 + complete * 0.07, complete % 3, 0);
+      addPartialSquare(finaleSizes[level], levelProgress, 1, level % 3);
+      targets = squareTargets(finaleSizes[level], levelProgress * 0.8, level % 2 === 1);
     }
   } else {
     let textStart = 3000;
@@ -679,7 +868,7 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
     if(phaseProgress >= 1) this.__laserShowPhaseTransition = null;
   }
 
-  let spotlightTargets = [0, 2, 4, 6].map(function(index) {
+  let spotlightTargets = customSpotlightTargets || [0, 2, 4, 6].map(function(index) {
     let target = targets[index] || { x: centerX, y: centerY };
     return {
       x: centerX + (target.x - centerX) * 0.82,

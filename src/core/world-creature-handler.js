@@ -29,7 +29,7 @@ const PARTY_DANCE_FLOOR_CENTER = { x: 32515, y: 32346, z: 7 };
 const SPOTLIGHT_FOCUS_DURATION_MS = 11200;
 const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
-const LASER_SHOW_DEFAULT_DURATION_MS = 35000;
+const LASER_SHOW_DEFAULT_DURATION_MS = 75000;
 const LASER_SHOW_OUTRO_MS = 1300;
 const LASER_SHOW_MAX_TEXT_LENGTH = 12;
 const PARTY_READABLE_POSITIONS = {
@@ -481,7 +481,7 @@ CreatureHandler.prototype.startLaserShow = function (text) {
   return {
     ok: true,
     message: mode === "default"
-      ? "The 35-second CYRK laser show has started!"
+      ? "The 75-second CYRK laser show has started!"
       : "Laser show is drawing '%s' for %s seconds.".format(normalizedText, Math.ceil(durationMs / 1000))
   };
 }

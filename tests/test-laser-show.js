@@ -34,14 +34,14 @@ try {
   commands.handle(gm, "/lasershow");
   assert.strictEqual(handler.__laserShow.mode, "default");
   assert.strictEqual(handler.__laserShow.text, "CYRK");
-  assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 35000);
+  assert.strictEqual(handler.__laserShow.endsAt - handler.__laserShow.startedAt, 75000);
   assert.strictEqual(handler.__spotlightFocus, null, "a laser show should replace a conflicting player focus");
-  assert.ok(/35-second CYRK laser show/i.test(messages.at(-1)));
+  assert.ok(/75-second CYRK laser show/i.test(messages.at(-1)));
 
   const payload = handler.__getLaserShowPayload();
   assert.strictEqual(payload.mode, "default");
   assert.strictEqual(payload.text, "CYRK");
-  assert.strictEqual(payload.durationMs, 35000);
+  assert.strictEqual(payload.durationMs, 75000);
   assert.ok(payload.elapsedMs >= 0);
 
   commands.handle(gm, "/lasershow status");
