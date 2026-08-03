@@ -38,7 +38,7 @@ const WeatherCanvas = function(screen) {
   this.__laserGlyphMap = {
     "0": "abcefg", "1": "cf", "2": "acdeg", "3": "acdfg", "4": "bcdf",
     "5": "abdfg", "6": "abdefg", "7": "acf", "8": "abcdefg", "9": "abcdfg",
-    A: "abcdef", B: "beacdfg", C: "abeg", D: "cefghi", E: "abdeg", F: "abde",
+    A: "abcdef", B: "beacdfg", C: "abeg", D: "beacfg", E: "abdeg", F: "abde",
     G: "abefgd", H: "bcdef", I: "aghi", J: "cefg", K: "beqr",
     L: "beg", M: "bejqcf", N: "bescf", O: "abcefg", P: "abcde", Q: "abcefgm",
     R: "abcdem", S: "abdfg", T: "ahi", U: "bcefg", V: "bclm", W: "bceflm",
@@ -1342,6 +1342,11 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
   } else if(show.mode === "arcade") {
     let safeHalf = Math.min(176, floorHalf - 16);
 
+    function arcadeTriangle(value) {
+      let wrapped = ((value % 2) + 2) % 2;
+      return 1 - Math.abs(wrapped - 1);
+    }
+
     function arcadeCell(x, y, size, alpha, colorIndex, progress) {
       let half = size * 0.5;
       let points = [
@@ -1376,41 +1381,17 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       return reverse;
     }
 
-    function arcadeStackedScoreFrame(localMs, entryTargets) {
-      let rows = [
-        { text: "HIGH", y: centerY - 104, width: 300 },
-        { text: "SCORE", y: centerY, width: 330 },
-        { text: "CYRK", y: centerY + 104, width: 300 }
-      ];
-      let rowDuration = 2000;
-      let currentRow = Math.min(2, Math.floor(localMs / rowDuration));
-      let rowElapsed = localMs - currentRow * rowDuration;
-      let lines = [];
-      let previousTargets = entryTargets;
-      for(let index = 0; index < currentRow; index++) {
-        let completed = this.__getLaserTextChoreography(rows[index].text, 0.999999, centerX, rows[index].y, radius, 1000, null, rows[index].width);
-        completed.trailLines.forEach(function(line) { line.alpha = 0.56; lines.push(line); });
-        previousTargets = completed.targets;
-      }
-      let current = this.__getLaserTextChoreography(
-        rows[currentRow].text, Math.max(0, rowElapsed - 400) / 1600,
-        centerX, rows[currentRow].y, radius, rowElapsed, previousTargets, rows[currentRow].width
-      );
-      current.trailLines.forEach(function(line) { lines.push(line); });
-      return { targets: current.targets, trailLines: lines };
-    }
-
-    if(elapsedMs < 13000) {
+    if(elapsedMs < 16000) {
       phase = "arcade-callout";
       let callout;
-      if(elapsedMs < 4300) callout = arcadeWordFrame.call(this, "LET'S", elapsedMs, 2600, 1000, 700, 90);
-      else if(elapsedMs < 7900) callout = arcadeWordFrame.call(this, "DO", elapsedMs - 4300, 2000, 1000, 600, 140);
-      else callout = arcadeWordFrame.call(this, "THIS", elapsedMs - 7900, 3000, 1000, 1100, 95);
+      if(elapsedMs < 6000) callout = arcadeWordFrame.call(this, "LET'S", elapsedMs, 4200, 1000, 800, 90);
+      else if(elapsedMs < 10500) callout = arcadeWordFrame.call(this, "DO", elapsedMs - 6000, 2800, 1000, 700, 76);
+      else callout = arcadeWordFrame.call(this, "THIS", elapsedMs - 10500, 3700, 1000, 800, 76);
       targets = callout.targets;
       trailLines = callout.trailLines;
-    } else if(elapsedMs < 18000) {
+    } else if(elapsedMs < 21000) {
       phase = "insert-coin";
-      let progress = (elapsedMs - 13000) / 5000;
+      let progress = (elapsedMs - 16000) / 5000;
       let coinRadius;
       let coinY;
       if(progress < 0.45) {
@@ -1435,15 +1416,15 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
         let next = targets[(index + 1) % targets.length];
         addSegment(target.x, target.y, next.x, next.y, 0.62, index % 3);
       });
-    } else if(elapsedMs < 34000) {
+    } else if(elapsedMs < 42000) {
       phase = "arcade-tetris";
-      let progress = (elapsedMs - 18000) / 16000;
+      let progress = (elapsedMs - 21000) / 21000;
       let pieces = [
         { shape: [[-1.5, 0], [-0.5, 0], [0.5, 0], [1.5, 0]], cells: [[0, 10], [1, 10], [2, 10], [3, 10]] },
         { shape: [[-1, 0], [0, 0], [1, 0], [0, -1]], cells: [[4, 10], [5, 10], [6, 10], [5, 9]] },
         { shape: [[-1, 0], [0, 0], [1, 0], [-1, -1]], cells: [[7, 10], [8, 10], [9, 10], [7, 9]] },
-        { shape: [[-1, 0], [0, 0], [0, -1], [1, -1]], cells: [[3, 9], [4, 9], [4, 8], [5, 8]] },
-        { shape: [[0, 0], [1, 0], [0, -1], [1, -1]], cells: [[6, 9], [7, 9], [6, 8], [7, 8]] }
+        { shape: [[-1, 0], [0, 0], [0, -1], [1, -1]], cells: [[3, 10], [4, 10], [4, 9], [5, 9]] },
+        { shape: [[0, 0], [1, 0], [0, -1], [1, -1]], cells: [[8, 10], [9, 10], [8, 9], [9, 9]] }
       ];
       let piecePosition = Math.min(4.999999, progress * pieces.length);
       let pieceIndex = Math.floor(piecePosition);
@@ -1452,8 +1433,8 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       function gridPoint(cell) {
         return { x: centerX - 135 + cell[0] * 30, y: centerY - 150 + cell[1] * 30 };
       }
-      let clearProgress = pieceIndex === 2 && pieceProgress > 0.78
-        ? easeInOut((pieceProgress - 0.78) / 0.22)
+      let clearProgress = pieceIndex === 2 && pieceProgress > 0.82
+        ? easeInOut((pieceProgress - 0.82) / 0.18)
         : 0;
       for(let complete = 0; complete < pieceIndex; complete++) {
         pieces[complete].cells.forEach(function(cell, cellIndex) {
@@ -1467,14 +1448,12 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
         });
       }
       let finalPoints = piece.cells.map(gridPoint);
-      let averageX = finalPoints.reduce(function(total, point) { return total + point.x; }, 0) / 4;
+      let minFinalY = Math.min.apply(null, finalPoints.map(function(point) { return point.y; }));
       let activePoints = finalPoints.map(function(finalPoint, index) {
-        let shape = piece.shape[index];
         let descentProgress = pieceIndex === 0 ? pieceProgress : Math.max(0, pieceProgress - 0.16);
-        let fall = easeInOut(descentProgress / (pieceIndex === 0 ? 0.78 : 0.62));
-        let rotation = Math.sin(Math.min(1, descentProgress / 0.45) * Math.PI) * (pieceIndex % 2 === 0 ? Math.PI / 2 : -Math.PI / 2);
-        let startX = averageX + (shape[0] * Math.cos(rotation) - shape[1] * Math.sin(rotation)) * 30;
-        let startY = centerY - safeHalf + 14 + (shape[0] * Math.sin(rotation) + shape[1] * Math.cos(rotation)) * 30;
+        let fall = easeInOut(descentProgress / (pieceIndex === 0 ? 0.82 : 0.66));
+        let startX = finalPoint.x;
+        let startY = centerY - safeHalf + 14 + finalPoint.y - minFinalY;
         let point = {
           x: clamp(startX + (finalPoint.x - startX) * fall, centerX - safeHalf + 14, centerX + safeHalf - 14),
           y: clamp(startY + (finalPoint.y - startY) * fall, centerY - safeHalf + 14, centerY + safeHalf - 14)
@@ -1489,71 +1468,59 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
         }
         if(pieceIndex === 2 && piece.cells[index][1] < 10) point.y += clearProgress * 30;
         let activeAlpha = pieceIndex === 2 && piece.cells[index][1] === 10 ? 0.72 * (1 - clearProgress) : 0.72;
+        if(pieceIndex > 0 && pieceProgress < 0.16) activeAlpha *= easeInOut((pieceProgress - 0.1) / 0.06);
         if(activeAlpha > 0) arcadeCell(point.x, point.y, 25, activeAlpha, (pieceIndex + index) % 3, 1);
         return point;
       });
       targets = Array.from({ length: 9 }, function(_, index) { return activePoints[index % 4]; });
-      if(pieceIndex === 2 && pieceProgress > 0.78) {
+      if(pieceIndex === 2 && pieceProgress > 0.82) {
         addSegment(centerX - 150, centerY + 150, centerX - 150 + clearProgress * 300, centerY + 150, 0.95 * (1 - clearProgress * 0.6), 1);
       }
-    } else if(elapsedMs < 45000) {
+    } else if(elapsedMs < 58000) {
       phase = "arcade-pong";
-      let progress = (elapsedMs - 34000) / 11000;
-      let ballX = -145 + (1 - Math.abs(((progress * 10) % 2) - 1)) * 290;
-      let ballY = Math.sin(progress * Math.PI * 10) * 118;
-      let paddleY = clamp(ballY * 0.72, -112, 112);
+      let progress = (elapsedMs - 42000) / 16000;
+      function pongBall(sampleProgress) {
+        let horizontal = arcadeTriangle(sampleProgress * 10.8);
+        let verticalPhase = sampleProgress * 14.3 + Math.sin(sampleProgress * Math.PI * 6) * 0.24;
+        return {
+          x: centerX - 145 + horizontal * 290,
+          y: centerY - 126 + arcadeTriangle(verticalPhase) * 252
+        };
+      }
+      let ball = pongBall(progress);
+      let delayedBall = pongBall(Math.max(0, progress - 0.035));
+      let leftPaddleY = clamp((ball.y - centerY) * 0.88, -110, 110);
+      let rightPaddleY = clamp((delayedBall.y - centerY) * 0.88, -110, 110);
       targets = Array.from({ length: 9 }, function(_, index) {
-        if(index === 6) return { x: centerX + ballX, y: centerY + ballY };
-        if(index < 3) return { x: centerX - 154, y: centerY + paddleY + (index - 1) * 30 };
-        if(index < 6) return { x: centerX + 154, y: centerY - paddleY + (index - 4) * 30 };
-        return { x: centerX + ballX - (index - 6) * 13, y: centerY + ballY };
+        if(index === 6) return ball;
+        if(index < 3) return { x: centerX - 154, y: centerY + leftPaddleY + (index - 1) * 30 };
+        if(index < 6) return { x: centerX + 154, y: centerY + rightPaddleY + (index - 4) * 30 };
+        let echo = pongBall(Math.max(0, progress - (index - 6) * 0.009));
+        return echo;
       });
-      addSegment(centerX - 154, centerY + paddleY - 45, centerX - 154, centerY + paddleY + 45, 0.86, 0);
-      addSegment(centerX + 154, centerY - paddleY - 45, centerX + 154, centerY - paddleY + 45, 0.86, 2);
+      addSegment(centerX - 154, centerY + leftPaddleY - 45, centerX - 154, centerY + leftPaddleY + 45, 0.86, 0);
+      addSegment(centerX + 154, centerY + rightPaddleY - 45, centerX + 154, centerY + rightPaddleY + 45, 0.86, 2);
       for(let echo = 1; echo <= 8; echo++) {
-        let past = Math.max(0, progress - echo * 0.006);
-        let pastX = -145 + (1 - Math.abs(((past * 10) % 2) - 1)) * 290;
-        let pastY = Math.sin(past * Math.PI * 10) * 118;
-        let nextPast = Math.max(0, progress - (echo - 1) * 0.006);
-        let nextX = -145 + (1 - Math.abs(((nextPast * 10) % 2) - 1)) * 290;
-        let nextY = Math.sin(nextPast * Math.PI * 10) * 118;
-        addSegment(centerX + pastX, centerY + pastY, centerX + nextX, centerY + nextY, 0.65 - echo * 0.055, 1);
+        let past = pongBall(Math.max(0, progress - echo * 0.006));
+        let nextPast = pongBall(Math.max(0, progress - (echo - 1) * 0.006));
+        addSegment(past.x, past.y, nextPast.x, nextPast.y, 0.65 - echo * 0.055, 1);
       }
-    } else if(elapsedMs < 57000) {
-      phase = "arcade-breakout";
-      let progress = (elapsedMs - 45000) / 12000;
-      let destroyedPosition = Math.max(0, (progress - 0.12) / 0.88 * 18);
-      for(let brick = 0; brick < 18; brick++) {
-        let row = Math.floor(brick / 6);
-        let column = brick % 6;
-        let life = clamp(brick + 1 - destroyedPosition, 0, 1);
-        if(life <= 0) continue;
-        arcadeCell(centerX - 125 + column * 50, centerY - 138 + row * 30, 42 * life, 0.48 * life, row % 3, life);
-      }
-      let ballX = -142 + (1 - Math.abs(((progress * 11) % 2) - 1)) * 284;
-      let ballY = 132 - (1 - Math.abs(((progress * 15) % 2) - 1)) * 270;
-      let paddleX = clamp(ballX * 0.72, -118, 118);
-      targets = Array.from({ length: 9 }, function(_, index) {
-        if(index === 0) return { x: centerX + ballX, y: centerY + ballY };
-        if(index < 4) return { x: centerX + paddleX + (index - 2) * 30, y: centerY + 154 };
-        let angle = progress * Math.PI * 12 + index * Math.PI * 2 / 5;
-        return { x: centerX + ballX + Math.cos(angle) * 15, y: centerY + ballY + Math.sin(angle) * 15 };
-      });
-      addSegment(centerX + paddleX - 58, centerY + 154, centerX + paddleX + 58, centerY + 154, 0.88, 1);
-    } else if(elapsedMs < 69000) {
+    } else if(elapsedMs < 74000) {
       phase = "arcade-snake";
-      let progress = easeInOut((elapsedMs - 57000) / 12000);
+      let progress = easeInOut((elapsedMs - 58000) / 16000);
       let snakePoints = [
         [-160, -150], [160, -150], [160, -90], [-120, -90], [-120, -30],
         [120, -30], [120, 30], [-120, 30], [-120, 90], [160, 90], [160, 150], [-160, 150]
       ].map(function(point) { return { x: centerX + point[0], y: centerY + point[1] }; });
       let snakePath = buildPath(snakePoints);
       let headDistance = snakePath.totalLength * progress;
-      let spacing = 34 * Math.sin(progress * Math.PI);
-      targets = Array.from({ length: 9 }, function(_, index) {
+      let spacing = 36 * Math.sin(progress * Math.PI);
+      targets = Array.from({ length: 8 }, function(_, index) {
         return pointAlongPath(snakePath, headDistance - index * spacing);
       });
-      let tailDistance = Math.max(0, headDistance - spacing * 8);
+      let food = snakePoints[snakePoints.length - 1];
+      targets.push({ x: food.x, y: food.y });
+      let tailDistance = Math.max(0, headDistance - spacing * 7);
       snakePath.segments.forEach(function(segment, index) {
         let from = Math.max(tailDistance, segment.start);
         let to = Math.min(headDistance, segment.start + segment.length);
@@ -1562,9 +1529,11 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
         let end = pointAlongPath(snakePath, to);
         addSegment(start.x, start.y, end.x, end.y, 0.7, index % 3);
       });
-    } else if(elapsedMs < 81000) {
+      let foodGlow = 1 - easeInOut((progress - 0.94) / 0.06);
+      if(foodGlow > 0) arcadeCell(food.x, food.y, 12 + foodGlow * 6, 0.9 * foodGlow, 1, 1);
+    } else if(elapsedMs < 88000) {
       phase = "space-invaders";
-      let progress = (elapsedMs - 69000) / 12000;
+      let progress = (elapsedMs - 74000) / 14000;
       let formationX = -58 + (1 - Math.abs(((progress * 6) % 2) - 1)) * 116;
       let formationY = -118 + progress * 74;
       let defeated = Math.max(0, (progress - 0.42) / 0.58 * 9);
@@ -1583,44 +1552,49 @@ WeatherCanvas.prototype.__getLaserShowFrame = function(show, centerX, centerY, r
       let shot = (progress * 9) % 1;
       let shotX = targets[Math.min(8, Math.floor(defeated))].x;
       addSegment(centerX, centerY + 160, centerX + (shotX - centerX) * shot, centerY + 160 - shot * 290, 0.9, 1);
-    } else if(elapsedMs < 90000) {
-      phase = "pacman-chase";
-      let progress = (elapsedMs - 81000) / 9000;
-      let mazePoints = [
-        [-150, -130], [150, -130], [150, -45], [-70, -45], [-70, 45],
-        [150, 45], [150, 130], [-150, 130], [-150, 45], [40, 45], [40, -45], [-150, -45], [-150, -130]
-      ].map(function(point) { return { x: centerX + point[0], y: centerY + point[1] }; });
-      let mazePath = buildPath(mazePoints);
-      let reveal = clamp(progress / 0.18, 0, 1);
-      addPathTrail(mazePath, mazePath.totalLength * reveal, 0.28);
-      let chase = easeInOut(Math.max(0, (progress - 0.12) / 0.88));
-      let pacDistance = mazePath.totalLength * chase;
-      targets = Array.from({ length: 9 }, function(_, index) {
-        if(index === 0) return pointAlongPath(mazePath, pacDistance);
-        if(index < 4) return pointAlongPath(mazePath, pacDistance - index * 52);
-        let foodDistance = mazePath.totalLength * (index - 3) / 6;
-        let food = pointAlongPath(mazePath, foodDistance);
-        let eaten = easeInOut((chase - (index - 3) / 6) * 8);
-        let pacman = pointAlongPath(mazePath, pacDistance);
-        return { x: food.x + (pacman.x - food.x) * eaten, y: food.y + (pacman.y - food.y) * eaten };
-      });
     } else {
-      phase = "arcade-high-score";
-      let local = elapsedMs - 90000;
-      let pacmanExit = Array.from({ length: 9 }, function() { return { x: centerX - 150, y: centerY - 130 }; });
+      phase = "arcade-party-finale";
+      let local = elapsedMs - 88000;
+      let invaderExit = Array.from({ length: 9 }, function() { return { x: centerX, y: centerY + 154 }; });
+      let completedParty = this.__getLaserTextChoreography("PARTY", 0.999999, centerX, centerY - 58, radius, 1000, null, 340, 76);
+      let completedOn = this.__getLaserTextChoreography("ON!", 0.999999, centerX, centerY + 66, radius, 1000, null, 300, 108);
       if(local < 6000) {
-        let score = arcadeStackedScoreFrame.call(this, local, pacmanExit);
-        targets = score.targets;
-        trailLines = score.trailLines;
+        if(local < 3300) {
+          let party = this.__getLaserTextChoreography(
+            "PARTY", Math.max(0, local - 500) / 2800,
+            centerX, centerY - 58, radius, local, invaderExit, 340, 76
+          );
+          targets = party.targets;
+          trailLines = party.trailLines;
+        } else {
+          let onElapsed = local - 3300;
+          let on = this.__getLaserTextChoreography(
+            "ON!", Math.max(0, onElapsed - 500) / 2200,
+            centerX, centerY + 66, radius, onElapsed, completedParty.targets, 300, 108
+          );
+          completedParty.trailLines.forEach(function(line) { line.alpha = 0.66; trailLines.push(line); });
+          on.trailLines.forEach(function(line) { trailLines.push(line); });
+          targets = on.targets;
+        }
       } else {
-        let completedScore = arcadeStackedScoreFrame.call(this, 5999, pacmanExit);
-        let partyElapsed = local - 6000;
-        let party = this.__getLaserTextChoreography(
-          "PARTY ON!", Math.max(0, partyElapsed - 700) / 2000,
-          centerX, centerY, radius, partyElapsed, completedScore.targets, 350, 76
-        );
-        targets = party.targets;
-        trailLines = party.trailLines;
+        completedParty.trailLines.forEach(function(line) { line.alpha = 0.76; trailLines.push(line); });
+        completedOn.trailLines.forEach(function(line) { line.alpha = 0.8; trailLines.push(line); });
+        let presentation = local - 6000;
+        let pulseProgress = Math.max(0, presentation - 1000) / 5000;
+        let frameHalf = clamp(158 - Math.sin(pulseProgress * Math.PI * 4) * 18, 140, 174);
+        let frameOffset = presentation / 6200;
+        let travel = easeInOut(presentation / 1000);
+        targets = Array.from({ length: 9 }, function(_, index) {
+          let frame = squarePerimeterPoint(frameOffset + index / 9, frameHalf);
+          let origin = completedOn.targets[index] || completedOn.targets[0];
+          return { x: origin.x + (frame.x - origin.x) * travel, y: origin.y + (frame.y - origin.y) * travel };
+        });
+        if(presentation > 1000) {
+          let rayAlpha = 0.26 + Math.max(0, Math.sin(pulseProgress * Math.PI * 8)) * 0.54;
+          targets.forEach(function(target, index) {
+            addSegment(target.x, target.y, centerX + (target.x - centerX) * 0.68, centerY + (target.y - centerY) * 0.68, rayAlpha, index % 3);
+          });
+        }
       }
     }
   } else {

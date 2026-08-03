@@ -485,6 +485,7 @@ const kGlyph = weather.__getLaserGlyphLines("K", 0, 0, 100);
 const mGlyph = weather.__getLaserGlyphLines("M", 0, 0, 100);
 const nGlyph = weather.__getLaserGlyphLines("N", 0, 0, 100);
 const bGlyph = weather.__getLaserGlyphLines("B", 0, 0, 100);
+const dGlyph = weather.__getLaserGlyphLines("D", 0, 0, 100);
 assert.strictEqual(kGlyph.length, 4, "K should use one complete stem and two clean diagonals");
 assert.strictEqual(mGlyph.length, 6, "M should use two complete stems and two inward diagonals");
 assert.strictEqual(
@@ -507,6 +508,17 @@ assert.strictEqual(
   bGlyph.filter((line) => Math.abs(line.y1 - line.y2) < 0.01).length,
   3,
   "B should include clear top, middle and bottom bars"
+);
+assert.strictEqual(dGlyph.length, 6, "D should use a complete left stem with a closed top, right and bottom outline");
+assert.strictEqual(
+  dGlyph.filter((line) => Math.abs(line.x1 - line.x2) < 0.01).length,
+  4,
+  "D should retain both halves of its left and right vertical sides"
+);
+assert.strictEqual(
+  dGlyph.filter((line) => Math.abs(line.y1 - line.y2) < 0.01).length,
+  2,
+  "D should have readable top and bottom bars without a false middle bar"
 );
 
 const partialLetter = weather.__getLaserTextChoreography("K", 0.4, 240, 176, 6, 900);
@@ -738,15 +750,13 @@ assert.strictEqual(showFrame, null, "CYRK DIMENSION should release the venue lig
 
 const arcadePhases = [
   [2000, "arcade-callout"],
-  [15000, "insert-coin"],
-  [23000, "arcade-tetris"],
-  [39000, "arcade-pong"],
-  [51000, "arcade-breakout"],
-  [63000, "arcade-snake"],
-  [75000, "space-invaders"],
-  [85000, "pacman-chase"],
-  [93000, "arcade-high-score"],
-  [98500, "arcade-high-score"]
+  [18000, "insert-coin"],
+  [30000, "arcade-tetris"],
+  [50000, "arcade-pong"],
+  [65000, "arcade-snake"],
+  [80000, "space-invaders"],
+  [90000, "arcade-party-finale"],
+  [98500, "arcade-party-finale"]
 ];
 arcadePhases.forEach(function(sample) {
   showFrame = setLaserShow("arcade", "NEON ARCADE", sample[0], 100000);
@@ -770,7 +780,7 @@ for(let elapsed = 0; elapsed < 100000; elapsed += 1000) {
   );
 }
 
-const arcadeBoundaries = [13000, 18000, 34000, 45000, 57000, 69000, 81000, 90000];
+const arcadeBoundaries = [16000, 21000, 42000, 58000, 74000, 88000];
 arcadeBoundaries.forEach(function(boundary) {
   showFrame = setLaserShow("arcade", "NEON ARCADE", boundary - 100, 100000);
   const before = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
@@ -785,7 +795,7 @@ arcadeBoundaries.forEach(function(boundary) {
   );
 });
 
-[21200, 24400, 27600, 30800].forEach(function(boundary) {
+[25200, 29400, 33600, 37800].forEach(function(boundary) {
   showFrame = setLaserShow("arcade", "NEON ARCADE", boundary - 1, 100000);
   const settledPiece = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
   now += 1;
@@ -797,7 +807,7 @@ arcadeBoundaries.forEach(function(boundary) {
   );
 });
 
-[[4200, 100], [7800, 100], [95999, 1]].forEach(function(sample) {
+[[5900, 100], [10400, 100], [93999, 1]].forEach(function(sample) {
   showFrame = setLaserShow("arcade", "NEON ARCADE", sample[0], 100000);
   const before = showFrame.laserShow.targets.map((target) => ({ x: target.x, y: target.y }));
   now += sample[1];
@@ -809,14 +819,29 @@ arcadeBoundaries.forEach(function(boundary) {
   );
 });
 
-showFrame = setLaserShow("arcade", "NEON ARCADE", 3500, 100000);
+showFrame = setLaserShow("arcade", "NEON ARCADE", 4700, 100000);
 assert.ok(showFrame.laserShow.trailLines.length > 5, "LET'S should remain visible for its one-second presentation");
-showFrame = setLaserShow("arcade", "NEON ARCADE", 6500, 100000);
+showFrame = setLaserShow("arcade", "NEON ARCADE", 9300, 100000);
 assert.ok(showFrame.laserShow.trailLines.length > 2, "DO should be drawn in the same center position");
-showFrame = setLaserShow("arcade", "NEON ARCADE", 10800, 100000);
+const doHeight = Math.max.apply(null, showFrame.laserShow.trailLines.map((line) => Math.max(line.y1, line.y2)))
+  - Math.min.apply(null, showFrame.laserShow.trailLines.map((line) => Math.min(line.y1, line.y2)));
+showFrame = setLaserShow("arcade", "NEON ARCADE", 14700, 100000);
 assert.ok(showFrame.laserShow.trailLines.length > 4, "THIS should complete the arcade callout before becoming a coin");
+const thisHeight = Math.max.apply(null, showFrame.laserShow.trailLines.map((line) => Math.max(line.y1, line.y2)))
+  - Math.min.apply(null, showFrame.laserShow.trailLines.map((line) => Math.min(line.y1, line.y2)));
+assert.ok(Math.abs(doHeight - thisHeight) < 1, "DO and THIS should use the same letter height");
+
+showFrame = setLaserShow("arcade", "NEON ARCADE", 62000, 100000);
+const firstFoodPosition = showFrame.laserShow.targets[8];
+showFrame = setLaserShow("arcade", "NEON ARCADE", 71000, 100000);
+assert.ok(
+  Math.abs(showFrame.laserShow.targets[8].x - firstFoodPosition.x) < 0.01
+  && Math.abs(showFrame.laserShow.targets[8].y - firstFoodPosition.y) < 0.01,
+  "one laser should hold the Snake food dot still until the snake reaches it"
+);
 showFrame = setLaserShow("arcade", "NEON ARCADE", 99500, 100000);
 assert.ok(showFrame.laserShow.amount > 0 && showFrame.laserShow.amount < 1, "PARTY ON should fade with the final arcade screen");
+assert.ok(showFrame.laserShow.trailLines.length > 12, "the large two-line PARTY ON finale should remain visible through the closing effect");
 showFrame = setLaserShow("arcade", "NEON ARCADE", 100000, 100000);
 assert.strictEqual(showFrame, null, "NEON ARCADE should release the venue lights after 100 seconds");
 
