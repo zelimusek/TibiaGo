@@ -73,8 +73,15 @@ SoundManager.prototype.setMasterVolume = function(amount) {
 SoundManager.prototype.setRadioEnvironmentalMute = function (muted) {
 
   this.__radioEnvironmentalMute = muted === true;
-  if (this.__currentAmbientTrace !== null) {
-    this.__currentAmbientTrace.setVolume(this.__radioEnvironmentalMute ? 0 : this.__masterVolume);
+  if (this.__radioEnvironmentalMute) {
+    Object.values(this.ambientTraces).forEach(function (trace) {
+      trace.stop();
+      trace.__volume = 0;
+      trace.__volumeTarget = 0;
+      trace.__counter = 0;
+    });
+  } else if (this.__currentAmbientTrace !== null) {
+    this.__currentAmbientTrace.setVolume(this.__masterVolume);
   }
 
 }
