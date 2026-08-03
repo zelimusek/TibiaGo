@@ -574,7 +574,7 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
 
   if (!action) {
     return player.sendCancelMessage(
-      "Usage: /show Player Name [effect] [preset] [intensity], /show status or /show stop. Try /show Player Name all."
+      "Usage: /show Player Name [effect] [preset] [intensity], /show crowd [...], /show status or /show stop."
     );
   }
   if (action === "off" || action === "stop") {
@@ -585,7 +585,7 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   }
   if (action === "help" || action === "effects") {
     return player.sendCancelMessage(
-      "Show effects: laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name and all. Example: /show Player Name vortex fire intense."
+      "Show effects: laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name and all. Example: /show crowd all fire intense."
     );
   }
 
@@ -627,6 +627,12 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   let targetName = argumentsList.join(" ").trim();
   if (!targetName) {
     return player.sendCancelMessage("Enter the player name after /show.");
+  }
+
+  if (targetName.toLowerCase() === "crowd") {
+    return player.sendCancelMessage(
+      handler.startCrowdShow(effect, preset, intensity).message
+    );
   }
 
   let found = this.findCreatureByName(targetName);

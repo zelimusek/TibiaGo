@@ -866,7 +866,7 @@ assert.ok(showFrame.laserShow.trailLines.length > 12, "the large two-line PARTY 
 showFrame = setLaserShow("arcade", "NEON ARCADE", 100000, 100000);
 assert.strictEqual(showFrame, null, "NEON ARCADE should release the venue lights after 100 seconds");
 
-function setVipShow(elapsedMs, preset, intensityName, effect, durationMs, participants) {
+function setVipShow(elapsedMs, preset, intensityName, effect, durationMs, participants, crowd) {
   effect = effect || "laser";
   durationMs = durationMs || 12000;
   weather.setDiscoLights(false, false, 80, 100, 120, 6, {
@@ -888,6 +888,7 @@ function setVipShow(elapsedMs, preset, intensityName, effect, durationMs, partic
       effect: effect,
       preset: preset,
       intensity: intensityName,
+      crowd: crowd === true,
       title: "DANCE FLOOR STAR!",
       participants: participants || [],
     },
@@ -935,6 +936,26 @@ specialEffects.forEach((effect) => {
   assert.strictEqual(showFrame.vipShow.effect, effect, effect + " must survive ambience validation");
   weather.drawDiscoLights();
   assert.ok(fills > beforeFills || strokes > beforeStrokes, effect + " must render visible canvas geometry");
+});
+
+const crowdParticipants = [
+  { targetId: 901, targetName: "North West", targetPosition: { x: 32514, y: 32345, z: 7 } },
+  { targetId: 902, targetName: "North East", targetPosition: { x: 32516, y: 32345, z: 7 } },
+  { targetId: 903, targetName: "South East", targetPosition: { x: 32516, y: 32347, z: 7 } },
+  { targetId: 904, targetName: "South West", targetPosition: { x: 32514, y: 32347, z: 7 } },
+];
+const crowdEffects = ["laser"].concat(specialEffects);
+crowdEffects.forEach((effect) => {
+  const beforeFills = fills;
+  const beforeStrokes = strokes;
+  showFrame = setVipShow(5200, "rainbow", "normal", effect, 12000, crowdParticipants, true);
+  assert.strictEqual(showFrame.vipShow.crowd, true, effect + " must preserve crowd mode");
+  assert.strictEqual(showFrame.vipShow.crowdCount, 4);
+  assert.strictEqual(showFrame.vipShow.crowdLayout, "constellation");
+  assert.strictEqual(showFrame.vipShow.centerX, 240, "crowd effects must use the dancers' shared center");
+  assert.strictEqual(showFrame.vipShow.centerY, 368, "crowd effects must use the dancers' shared center");
+  weather.drawDiscoLights();
+  assert.ok(fills > beforeFills || strokes > beforeStrokes, effect + " must add visible crowd choreography");
 });
 
 showFrame = setVipShow(100, "fire", "intense", "all", 54000);

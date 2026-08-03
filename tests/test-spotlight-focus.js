@@ -32,6 +32,16 @@ const spectator = {
     return type === "Player";
   },
 };
+const newcomer = {
+  position: new Position(32514, 32345, 7),
+  getId: () => 779,
+  getProperty(property) {
+    return property === CONST.PROPERTIES.NAME ? "New Dancer" : null;
+  },
+  is(type) {
+    return type === "Player";
+  },
+};
 
 const handler = Object.create(CreatureHandler.prototype);
 handler.__spotlightFocus = null;
@@ -99,6 +109,7 @@ try {
     effect: "laser",
     preset: "fire",
     intensity: "intense",
+    crowd: false,
     title: "DANCE FLOOR STAR!",
     participants: [{ targetId: 778, targetName: "Club Friend", target: spectator }]
   });
@@ -133,12 +144,39 @@ try {
   assert.ok(/all show in rainbow style/i.test(messages.at(-1)));
   handler.clearSpotlightFocus();
 
+  commands.handle(gm, "/show crowd all fire intense");
+  assert.strictEqual(handler.__spotlightFocus.source, "vip-crowd-show");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.crowd, true);
+  assert.strictEqual(handler.__spotlightFocus.vipShow.effect, "all");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.participants.length, 2);
+  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 54000);
+  assert.ok(/started for 2 dancers/i.test(messages.at(-1)));
+  assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.crowd, true);
+
+  handler.__playerMap.set("NEW DANCER", newcomer);
+  handler.__creatureMap.set(newcomer.getId(), newcomer);
+  assert.strictEqual(handler.__refreshCrowdShowParticipants(), true);
+  assert.strictEqual(handler.__spotlightFocus.vipShow.participants.length, 3, "a player entering during the show must join it");
+
+  handler.__playerMap.delete("PARTY HERO");
+  handler.__creatureMap.delete(target.getId());
+  assert.strictEqual(handler.__refreshCrowdShowParticipants(), true);
+  assert.notStrictEqual(handler.__spotlightFocus.targetId, target.getId(), "the crowd show must choose a new anchor when its first dancer leaves");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.participants.length, 2);
+  commands.handle(gm, "/show status");
+  assert.ok(/Crowd all show.*2 dancers/i.test(messages.at(-1)));
+  commands.handle(gm, "/show stop");
+  handler.__playerMap.set("PARTY HERO", target);
+  handler.__creatureMap.set(target.getId(), target);
+  handler.__playerMap.delete("NEW DANCER");
+  handler.__creatureMap.delete(newcomer.getId());
+
   handler.isInsidePartyRadioZone = () => false;
   commands.handle(gm, "/spotlight Party Hero");
   assert.strictEqual(handler.__spotlightFocus, null);
   assert.ok(/inside the dance hall/i.test(messages.at(-1)));
 
-  console.log("PASS: manual spotlight focus, winner celebrations and targeted VIP shows synchronize correctly.");
+  console.log("PASS: manual spotlight focus, targeted shows and dynamic crowd shows synchronize correctly.");
 } finally {
   process.gameServer = originalProcessGameServer;
   global.gameServer = originalGlobalGameServer;

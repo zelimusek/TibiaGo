@@ -31,6 +31,7 @@ const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
 const VIP_SHOW_DURATION_MS = 12000;
 const VIP_SHOW_ALL_DURATION_MS = 54000;
+const VIP_SHOW_MAX_PARTICIPANTS = 24;
 const VIP_SHOW_PRESETS = new Set(["rainbow", "fire", "ice", "toxic", "romance"]);
 const VIP_SHOW_INTENSITIES = new Set(["soft", "normal", "intense"]);
 const VIP_SHOW_EFFECTS = new Set([
@@ -445,11 +446,12 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
       effect: VIP_SHOW_EFFECTS.has(options.vipShow.effect) ? options.vipShow.effect : "laser",
       preset: VIP_SHOW_PRESETS.has(options.vipShow.preset) ? options.vipShow.preset : "rainbow",
       intensity: VIP_SHOW_INTENSITIES.has(options.vipShow.intensity) ? options.vipShow.intensity : "normal",
+      crowd: options.vipShow.crowd === true,
       title: typeof options.vipShow.title === "string"
         ? options.vipShow.title.slice(0, 40)
         : "DANCE FLOOR STAR!",
       participants: Array.isArray(options.vipShow.participants)
-        ? options.vipShow.participants.slice(0, 12).filter(function (participant) {
+        ? options.vipShow.participants.slice(0, VIP_SHOW_MAX_PARTICIPANTS).filter(function (participant) {
           return participant
             && Number.isInteger(participant.targetId)
             && participant.target
@@ -484,6 +486,7 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
         effect: vipShow.effect,
         preset: vipShow.preset,
         intensity: vipShow.intensity,
+        crowd: vipShow.crowd,
         title: vipShow.title,
         participantIds: vipShow.participants.map(function (participant) {
           return participant.targetId;
@@ -505,6 +508,62 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
         : "All spotlights are now following %s for %s seconds.")
         .format(this.__spotlightFocus.targetName, Math.ceil(duration / 1000))
   };
+}
+
+CreatureHandler.prototype.__getPartyRadioPlayers = function () {
+  let players = [];
+  if (!(this.__playerMap instanceof Map)) return players;
+
+  this.__playerMap.forEach(function (player) {
+    if (!player || typeof player.getId !== "function" || !player.position) return;
+    if (!this.isInsidePartyRadioZone(player.position)) return;
+    players.push(player);
+  }, this);
+
+  return players.sort(function (left, right) {
+    return left.getId() - right.getId();
+  }).slice(0, VIP_SHOW_MAX_PARTICIPANTS);
+}
+
+CreatureHandler.prototype.__toVipShowParticipant = function (player) {
+  return {
+    targetId: player.getId(),
+    targetName: player.getProperty(CONST.PROPERTIES.NAME),
+    target: player
+  };
+}
+
+CreatureHandler.prototype.__refreshCrowdShowParticipants = function () {
+  let focus = this.__spotlightFocus;
+  if (!focus || !focus.vipShow || focus.vipShow.crowd !== true) return false;
+
+  let players = this.__getPartyRadioPlayers();
+  if (players.length === 0) {
+    this.__spotlightFocus = null;
+    this.__resyncRadioAmbience();
+    return true;
+  }
+
+  let signature = players.map(function (player) { return player.getId(); }).join(",");
+  if (focus.vipShow.participantSignature === signature) return false;
+
+  focus.vipShow.participants = players.map(this.__toVipShowParticipant.bind(this));
+  focus.vipShow.participantSignature = signature;
+
+  let anchor = players.find(function (player) { return player.getId() === focus.targetId; });
+  if (!anchor) {
+    anchor = players[0];
+    focus.target = anchor;
+    focus.targetId = anchor.getId();
+    focus.targetName = anchor.getProperty(CONST.PROPERTIES.NAME);
+  }
+
+  console.log("[VIP CROWD SHOW] %s", JSON.stringify({
+    action: "participants",
+    participantIds: players.map(function (player) { return player.getId(); })
+  }));
+  this.__resyncRadioAmbience();
+  return true;
 }
 
 CreatureHandler.prototype.startVipShow = function (player, effect, preset, intensity) {
@@ -567,6 +626,63 @@ CreatureHandler.prototype.startVipShow = function (player, effect, preset, inten
   return result;
 }
 
+CreatureHandler.prototype.startCrowdShow = function (effect, preset, intensity) {
+  effect = String(effect || "laser").toLowerCase();
+  preset = String(preset || "rainbow").toLowerCase();
+  intensity = String(intensity || "normal").toLowerCase();
+
+  if (!VIP_SHOW_EFFECTS.has(effect)) {
+    return { ok: false, message: "Unknown show effect. Use /show effects for the full list." };
+  }
+  if (!VIP_SHOW_PRESETS.has(preset)) {
+    return { ok: false, message: "Unknown show preset. Use rainbow, fire, ice, toxic or romance." };
+  }
+  if (!VIP_SHOW_INTENSITIES.has(intensity)) {
+    return { ok: false, message: "Unknown show intensity. Use soft, normal or intense." };
+  }
+
+  let players = this.__getPartyRadioPlayers();
+  if (players.length === 0) {
+    return { ok: false, message: "At least one player must be inside the dance hall." };
+  }
+
+  players.sort(function (left, right) {
+    function distance(player) {
+      return Math.max(
+        Math.abs(player.position.x - PARTY_DANCE_FLOOR_CENTER.x),
+        Math.abs(player.position.y - PARTY_DANCE_FLOOR_CENTER.y)
+      );
+    }
+    return distance(left) - distance(right) || left.getId() - right.getId();
+  });
+
+  let durationMs = effect === "all" ? VIP_SHOW_ALL_DURATION_MS : VIP_SHOW_DURATION_MS;
+  let result = this.focusSpotlightsOnPlayer(players[0], {
+    durationMs: durationMs,
+    flashing: false,
+    includeLasers: true,
+    source: "vip-crowd-show",
+    vipShow: {
+      effect: effect,
+      preset: preset,
+      intensity: intensity,
+      crowd: true,
+      title: "DANCE FLOOR STAR!",
+      participants: players.map(this.__toVipShowParticipant.bind(this))
+    }
+  });
+
+  if (result.ok) {
+    this.__spotlightFocus.vipShow.participantSignature = players
+      .map(function (player) { return player.getId(); })
+      .sort(function (left, right) { return left - right; })
+      .join(",");
+    result.message = "Crowd %s show started for %s dancers in %s style (%s) for %s seconds!"
+      .format(effect, players.length, preset, intensity, Math.ceil(durationMs / 1000));
+  }
+  return result;
+}
+
 CreatureHandler.prototype.getVipShowStatus = function () {
   let focus = this.__spotlightFocus;
   if (!focus || !focus.vipShow || focus.endsAt === null || focus.endsAt <= Date.now()) {
@@ -574,7 +690,15 @@ CreatureHandler.prototype.getVipShowStatus = function () {
   }
   return {
     ok: true,
-    message: "%s has the %s show in %s style for %s more seconds."
+    message: focus.vipShow.crowd
+      ? "Crowd %s show in %s style has %s dancers and %s seconds remaining."
+        .format(
+          focus.vipShow.effect,
+          focus.vipShow.preset,
+          focus.vipShow.participants.length,
+          Math.ceil((focus.endsAt - Date.now()) / 1000)
+        )
+      : "%s has the %s show in %s style for %s more seconds."
       .format(
         focus.targetName,
         focus.vipShow.effect,
@@ -728,6 +852,7 @@ CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
         effect: focus.vipShow.effect,
         preset: focus.vipShow.preset,
         intensity: focus.vipShow.intensity,
+        crowd: focus.vipShow.crowd === true,
         title: focus.vipShow.title,
         participants: focus.vipShow.participants.filter(function (participant) {
           return participant.target
@@ -942,6 +1067,12 @@ CreatureHandler.prototype.__syncRadioZone = function (player, oldPosition) {
   let newZone = newState ? newState.zone : null;
 
   this.__syncRadioAmbience(player, newZone);
+
+  if (this.__spotlightFocus && this.__spotlightFocus.vipShow && this.__spotlightFocus.vipShow.crowd) {
+    let wasInside = oldPosition ? this.isInsidePartyRadioZone(oldPosition) : false;
+    let isInside = this.isInsidePartyRadioZone(player.position);
+    if (wasInside !== isInside) this.__refreshCrowdShowParticipants();
+  }
 
   if (oldZone && newZone && oldZone.id === newZone.id && Math.abs(oldState.volume - newState.volume) < 0.01) {
     return;
@@ -1232,6 +1363,7 @@ CreatureHandler.prototype.tick = function () {
     this.__radioEffectTicks = 0;
     this.__playRadioZoneEffects();
     this.__tickClubDrinkAuras();
+    this.__refreshCrowdShowParticipants();
   }
 
   this.__tickClubDance();
@@ -1374,9 +1506,14 @@ CreatureHandler.prototype.removePlayer = function (player) {
   // Remove reference to the player
   this.__deferencePlayer(player.getProperty(CONST.PROPERTIES.NAME));
 
+  if (this.__spotlightFocus && this.__spotlightFocus.vipShow && this.__spotlightFocus.vipShow.crowd) {
+    this.__refreshCrowdShowParticipants();
+  }
+
   // A participant leaving the game must end a focused VIP sequence cleanly
   // for every remaining observer instead of leaving lights on a stale target.
-  if (this.__spotlightFocus && this.__spotlightFocus.targetId === player.getId()) {
+  if (this.__spotlightFocus && this.__spotlightFocus.targetId === player.getId()
+      && (!this.__spotlightFocus.vipShow || !this.__spotlightFocus.vipShow.crowd)) {
     this.clearSpotlightFocus();
   }
 

@@ -91,7 +91,11 @@ ServerError.prototype = Error.prototype;
             effect: truncate(focus.vipShow.effect, 40),
             preset: truncate(focus.vipShow.preset, 40),
             intensity: truncate(focus.vipShow.intensity, 40),
-            title: truncate(focus.vipShow.title, 80)
+            title: truncate(focus.vipShow.title, 80),
+            crowd: focus.vipShow.crowd === true,
+            participantCount: Array.isArray(focus.vipShow.participants)
+              ? focus.vipShow.participants.length
+              : 0
           } : null
         } : null,
         laserShow: laserShow ? {

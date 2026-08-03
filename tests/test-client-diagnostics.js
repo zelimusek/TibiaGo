@@ -81,7 +81,9 @@ context.window.gameClient = {
             effect: "vortex",
             preset: "rainbow",
             intensity: "normal",
-            title: "DANCE FLOOR STAR!"
+            title: "DANCE FLOOR STAR!",
+            crowd: true,
+            participants: [{ targetId: 778 }, { targetId: 779 }]
           }
         },
         laserShow: null
@@ -99,6 +101,8 @@ assert.strictEqual(entries[0].context.lastServerOpcode, 25);
 assert.strictEqual(entries[0].context.disco.focus.source, "floor-lava-winner");
 assert.strictEqual(entries[0].context.disco.focus.vipShow.preset, "rainbow");
 assert.strictEqual(entries[0].context.disco.focus.vipShow.effect, "vortex");
+assert.strictEqual(entries[0].context.disco.focus.vipShow.crowd, true);
+assert.strictEqual(entries[0].context.disco.focus.vipShow.participantCount, 2);
 assert.strictEqual(beacons.length, 1);
 assert.strictEqual(beacons[0].url, "/api/client-diagnostics");
 
