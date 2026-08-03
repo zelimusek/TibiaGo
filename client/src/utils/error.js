@@ -88,6 +88,7 @@ ServerError.prototype = Error.prototype;
           elapsedMs: focus.elapsedMs,
           durationMs: focus.durationMs,
           vipShow: focus.vipShow ? {
+            effect: truncate(focus.vipShow.effect, 40),
             preset: truncate(focus.vipShow.preset, 40),
             intensity: truncate(focus.vipShow.intensity, 40),
             title: truncate(focus.vipShow.title, 80)

@@ -30,8 +30,14 @@ const SPOTLIGHT_FOCUS_DURATION_MS = 11200;
 const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
 const VIP_SHOW_DURATION_MS = 12000;
+const VIP_SHOW_ALL_DURATION_MS = 54000;
 const VIP_SHOW_PRESETS = new Set(["rainbow", "fire", "ice", "toxic", "romance"]);
 const VIP_SHOW_INTENSITIES = new Set(["soft", "normal", "intense"]);
+const VIP_SHOW_EFFECTS = new Set([
+  "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
+  "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
+  "constellation", "combo", "name", "all"
+]);
 const LASER_SHOW_DEFAULT_DURATION_MS = 75000;
 const LASER_SHOW_OVERDRIVE_DURATION_MS = 100000;
 const LASER_SHOW_DIMENSION_DURATION_MS = 100000;
@@ -436,11 +442,20 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
   let includeLasers = options.includeLasers === true;
   let vipShow = options.vipShow && typeof options.vipShow === "object"
     ? {
+      effect: VIP_SHOW_EFFECTS.has(options.vipShow.effect) ? options.vipShow.effect : "laser",
       preset: VIP_SHOW_PRESETS.has(options.vipShow.preset) ? options.vipShow.preset : "rainbow",
       intensity: VIP_SHOW_INTENSITIES.has(options.vipShow.intensity) ? options.vipShow.intensity : "normal",
       title: typeof options.vipShow.title === "string"
         ? options.vipShow.title.slice(0, 40)
-        : "DANCE FLOOR STAR!"
+        : "DANCE FLOOR STAR!",
+      participants: Array.isArray(options.vipShow.participants)
+        ? options.vipShow.participants.slice(0, 12).filter(function (participant) {
+          return participant
+            && Number.isInteger(participant.targetId)
+            && participant.target
+            && participant.target.position;
+        })
+        : []
     }
     : null;
   this.__laserShow = null;
@@ -465,6 +480,16 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
     flashing: flashing,
     includeLasers: includeLasers,
     vipShow: vipShow
+      ? {
+        effect: vipShow.effect,
+        preset: vipShow.preset,
+        intensity: vipShow.intensity,
+        title: vipShow.title,
+        participantIds: vipShow.participants.map(function (participant) {
+          return participant.targetId;
+        })
+      }
+      : null
   }));
   this.__resyncRadioAmbience();
 
@@ -482,10 +507,17 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
   };
 }
 
-CreatureHandler.prototype.startVipShow = function (player, preset, intensity) {
+CreatureHandler.prototype.startVipShow = function (player, effect, preset, intensity) {
+  effect = String(effect || "laser").toLowerCase();
   preset = String(preset || "rainbow").toLowerCase();
   intensity = String(intensity || "normal").toLowerCase();
 
+  if (!VIP_SHOW_EFFECTS.has(effect)) {
+    return {
+      ok: false,
+      message: "Unknown show effect. Use laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name or all."
+    };
+  }
   if (!VIP_SHOW_PRESETS.has(preset)) {
     return {
       ok: false,
@@ -499,21 +531,38 @@ CreatureHandler.prototype.startVipShow = function (player, preset, intensity) {
     };
   }
 
+  let targetId = player.getId();
+  let participants = [];
+  if (this.__playerMap instanceof Map) {
+    this.__playerMap.forEach(function (participant) {
+      if (!participant || typeof participant.getId !== "function" || !participant.position) return;
+      if (participant.getId() === targetId || !this.isInsidePartyRadioZone(participant.position)) return;
+      participants.push({
+        targetId: participant.getId(),
+        targetName: participant.getProperty(CONST.PROPERTIES.NAME),
+        target: participant
+      });
+    }, this);
+  }
+
+  let durationMs = effect === "all" ? VIP_SHOW_ALL_DURATION_MS : VIP_SHOW_DURATION_MS;
   let result = this.focusSpotlightsOnPlayer(player, {
-    durationMs: VIP_SHOW_DURATION_MS,
+    durationMs: durationMs,
     flashing: false,
     includeLasers: true,
     source: "vip-show",
     vipShow: {
+      effect: effect,
       preset: preset,
       intensity: intensity,
-      title: "DANCE FLOOR STAR!"
+      title: effect === "name" ? "LASER NAME REVEAL!" : "DANCE FLOOR STAR!",
+      participants: participants
     }
   });
 
   if (result.ok) {
-    result.message = "%s receives the %s VIP laser show (%s) for 12 seconds!"
-      .format(this.__spotlightFocus.targetName, preset, intensity);
+    result.message = "%s receives the %s show in %s style (%s) for %s seconds!"
+      .format(this.__spotlightFocus.targetName, effect, preset, intensity, Math.ceil(durationMs / 1000));
   }
   return result;
 }
@@ -521,13 +570,14 @@ CreatureHandler.prototype.startVipShow = function (player, preset, intensity) {
 CreatureHandler.prototype.getVipShowStatus = function () {
   let focus = this.__spotlightFocus;
   if (!focus || !focus.vipShow || focus.endsAt === null || focus.endsAt <= Date.now()) {
-    return { ok: false, message: "No VIP laser show is currently running." };
+    return { ok: false, message: "No VIP show is currently running." };
   }
   return {
     ok: true,
-    message: "%s has the %s VIP show for %s more seconds."
+    message: "%s has the %s show in %s style for %s more seconds."
       .format(
         focus.targetName,
+        focus.vipShow.effect,
         focus.vipShow.preset,
         Math.ceil((focus.endsAt - Date.now()) / 1000)
       )
@@ -536,10 +586,10 @@ CreatureHandler.prototype.getVipShowStatus = function () {
 
 CreatureHandler.prototype.stopVipShow = function () {
   if (!this.__spotlightFocus || !this.__spotlightFocus.vipShow) {
-    return { ok: false, message: "No VIP laser show is currently running." };
+    return { ok: false, message: "No VIP show is currently running." };
   }
   this.clearSpotlightFocus();
-  return { ok: true, message: "VIP laser show stopped." };
+  return { ok: true, message: "VIP show stopped." };
 }
 
 CreatureHandler.prototype.startLaserShow = function (text, variant) {
@@ -675,9 +725,25 @@ CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
     includeLasers: focus.includeLasers === true,
     vipShow: focus.vipShow
       ? {
+        effect: focus.vipShow.effect,
         preset: focus.vipShow.preset,
         intensity: focus.vipShow.intensity,
-        title: focus.vipShow.title
+        title: focus.vipShow.title,
+        participants: focus.vipShow.participants.filter(function (participant) {
+          return participant.target
+            && participant.target.position
+            && (!(this.__creatureMap instanceof Map) || this.__creatureMap.has(participant.targetId));
+        }, this).map(function (participant) {
+          return {
+            targetId: participant.targetId,
+            targetName: participant.targetName,
+            targetPosition: {
+              x: participant.target.position.x,
+              y: participant.target.position.y,
+              z: participant.target.position.z
+            }
+          };
+        })
       }
       : null
   };

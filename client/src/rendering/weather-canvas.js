@@ -392,11 +392,34 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
         && ["rainbow", "fire", "ice", "toxic", "romance"].includes(focus.vipShow.preset)
         && ["soft", "normal", "intense"].includes(focus.vipShow.intensity)
         ? {
+          effect: [
+            "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
+            "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
+            "constellation", "combo", "name", "all"
+          ].includes(focus.vipShow.effect) ? focus.vipShow.effect : "laser",
           preset: focus.vipShow.preset,
           intensity: focus.vipShow.intensity,
           title: typeof focus.vipShow.title === "string"
             ? focus.vipShow.title.slice(0, 40)
-            : "DANCE FLOOR STAR!"
+            : "DANCE FLOOR STAR!",
+          participants: Array.isArray(focus.vipShow.participants)
+            ? focus.vipShow.participants.slice(0, 12).filter(function(participant) {
+              return participant
+                && Number.isInteger(participant.targetId)
+                && participant.targetPosition
+                && Number.isInteger(participant.targetPosition.x)
+                && Number.isInteger(participant.targetPosition.y)
+                && Number.isInteger(participant.targetPosition.z);
+            }).map(function(participant) {
+              return {
+                targetId: participant.targetId,
+                targetName: typeof participant.targetName === "string"
+                  ? participant.targetName.slice(0, 80)
+                  : "",
+                targetPosition: participant.targetPosition
+              };
+            })
+            : []
         }
         : null,
       receivedAt: performance.now()
@@ -1713,24 +1736,54 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
   let colors = presetPalettes[focus.vipShow.preset] || presetPalettes.rainbow;
   let intensityMultiplier = intensityMultipliers[focus.vipShow.intensity] || 1;
   let amount = Math.max(0, Math.min(1, elapsedMs / 500, remainingMs / 800));
+  let effectSequence = [
+    "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
+    "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
+    "constellation", "combo", "name"
+  ];
+  let requestedEffect = effectSequence.includes(focus.vipShow.effect)
+    ? focus.vipShow.effect
+    : (focus.vipShow.effect === "all" ? "all" : "laser");
+  let effectDurationMs = requestedEffect === "all"
+    ? focus.durationMs / effectSequence.length
+    : focus.durationMs;
+  let effectIndex = requestedEffect === "all"
+    ? Math.min(effectSequence.length - 1, Math.floor(elapsedMs / effectDurationMs))
+    : effectSequence.indexOf(requestedEffect);
+  let effect = requestedEffect === "all" ? effectSequence[effectIndex] : requestedEffect;
+  let effectElapsedMs = requestedEffect === "all"
+    ? Math.max(0, elapsedMs - effectIndex * effectDurationMs)
+    : elapsedMs;
+  let effectProgress = Math.max(0, Math.min(1, effectElapsedMs / effectDurationMs));
+  let effectAmount = requestedEffect === "all"
+    ? Math.max(0, Math.min(1, effectElapsedMs / 180, (effectDurationMs - effectElapsedMs) / 220))
+    : 1;
+  let effectLabels = {
+    laser: "VIP LASER SHOW", hologram: "HOLOGRAM CLONES", wings: "NEON WINGS",
+    equalizer: "FLOOR EQUALIZER", vortex: "ENERGY VORTEX", portal: "PORTAL SHOW",
+    comet: "COMET RAIN", rewind: "FREEZE & REWIND", helix: "DNA HELIX",
+    pixel: "PIXEL EXPLOSION", soundwave: "SOUNDWAVE TUNNEL", cage: "ELECTRIC CAGE",
+    duel: "LIGHT SWORD DUEL", discoball: "DISCO BALL", constellation: "CLUB CONSTELLATION",
+    combo: "DANCE COMBO", name: "LASER NAME REVEAL"
+  };
   let stage;
   let stageProgress;
 
-  if(elapsedMs < 1300) {
+  if(effectProgress < 0.11) {
     stage = "lock";
-    stageProgress = elapsedMs / 1300;
-  } else if(elapsedMs < 4200) {
+    stageProgress = effectProgress / 0.11;
+  } else if(effectProgress < 0.35) {
     stage = "orbit";
-    stageProgress = (elapsedMs - 1300) / 2900;
-  } else if(elapsedMs < 7000) {
+    stageProgress = (effectProgress - 0.11) / 0.24;
+  } else if(effectProgress < 0.58) {
     stage = "tunnel";
-    stageProgress = (elapsedMs - 4200) / 2800;
-  } else if(elapsedMs < 9500) {
+    stageProgress = (effectProgress - 0.35) / 0.23;
+  } else if(effectProgress < 0.79) {
     stage = "spiral";
-    stageProgress = (elapsedMs - 7000) / 2500;
+    stageProgress = (effectProgress - 0.58) / 0.21;
   } else {
     stage = "finale";
-    stageProgress = Math.min(1, (elapsedMs - 9500) / 2500);
+    stageProgress = Math.min(1, (effectProgress - 0.79) / 0.21);
   }
 
   let ease = stageProgress * stageProgress * (3 - 2 * stageProgress);
@@ -1756,21 +1809,21 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
     let radius;
 
     if(stage === "lock") {
-      angle = head * Math.PI * 2 / 3 + beam * 0.34 + elapsedMs * Math.PI * 2 / 3600;
+      angle = head * Math.PI * 2 / 3 + beam * 0.34 + effectElapsedMs * Math.PI * 2 / 3600;
       radius = 112 - ease * 58 + Math.abs(beam) * 7;
     } else if(stage === "orbit") {
       angle = head * Math.PI * 2 / 3
-        + direction * (elapsedMs - 1300) * Math.PI * 2 / 1950
+        + direction * effectElapsedMs * Math.PI * 2 / 1950
         + beam * 0.34;
       radius = 46 + Math.abs(beam) * 18;
     } else if(stage === "tunnel") {
-      angle = (elapsedMs - 4200) * Math.PI * 2 / 1750 + beamIndex * Math.PI * 2 / 9;
+      angle = effectElapsedMs * Math.PI * 2 / 1750 + beamIndex * Math.PI * 2 / 9;
       radius = 34 + (beam + 1) * 18;
     } else if(stage === "spiral") {
       angle = head * Math.PI * 2 / 3
-        + direction * (elapsedMs - 7000) * Math.PI * 2 / 1450
+        + direction * effectElapsedMs * Math.PI * 2 / 1450
         + beam * 0.52;
-      radius = 22 + (((elapsedMs - 7000) / 900 + beamIndex / 9) % 1) * 78;
+      radius = 22 + ((effectElapsedMs / 900 + beamIndex / 9) % 1) * 78;
     } else {
       let convergence = stageProgress < 0.46
         ? 1 - stageProgress / 0.46
@@ -1787,12 +1840,40 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
 
   let beatDuration = beatBpm > 0 ? 60000 / beatBpm : 520;
   let beatProgress = (elapsedMs % beatDuration) / beatDuration;
+  let participants = (focus.vipShow.participants || []).map(function(participant) {
+    let creature = gameClient.world && typeof gameClient.world.getCreature === "function"
+      ? gameClient.world.getCreature(participant.targetId)
+      : null;
+    let screenPosition = creature && typeof gameClient.renderer.getCreatureScreenPosition === "function"
+      ? gameClient.renderer.getCreatureScreenPosition(creature)
+      : gameClient.renderer.getStaticScreenPosition(new Position(
+        participant.targetPosition.x,
+        participant.targetPosition.y,
+        participant.targetPosition.z
+      ));
+    return {
+      targetId: participant.targetId,
+      targetName: participant.targetName,
+      x: (screenPosition.x + 0.5) * 32,
+      y: (screenPosition.y + 0.5) * 32
+    };
+  });
 
   return {
+    requestedEffect: requestedEffect,
+    effect: effect,
+    effectIndex: effectIndex,
+    effectCount: requestedEffect === "all" ? effectSequence.length : 1,
+    effectElapsedMs: effectElapsedMs,
+    effectDurationMs: effectDurationMs,
+    effectProgress: effectProgress,
+    effectAmount: effectAmount,
+    effectLabel: effectLabels[effect] || "VIP SHOW",
     preset: focus.vipShow.preset,
     intensityName: focus.vipShow.intensity,
     intensityMultiplier: intensityMultiplier,
-    title: focus.vipShow.title,
+    title: requestedEffect === "all" ? effectLabels[effect] : focus.vipShow.title,
+    targetName: focus.targetName,
     targetId: focus.targetId,
     centerX: focusScreen.x,
     centerY: focusScreen.y,
@@ -1808,6 +1889,7 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
     spotlightOrbitRadius: spotlightOrbitRadius,
     spotlightOrbitAngle: spotlightOrbitAngle,
     laserTargets: laserTargets,
+    participants: participants,
     beatProgress: beatProgress,
     beatStrength: 1 - beatProgress
   };
@@ -1989,7 +2071,9 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     pulse: pulse,
     intensity: intensity,
     spotlightsEnabled: disco.spotlightsEnabled || showActive || Boolean(vipShowFrame),
-    legacyLasersEnabled: disco.legacyLasersEnabled || showActive || Boolean(vipShowFrame),
+    legacyLasersEnabled: disco.legacyLasersEnabled || showActive || Boolean(
+      vipShowFrame && ["laser", "name", "duel"].includes(vipShowFrame.effect)
+    ),
     radius: radius,
     centerX: centerX,
     centerY: centerY,
@@ -2072,6 +2156,315 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
 
 }
 
+WeatherCanvas.prototype.__drawVipSpecialEffect = function(context, frame, mobile, rgb, drawGlow) {
+
+  let show = frame.vipShow;
+  let centerX = show.centerX;
+  let centerY = show.centerY;
+  let colors = show.colors;
+  let strength = show.intensityMultiplier * show.amount * show.effectAmount;
+  let phase = show.effectElapsedMs;
+  let countScale = mobile ? 0.68 : 1;
+
+  function color(index, alpha) {
+    return rgb(colors[index % colors.length], alpha);
+  }
+
+  function polygon(x, y, radius, sides, rotation) {
+    context.beginPath();
+    for(let index = 0; index <= sides; index++) {
+      let angle = rotation + index * Math.PI * 2 / sides;
+      let px = x + Math.cos(angle) * radius;
+      let py = y + Math.sin(angle) * radius * 0.72;
+      if(index === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+    context.stroke();
+  }
+
+  context.globalCompositeOperation = "screen";
+  context.lineWidth = mobile ? 1.4 : 2;
+
+  if(show.effect === "hologram") {
+    let cloneCount = mobile ? 3 : 5;
+    for(let clone = 0; clone < cloneCount; clone++) {
+      let angle = phase / 600 + clone * Math.PI * 2 / cloneCount;
+      let distance = (mobile ? 38 : 54) + 9 * Math.sin(phase / 240 + clone);
+      let x = centerX + Math.cos(angle) * distance;
+      let y = centerY + Math.sin(angle) * distance * 0.58;
+      drawGlow(x, y, mobile ? 20 : 27, colors[clone % colors.length], 0.28 * strength);
+      if(typeof context.drawImage === "function" && this.screen.canvas) {
+        context.globalAlpha = 0.30 * strength;
+        context.drawImage(this.screen.canvas, centerX - 18, centerY - 24, 36, 48, x - 18, y - 24, 36, 48);
+      } else {
+        context.globalAlpha = 0.68 * strength;
+        context.fillStyle = color(clone, 1);
+        context.beginPath();
+        context.arc(x, y - 8, mobile ? 5 : 7, 0, Math.PI * 2);
+        context.fill();
+        context.fillRect(x - (mobile ? 5 : 7), y, mobile ? 10 : 14, mobile ? 15 : 21);
+      }
+    }
+  } else if(show.effect === "wings") {
+    let flap = 0.72 + 0.28 * Math.sin(phase / 150);
+    [-1, 1].forEach(function(side, wingIndex) {
+      context.globalAlpha = 0.80 * strength;
+      context.strokeStyle = color(wingIndex * 2 + 1, 1);
+      context.lineWidth = mobile ? 2 : 3;
+      for(let feather = 0; feather < 5; feather++) {
+        let rootX = centerX + side * 6;
+        let rootY = centerY - 7 + feather * 3;
+        let reach = (mobile ? 32 : 48) + feather * 3;
+        context.beginPath();
+        context.moveTo(rootX, rootY);
+        context.quadraticCurveTo(
+          centerX + side * reach * 0.62,
+          centerY - (mobile ? 35 : 48) * flap + feather * 7,
+          centerX + side * reach,
+          centerY - 18 + feather * (mobile ? 8 : 10)
+        );
+        context.stroke();
+      }
+      drawGlow(centerX + side * (mobile ? 31 : 43), centerY - 8, mobile ? 25 : 35, colors[wingIndex * 2 + 1], 0.20 * strength);
+    });
+  } else if(show.effect === "equalizer") {
+    let bars = mobile ? 11 : 17;
+    let totalWidth = mobile ? 150 : 250;
+    let barWidth = totalWidth / bars - 3;
+    for(let bar = 0; bar < bars; bar++) {
+      let pulse = 0.25 + 0.75 * Math.abs(Math.sin(phase / 155 + bar * 0.83));
+      let height = (mobile ? 30 : 48) * pulse * (0.75 + show.beatStrength * 0.45);
+      let x = centerX - totalWidth / 2 + bar * totalWidth / bars;
+      let y = centerY + (mobile ? 55 : 78);
+      context.globalAlpha = 0.68 * strength;
+      context.fillStyle = color(bar, 1);
+      context.fillRect(x, y - height, barWidth, height);
+      drawGlow(x + barWidth / 2, y - height, mobile ? 8 : 12, colors[bar % colors.length], 0.13 * strength);
+    }
+  } else if(show.effect === "vortex" || show.effect === "portal") {
+    let portal = show.effect === "portal";
+    let rings = mobile ? 5 : 8;
+    for(let ring = 0; ring < rings; ring++) {
+      let progress = (ring / rings + phase / (portal ? 1800 : 1250)) % 1;
+      let radius = portal ? 22 + progress * (mobile ? 58 : 88) : 12 + progress * (mobile ? 82 : 126);
+      context.globalAlpha = (1 - progress) * 0.62 * strength;
+      context.strokeStyle = color(ring, 1);
+      context.lineWidth = mobile ? 1.5 : 2.4;
+      context.beginPath();
+      context.arc(centerX, centerY, radius, phase / 370 + ring, phase / 370 + ring + Math.PI * (portal ? 1.65 : 1.15));
+      context.stroke();
+      let angle = phase / (portal ? 260 : 180) + ring * 2.399963;
+      let x = centerX + Math.cos(angle) * radius;
+      let y = centerY + Math.sin(angle) * radius * 0.68;
+      drawGlow(x, y, mobile ? 7 : 10, colors[ring % colors.length], 0.42 * strength);
+    }
+    if(portal) {
+      drawGlow(centerX, centerY, mobile ? 46 : 68, colors[1 % colors.length], 0.28 * strength);
+      context.globalAlpha = 0.72 * strength;
+      context.strokeStyle = color(2, 1);
+      polygon(centerX, centerY, mobile ? 31 : 46, 8, phase / 900);
+    }
+  } else if(show.effect === "comet") {
+    let comets = Math.round((mobile ? 10 : 17) * countScale + 4);
+    for(let comet = 0; comet < comets; comet++) {
+      let travel = (phase / (900 + comet % 4 * 120) + comet * 0.173) % 1;
+      let x = frame.clip.x + ((comet * 79) % Math.max(1, frame.clip.width + 180)) - 80 + travel * 95;
+      let y = frame.clip.y - 30 + travel * (frame.clip.height + 90);
+      let length = mobile ? 22 : 34;
+      context.globalAlpha = (1 - travel * 0.35) * 0.72 * strength;
+      context.strokeStyle = color(comet, 1);
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(x - length * 0.72, y - length);
+      context.stroke();
+      drawGlow(x, y, mobile ? 5 : 8, colors[comet % colors.length], 0.55 * strength);
+    }
+  } else if(show.effect === "rewind") {
+    let freezePulse = 0.55 + 0.45 * Math.sin(phase / 90);
+    this.__vipShowTrail.slice().reverse().forEach(function(point, index) {
+      context.globalAlpha = (1 - index / Math.max(1, this.__vipShowTrail.length)) * 0.72 * strength;
+      context.strokeStyle = color(index, 1);
+      context.beginPath();
+      context.arc(point.x, point.y, (mobile ? 9 : 13) + index * 2, 0, Math.PI * 2);
+      context.stroke();
+    }, this);
+    context.globalAlpha = 0.75 * strength;
+    context.strokeStyle = color(2, 1);
+    for(let shard = 0; shard < (mobile ? 8 : 14); shard++) {
+      let angle = shard * Math.PI * 2 / (mobile ? 8 : 14);
+      let inner = 24 + freezePulse * 8;
+      let outer = inner + 12 + shard % 3 * 5;
+      context.beginPath();
+      context.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
+      context.lineTo(centerX + Math.cos(angle) * outer, centerY + Math.sin(angle) * outer);
+      context.stroke();
+    }
+  } else if(show.effect === "helix") {
+    let points = mobile ? 22 : 34;
+    for(let strand = 0; strand < 2; strand++) {
+      context.globalAlpha = 0.78 * strength;
+      context.strokeStyle = color(strand * 2, 1);
+      context.beginPath();
+      for(let point = 0; point < points; point++) {
+        let t = point / (points - 1);
+        let y = centerY - (mobile ? 75 : 112) + t * (mobile ? 150 : 224);
+        let x = centerX + Math.sin(t * Math.PI * 5 + phase / 270 + strand * Math.PI) * (mobile ? 28 : 42);
+        if(point === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+        if(strand === 1 && point % 3 === 0) {
+          let otherX = centerX + Math.sin(t * Math.PI * 5 + phase / 270) * (mobile ? 28 : 42);
+          context.moveTo(otherX, y);
+          context.lineTo(x, y);
+        }
+      }
+      context.stroke();
+    }
+  } else if(show.effect === "pixel") {
+    let pixels = mobile ? 22 : 38;
+    let burst = 0.15 + 0.85 * Math.abs(Math.sin(phase / 700));
+    for(let pixel = 0; pixel < pixels; pixel++) {
+      let angle = pixel * 2.399963 + phase / 2200;
+      let distance = burst * (20 + (pixel % 9) * (mobile ? 6 : 9));
+      let size = mobile ? 3 + pixel % 3 : 4 + pixel % 4;
+      context.globalAlpha = (1 - burst * 0.38) * 0.82 * strength;
+      context.fillStyle = color(pixel, 1);
+      context.fillRect(centerX + Math.cos(angle) * distance - size / 2, centerY + Math.sin(angle) * distance * 0.72 - size / 2, size, size);
+    }
+  } else if(show.effect === "soundwave") {
+    for(let wave = 0; wave < (mobile ? 6 : 9); wave++) {
+      let progress = (show.beatProgress + wave / (mobile ? 6 : 9)) % 1;
+      context.globalAlpha = (1 - progress) * 0.66 * strength;
+      context.strokeStyle = color(wave, 1);
+      context.lineWidth = mobile ? 1.2 : 2;
+      polygon(centerX, centerY, 18 + progress * (mobile ? 100 : 160), 6, phase / 1500 + wave * 0.12);
+    }
+  } else if(show.effect === "cage") {
+    let posts = mobile ? 8 : 12;
+    for(let post = 0; post < posts; post++) {
+      let angle = post * Math.PI * 2 / posts + phase / 2100;
+      let x = centerX + Math.cos(angle) * (mobile ? 54 : 76);
+      let baseY = centerY + Math.sin(angle) * (mobile ? 33 : 46);
+      let topY = baseY - (mobile ? 68 : 105) - Math.sin(phase / 85 + post) * 8;
+      context.globalAlpha = 0.66 * strength;
+      context.strokeStyle = color(post, 1);
+      context.beginPath();
+      context.moveTo(x, baseY);
+      context.lineTo(x + Math.sin(phase / 65 + post) * 5, (baseY + topY) / 2);
+      context.lineTo(x, topY);
+      context.stroke();
+      drawGlow(x, baseY, mobile ? 7 : 10, colors[post % colors.length], 0.32 * strength);
+    }
+  } else if(show.effect === "duel") {
+    for(let sword = 0; sword < 4; sword++) {
+      let direction = sword % 2 === 0 ? 1 : -1;
+      let angle = direction * phase / 360 + sword * Math.PI / 2;
+      let orbit = mobile ? 35 : 52;
+      let x = centerX + Math.cos(angle) * orbit;
+      let y = centerY + Math.sin(angle) * orbit * 0.62;
+      let bladeAngle = angle + direction * Math.PI * 0.72;
+      context.globalAlpha = 0.86 * strength;
+      context.strokeStyle = color(sword, 1);
+      context.lineWidth = mobile ? 3 : 4;
+      context.beginPath();
+      context.moveTo(x - Math.cos(bladeAngle) * 8, y - Math.sin(bladeAngle) * 8);
+      context.lineTo(x + Math.cos(bladeAngle) * (mobile ? 35 : 52), y + Math.sin(bladeAngle) * (mobile ? 35 : 52));
+      context.stroke();
+    }
+    drawGlow(centerX, centerY, mobile ? 24 : 35, colors[4 % colors.length], (0.28 + show.beatStrength * 0.32) * strength);
+  } else if(show.effect === "discoball") {
+    let ballY = centerY - (mobile ? 68 : 105);
+    let ballRadius = mobile ? 20 : 30;
+    drawGlow(centerX, ballY, ballRadius * 2.6, colors[1 % colors.length], 0.35 * strength);
+    context.globalAlpha = 0.92 * strength;
+    context.fillStyle = color(2, 0.52);
+    context.beginPath();
+    context.arc(centerX, ballY, ballRadius, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = "rgba(255,255,255,0.75)";
+    for(let grid = -2; grid <= 2; grid++) {
+      context.beginPath();
+      context.moveTo(centerX - ballRadius, ballY + grid * ballRadius / 3);
+      context.lineTo(centerX + ballRadius, ballY + grid * ballRadius / 3);
+      context.stroke();
+    }
+    for(let ray = 0; ray < (mobile ? 10 : 16); ray++) {
+      let angle = phase / 620 + ray * Math.PI * 2 / (mobile ? 10 : 16);
+      context.globalAlpha = 0.42 * strength;
+      context.strokeStyle = color(ray, 1);
+      context.beginPath();
+      context.moveTo(centerX, ballY);
+      context.lineTo(centerX + Math.cos(angle) * (mobile ? 130 : 220), ballY + Math.sin(angle) * (mobile ? 100 : 165));
+      context.stroke();
+    }
+  } else if(show.effect === "constellation") {
+    let stars = [{ x: centerX, y: centerY, targetName: show.targetName }].concat(show.participants || []);
+    if(stars.length === 1) {
+      for(let fallback = 0; fallback < 5; fallback++) {
+        let angle = fallback * Math.PI * 2 / 5 + phase / 1600;
+        stars.push({ x: centerX + Math.cos(angle) * (mobile ? 60 : 95), y: centerY + Math.sin(angle) * (mobile ? 40 : 62) });
+      }
+    }
+    stars.slice(0, 13).forEach(function(star, index, allStars) {
+      let next = allStars[(index + 1) % allStars.length];
+      context.globalAlpha = 0.50 * strength;
+      context.strokeStyle = color(index, 1);
+      context.beginPath();
+      context.moveTo(star.x, star.y);
+      context.lineTo(next.x, next.y);
+      context.stroke();
+      drawGlow(star.x, star.y, mobile ? 8 : 12, colors[index % colors.length], 0.64 * strength);
+    });
+  } else if(show.effect === "combo") {
+    let combo = 1 + Math.floor(show.effectProgress * 12);
+    for(let step = 0; step < combo; step++) {
+      let angle = step * 2.399963 - phase / 430;
+      let radius = 24 + step * (mobile ? 4 : 6);
+      drawGlow(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius * 0.65, mobile ? 5 : 8, colors[step % colors.length], 0.44 * strength);
+    }
+    if(typeof context.fillText === "function") {
+      context.globalAlpha = 0.92 * strength;
+      context.font = mobile ? "bold 18px Arial" : "bold 28px Arial";
+      context.textAlign = "center";
+      context.fillStyle = color(combo, 1);
+      if(typeof context.strokeText === "function") {
+        context.lineWidth = 5;
+        context.strokeStyle = "rgba(0,0,0,0.9)";
+        context.strokeText("COMBO x" + combo, centerX, centerY - (mobile ? 50 : 72));
+      }
+      context.fillText("COMBO x" + combo, centerX, centerY - (mobile ? 50 : 72));
+    }
+  } else if(show.effect === "name") {
+    let name = String(show.targetName || "STAR").toUpperCase().slice(0, 12);
+    let textFrame = this.__getLaserTextHoldChoreography(name, centerX, centerY - (mobile ? 60 : 90), frame.radius, phase, mobile ? 220 : 360, mobile ? 28 : 42);
+    context.lineWidth = mobile ? 1.7 : 2.7;
+    textFrame.trailLines.forEach(function(line, index) {
+      context.globalAlpha = 0.78 * strength;
+      context.strokeStyle = color(index, 1);
+      context.beginPath();
+      context.moveTo(line.x1, line.y1);
+      context.lineTo(line.x2, line.y2);
+      context.stroke();
+    });
+  }
+
+  // Every special scene gets a compact synchronized caption. It also makes
+  // transitions in /show ... all immediately understandable to spectators.
+  if(typeof context.fillText === "function") {
+    context.globalAlpha = 0.78 * strength;
+    context.font = mobile ? "bold 10px Arial" : "bold 13px Arial";
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.fillStyle = color(1, 1);
+    if(typeof context.strokeText === "function") {
+      context.lineWidth = 3;
+      context.strokeStyle = "rgba(0,0,0,0.9)";
+      context.strokeText(show.effectLabel, centerX, centerY - (mobile ? 42 : 58));
+    }
+    context.fillText(show.effectLabel, centerX, centerY - (mobile ? 42 : 58));
+  }
+
+}
+
 WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
 
   let show = frame.vipShow;
@@ -2115,6 +2508,12 @@ WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
   context.beginPath();
   context.rect(frame.clip.x, frame.clip.y, frame.clip.width, frame.clip.height);
   context.clip();
+
+  if(show.effect !== "laser") {
+    this.__drawVipSpecialEffect(context, frame, mobile, rgb, drawGlow);
+    context.restore();
+    return;
+  }
 
   // A short afterglow follows the selected participant without leaving a
   // permanent screen-space smear.
@@ -2360,6 +2759,9 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   // from the four illuminating spotlights and retain their former positions,
   // sweep and three-ray pattern.
   if(!frame.legacyLasersEnabled) {
+    if(frame.vipShow) {
+      this.__drawVipShow(context, frame, mobile);
+    }
     return;
   }
 

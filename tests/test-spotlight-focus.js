@@ -22,10 +22,21 @@ const target = {
     return type === "Player";
   },
 };
+const spectator = {
+  position: new Position(32516, 32347, 7),
+  getId: () => 778,
+  getProperty(property) {
+    return property === CONST.PROPERTIES.NAME ? "Club Friend" : null;
+  },
+  is(type) {
+    return type === "Player";
+  },
+};
 
 const handler = Object.create(CreatureHandler.prototype);
 handler.__spotlightFocus = null;
-handler.__creatureMap = new Map([[target.getId(), target]]);
+handler.__creatureMap = new Map([[target.getId(), target], [spectator.getId(), spectator]]);
+handler.__playerMap = new Map([["PARTY HERO", target], ["CLUB FRIEND", spectator]]);
 handler.isInsidePartyRadioZone = () => true;
 handler.__resyncRadioAmbience = () => { resyncs++; };
 
@@ -85,17 +96,42 @@ try {
   assert.strictEqual(handler.__spotlightFocus.includeLasers, true);
   assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 12000);
   assert.deepStrictEqual(handler.__spotlightFocus.vipShow, {
+    effect: "laser",
     preset: "fire",
     intensity: "intense",
-    title: "DANCE FLOOR STAR!"
+    title: "DANCE FLOOR STAR!",
+    participants: [{ targetId: 778, targetName: "Club Friend", target: spectator }]
   });
-  assert.ok(/fire VIP laser show \(intense\)/i.test(messages.at(-1)));
+  assert.ok(/laser show in fire style \(intense\)/i.test(messages.at(-1)));
   assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.preset, "fire");
+  assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.effect, "laser");
+  assert.deepStrictEqual(handler.__getSpotlightFocusPayload().vipShow.participants[0].targetPosition, {
+    x: 32516, y: 32347, z: 7
+  });
   commands.handle(gm, "/show status");
-  assert.ok(/Party Hero has the fire VIP show/i.test(messages.at(-1)));
+  assert.ok(/Party Hero has the laser show in fire style/i.test(messages.at(-1)));
   commands.handle(gm, "/show stop");
   assert.strictEqual(handler.__spotlightFocus, null);
-  assert.ok(/VIP laser show stopped/i.test(messages.at(-1)));
+  assert.ok(/VIP show stopped/i.test(messages.at(-1)));
+
+  commands.handle(gm, "/show effects");
+  assert.ok(/hologram.*discoball.*all/i.test(messages.at(-1)));
+
+  commands.handle(gm, "/show Party Hero vortex toxic soft");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.effect, "vortex");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.preset, "toxic");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.intensity, "soft");
+  handler.clearSpotlightFocus();
+
+  commands.handle(gm, "/show Party Hero disco romance");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.effect, "discoball", "friendly effect aliases should work");
+  handler.clearSpotlightFocus();
+
+  commands.handle(gm, "/show Party Hero all");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.effect, "all");
+  assert.strictEqual(handler.__spotlightFocus.endsAt - handler.__spotlightFocus.startedAt, 54000);
+  assert.ok(/all show in rainbow style/i.test(messages.at(-1)));
+  handler.clearSpotlightFocus();
 
   handler.isInsidePartyRadioZone = () => false;
   commands.handle(gm, "/spotlight Party Hero");

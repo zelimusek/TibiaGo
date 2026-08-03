@@ -574,7 +574,7 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
 
   if (!action) {
     return player.sendCancelMessage(
-      "Usage: /show Player Name [rainbow|fire|ice|toxic|romance] [soft|normal|intense], /show status or /show stop."
+      "Usage: /show Player Name [effect] [preset] [intensity], /show status or /show stop. Try /show Player Name all."
     );
   }
   if (action === "off" || action === "stop") {
@@ -583,9 +583,25 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   if (action === "status") {
     return player.sendCancelMessage(handler.getVipShowStatus().message);
   }
+  if (action === "help" || action === "effects") {
+    return player.sendCancelMessage(
+      "Show effects: laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name and all. Example: /show Player Name vortex fire intense."
+    );
+  }
 
   let presets = new Set(["rainbow", "fire", "ice", "toxic", "romance"]);
   let intensities = new Set(["soft", "normal", "intense"]);
+  let effects = new Set([
+    "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
+    "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
+    "constellation", "combo", "name", "all"
+  ]);
+  let aliases = new Map([
+    ["holograms", "hologram"], ["comets", "comet"], ["pixels", "pixel"],
+    ["sound", "soundwave"], ["wave", "soundwave"], ["disco", "discoball"],
+    ["freeze", "rewind"], ["dna", "helix"], ["electric", "cage"]
+  ]);
+  let effect = "laser";
   let preset = "rainbow";
   let intensity = "normal";
   let finalArgument = (argumentsList.at(-1) || "").toLowerCase();
@@ -597,6 +613,14 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   }
   if (presets.has(finalArgument)) {
     preset = finalArgument;
+    argumentsList.pop();
+    finalArgument = (argumentsList.at(-1) || "").toLowerCase();
+  }
+  if (aliases.has(finalArgument)) {
+    effect = aliases.get(finalArgument);
+    argumentsList.pop();
+  } else if (effects.has(finalArgument)) {
+    effect = finalArgument;
     argumentsList.pop();
   }
 
@@ -611,7 +635,7 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   }
 
   return player.sendCancelMessage(
-    handler.startVipShow(found.target, preset, intensity).message
+    handler.startVipShow(found.target, effect, preset, intensity).message
   );
 };
 

@@ -866,7 +866,9 @@ assert.ok(showFrame.laserShow.trailLines.length > 12, "the large two-line PARTY 
 showFrame = setLaserShow("arcade", "NEON ARCADE", 100000, 100000);
 assert.strictEqual(showFrame, null, "NEON ARCADE should release the venue lights after 100 seconds");
 
-function setVipShow(elapsedMs, preset, intensityName) {
+function setVipShow(elapsedMs, preset, intensityName, effect, durationMs, participants) {
+  effect = effect || "laser";
+  durationMs = durationMs || 12000;
   weather.setDiscoLights(false, false, 80, 100, 120, 6, {
     x: 32515,
     y: 32346,
@@ -878,14 +880,16 @@ function setVipShow(elapsedMs, preset, intensityName) {
     targetPosition: { x: 32515, y: 32346, z: 7 },
     elapsedMs: elapsedMs,
     persistent: false,
-    durationMs: 12000,
+    durationMs: durationMs,
     flashDurationMs: 0,
     flashCount: 0,
     includeLasers: true,
     vipShow: {
+      effect: effect,
       preset: preset,
       intensity: intensityName,
       title: "DANCE FLOOR STAR!",
+      participants: participants || [],
     },
   }, null);
   context.gameClient.renderer.debugger.__nFrames++;
@@ -914,5 +918,29 @@ assert.ok(showFrame.vipShow.intensityMultiplier > 1);
 const vipStrokeCount = strokes;
 weather.drawDiscoLights();
 assert.ok(strokes > vipStrokeCount, "VIP finale should draw lasers, bass rings, neon orbits and its radial burst");
+
+const specialEffects = [
+  "hologram", "wings", "equalizer", "vortex", "portal", "comet", "rewind",
+  "helix", "pixel", "soundwave", "cage", "duel", "discoball", "constellation",
+  "combo", "name"
+];
+specialEffects.forEach((effect) => {
+  const beforeFills = fills;
+  const beforeStrokes = strokes;
+  showFrame = setVipShow(5200, "rainbow", "normal", effect, 12000, [{
+    targetId: 888,
+    targetName: "Club Friend",
+    targetPosition: { x: 32517, y: 32347, z: 7 },
+  }]);
+  assert.strictEqual(showFrame.vipShow.effect, effect, effect + " must survive ambience validation");
+  weather.drawDiscoLights();
+  assert.ok(fills > beforeFills || strokes > beforeStrokes, effect + " must render visible canvas geometry");
+});
+
+showFrame = setVipShow(100, "fire", "intense", "all", 54000);
+assert.strictEqual(showFrame.vipShow.effect, "laser");
+assert.strictEqual(showFrame.vipShow.effectCount, 17);
+showFrame = setVipShow(54000 / 17 * 4 + 200, "fire", "intense", "all", 54000);
+assert.strictEqual(showFrame.vipShow.effect, "vortex", "all mode must advance through the complete choreography");
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");
