@@ -503,7 +503,7 @@ HotbarManager.prototype.__createConicGradient = function (fraction, context) {
 
 }
 
-HotbarManager.prototype.__loadConfiguration = function () {
+HotbarManager.prototype.__loadConfiguration = function (allowedSpells) {
 
   /*
    * Function HotbarManager.__loadConfiguration
@@ -532,7 +532,7 @@ HotbarManager.prototype.__loadConfiguration = function () {
       this.addItemSlot(i, config.itemId, config.mode || "crosshair");
     }
     // Load spell slot
-    else if (config.sid) {
+    else if (config.sid && (!allowedSpells || allowedSpells.has(config.sid))) {
       this.addSlot(i, config.sid);
     }
   }, this);

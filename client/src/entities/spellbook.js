@@ -16,12 +16,17 @@ const Spellbook = function (spells) {
     this.spells = new Set();
   }
 
+  if (this.spells.has(gameClient.interface.DISCO_BOMB_SID)) {
+    this.spells = new Set([gameClient.interface.DISCO_BOMB_SID]);
+    gameClient.discoMode = true;
+  }
+
   // List of all abilities on cooldown
   this.cooldowns = new Map();
 
   // Create the spellbook
   gameClient.interface.modalManager.get("spellbook-modal").createSpellList(this.spells);
-  gameClient.interface.hotbarManager.__loadConfiguration();
+  gameClient.interface.hotbarManager.__loadConfiguration(this.spells);
 
 }
 

@@ -164,7 +164,11 @@ HotbarConfigModal.prototype.__renderSpells = function () {
   this.__content.innerHTML = "";
   this.__content.className = "hotbar-config-content hotbar-config-spell-list";
 
-  gameClient.interface.SPELLS.forEach(function (spell, sid) {
+  let spellIds = gameClient.player && gameClient.player.spellbook
+    ? gameClient.player.spellbook.spells
+    : gameClient.interface.SPELLS.keys();
+  Array.from(spellIds).forEach(function (sid) {
+    let spell = gameClient.interface.getSpell(sid);
     let row = document.createElement("div");
     row.className = "hotbar-config-spell-row";
 

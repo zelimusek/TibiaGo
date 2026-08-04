@@ -319,6 +319,13 @@ Interface.prototype.WEBCOLORS = new Array(
 
 // Map to look up spells
 Interface.prototype.SPELLS = new Map();
+Interface.prototype.DISCO_BOMB_SID = 0xFFFE;
+Interface.prototype.SPELLS.set(0xFFFE, {
+  name: "Bomberman Bomb",
+  description: "Place a bomb during a Bomberman round.",
+  icon: { x: 6, y: 10 },
+  words: ""
+});
 Interface.prototype.SPELLS.set(0, {
   name: "Cure Burning",
   description: "Cures Burning Condition",

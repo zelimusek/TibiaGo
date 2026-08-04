@@ -17,10 +17,14 @@ const Spellbook = function (player, data) {
 
   this.__cooldowns = data.cooldowns;
 
-  // Initialize with ALL spells (0-19) available by default
+  // Disco mode exposes only the dedicated Bomberman pseudo-spell.
   this.__availableSpells = new Set();
-  for (let sid = 0; sid <= 19; sid++) {
-    this.__availableSpells.add(sid);
+  if (CONFIG.SERVER.DISCO_MODE && CONFIG.SERVER.DISCO_MODE.ENABLED === true) {
+    this.__availableSpells.add(0xFFFE);
+  } else {
+    for (let sid = 0; sid <= 19; sid++) {
+      this.__availableSpells.add(sid);
+    }
   }
 
 }
@@ -75,6 +79,10 @@ Spellbook.prototype.addAvailableSpell = function (sid) {
    * Adds an available spell to the player's spellbook
    */
 
+  if (CONFIG.SERVER.DISCO_MODE && CONFIG.SERVER.DISCO_MODE.ENABLED === true && sid !== 0xFFFE) {
+    return;
+  }
+
   // Add it
   this.__availableSpells.add(sid);
 
@@ -91,6 +99,13 @@ Spellbook.prototype.handleSpell = function (sid, properties) {
    * Function Spellbook.handleSpell
    * Handles casting of a spell by an entity
    */
+
+  if (CONFIG.SERVER.DISCO_MODE && CONFIG.SERVER.DISCO_MODE.ENABLED === true) {
+    if (sid !== 0xFFFE) return;
+    let result = gameServer.world.creatureHandler.bomberman.placeBomb(this.player);
+    if (!result.ok) this.player.sendCancelMessage(result.message);
+    return result;
+  }
 
   // Ignore cast requests that are already on cooldown
   if (this.__spellCooldowns.has(this.GLOBAL_COOLDOWN) || this.__spellCooldowns.has(sid)) {
