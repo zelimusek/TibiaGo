@@ -2126,7 +2126,10 @@ WeatherCanvas.prototype.__getLaserChairsFrame = function(game, now) {
 
   if(game.phase === "claiming" && squareRectangles.length > 0) {
     let approachMs = 700;
-    let drawMs = 1600;
+    let fallbackDrawMs = 1600 + Math.ceil(Math.max(0, squareRectangles.length - 9) / 9) * 800;
+    let drawMs = Number.isFinite(game.drawDurationMs) && game.drawDurationMs >= 1600
+      ? game.drawDurationMs
+      : fallbackDrawMs;
     let returnMs = 1300;
     let drawProgress = clamp((elapsed - approachMs) / drawMs);
     if(elapsed < approachMs) amount = ease(elapsed / approachMs);
@@ -2182,6 +2185,9 @@ WeatherCanvas.prototype.__getLaserChairsFrame = function(game, now) {
     phase: game.phase,
     elapsedMs: elapsed,
     amount: clamp(amount),
+    drawDurationMs: Number.isFinite(game.drawDurationMs)
+      ? game.drawDurationMs
+      : 1600 + Math.ceil(Math.max(0, squareRectangles.length - 9) / 9) * 800,
     targets: targets,
     trailLines: trailLines
   };

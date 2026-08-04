@@ -983,7 +983,8 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
 }, null, null, {
   phase: "claiming",
   elapsedMs: 1500,
-  durationMs: 7000,
+  durationMs: 9300,
+  drawDurationMs: 1600,
   round: 1,
   remaining: 3,
   floor: {
@@ -996,6 +997,7 @@ context.gameClient.renderer.debugger.__nFrames++;
 let chairFrame = weather.__getDiscoLightFrame();
 assert.strictEqual(chairFrame.chairGame.phase, "claiming");
 assert.strictEqual(chairFrame.chairLasers.targets.length, 9, "all nine permanent club lasers must receive an independent chair route");
+assert.strictEqual(chairFrame.chairLasers.drawDurationMs, 1600, "up to nine squares should retain the fast choreography");
 assert.ok(chairFrame.chairLasers.amount > 0.99, "club lasers must physically control their beams while drawing squares");
 const lastClaimTargets = chairFrame.chairLasers.targets.map((target) => ({ x: target.x, y: target.y }));
 const lastClaimAmount = chairFrame.chairLasers.amount;
@@ -1031,5 +1033,25 @@ context.gameClient.renderer.debugger.__nFrames++;
 chairFrame = weather.__getDiscoLightFrame();
 assert.ok(chairFrame.chairLasers.amount < 0.01, "lasers must smoothly release back to their normal club movement");
 assert.ok(chairFrame.chairLasers.trailLines.length >= 10, "the drawn border and chair squares must remain visible after the beams leave");
+
+const crowdedChairFrame = weather.__getLaserChairsFrame({
+  phase: "claiming",
+  elapsedMs: 3100,
+  receivedAt: now,
+  durationMs: 10900,
+  drawDurationMs: 3200,
+  floor: {
+    from: { x: 32509, y: 32340, z: 7 },
+    to: { x: 32521, y: 32352, z: 7 }
+  },
+  squares: Array.from({ length: 19 }, (_, index) => ({
+    x: 32509 + index % 13,
+    y: 32340 + Math.floor(index / 13),
+    z: 7
+  }))
+}, now);
+assert.strictEqual(crowdedChairFrame.drawDurationMs, 3200,
+  "twenty players should give nineteen squares a readable 3.2-second choreography"
+);
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

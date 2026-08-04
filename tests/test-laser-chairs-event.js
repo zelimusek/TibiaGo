@@ -86,6 +86,9 @@ try {
   event.tick();
   assert.strictEqual(event.__state.phase, "claiming");
   assert.strictEqual(event.__state.squares.size, 2);
+  assert.strictEqual(event.getPayload().drawDurationMs, 1600);
+  assert.strictEqual(event.getPayload().durationMs, 9300, "players must retain seven seconds after the lasers finish drawing");
+  assert.strictEqual(event.__getSquareDrawDurationMs(19), 3200, "nineteen squares should receive the slower three-batch choreography");
   assert.ok(alice.messages.includes("Find your square!"));
 
   const firstSquares = Array.from(event.__state.squares.values());
@@ -124,7 +127,7 @@ try {
   repeat.tick();
   currentTime += 6000;
   repeat.tick();
-  currentTime += 7000;
+  currentTime += 9300;
   repeat.tick();
   assert.strictEqual(repeat.__state.phase, "result");
   assert.strictEqual(repeat.__getSurvivorNames().length, 2, "a zero-claim round must repeat without eliminating everybody");

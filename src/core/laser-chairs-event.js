@@ -15,6 +15,10 @@ const LASER_CHAIRS_CONFIG = {
   danceMinMs: 4000,
   danceMaxMs: 7000,
   claimMs: 7000,
+  laserApproachMs: 700,
+  laserDrawBaseMs: 1600,
+  laserDrawBatchMs: 800,
+  laserCount: 9,
   resultMs: 1500
 };
 
@@ -194,6 +198,13 @@ LaserChairsEvent.prototype.getStatus = function () {
     .format(this.__state.phase, this.__state.round, this.__getSurvivorNames().length, this.__state.participants.size);
 };
 
+LaserChairsEvent.prototype.__getSquareDrawDurationMs = function (squareCount) {
+  let extraBatches = Math.ceil(Math.max(0, squareCount - LASER_CHAIRS_CONFIG.laserCount)
+    / LASER_CHAIRS_CONFIG.laserCount);
+  return LASER_CHAIRS_CONFIG.laserDrawBaseMs
+    + extraBatches * LASER_CHAIRS_CONFIG.laserDrawBatchMs;
+};
+
 LaserChairsEvent.prototype.getPayload = function () {
   if (!this.__state) return null;
   let now = this.__now();
@@ -201,6 +212,7 @@ LaserChairsEvent.prototype.getPayload = function () {
     phase: this.__state.phase,
     elapsedMs: Math.max(0, now - this.__state.phaseStartedAt),
     durationMs: Math.max(1, this.__state.phaseEndsAt - this.__state.phaseStartedAt),
+    drawDurationMs: this.__state.squareDrawDurationMs || LASER_CHAIRS_CONFIG.laserDrawBaseMs,
     round: this.__state.round,
     remaining: this.__getSurvivorNames().length,
     floor: LASER_CHAIRS_CONFIG.floor,
@@ -249,7 +261,10 @@ LaserChairsEvent.prototype.__startClaim = function () {
   }, this);
   if (!this.__state.repeatRound) this.__state.round++;
   this.__state.repeatRound = false;
-  this.__setPhase("claiming", LASER_CHAIRS_CONFIG.claimMs);
+  this.__state.squareDrawDurationMs = this.__getSquareDrawDurationMs(squares.length);
+  this.__setPhase("claiming", LASER_CHAIRS_CONFIG.laserApproachMs
+    + this.__state.squareDrawDurationMs
+    + LASER_CHAIRS_CONFIG.claimMs);
   this.__broadcast("Find your square!");
 };
 
