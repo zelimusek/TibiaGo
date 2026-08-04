@@ -569,6 +569,9 @@ PacketHandler.prototype.handlePartyAchievement = function (packet) {
   if (packet.action === "overview") {
     return gameClient.interface.modalManager.open("achievements-modal", packet.data);
   }
+  if (packet.action === "rank" && packet.data) {
+    return this.__showPartyRankToast(packet.data);
+  }
   if (packet.action !== "unlock" || !packet.data.achievement) return;
 
   let achievement = packet.data.achievement;
@@ -606,6 +609,44 @@ PacketHandler.prototype.handlePartyAchievement = function (packet) {
     element.classList.add("hidden");
   }, 6000);
 }
+
+PacketHandler.prototype.__showPartyRankToast = function (rank) {
+  let element = document.getElementById("achievement");
+  element.className = "party-achievement-toast party-achievement-legendary";
+  element.innerHTML = "";
+
+  let heading = document.createElement("div");
+  heading.className = "party-achievement-heading";
+  heading.innerText = "CLUB RANK REACHED!";
+  let title = document.createElement("div");
+  title.className = "party-achievement-name";
+  title.innerText = rank.title || "Clubber";
+  let description = document.createElement("div");
+  description.className = "party-achievement-description";
+  description.innerText = rank.nextRankSeconds > 0
+    ? "Next rank in " + this.__formatPartyTime(rank.nextRankSeconds) + "."
+    : "You have reached the highest club rank!";
+  element.appendChild(heading);
+  element.appendChild(title);
+  element.appendChild(description);
+
+  for (let index = 0; index < 30; index++) {
+    let particle = document.createElement("i");
+    particle.className = "achievement-confetti";
+    particle.style.setProperty("--x", (Math.random() * 360 - 180) + "px");
+    particle.style.setProperty("--delay", (Math.random() * 0.5) + "s");
+    particle.style.setProperty("--color", ["#ffd34d", "#56a8ff", "#c36bff", "#ff6577", "#52e0a1"][index % 5]);
+    element.appendChild(particle);
+  }
+
+  requestAnimationFrame(function () { element.classList.add("visible"); });
+  if (gameClient.interface.soundManager) gameClient.interface.soundManager.playAchievement();
+  clearTimeout(this.__partyAchievementTimeout);
+  this.__partyAchievementTimeout = setTimeout(function () {
+    element.classList.remove("visible");
+    element.classList.add("hidden");
+  }, 7000);
+};
 
 PacketHandler.prototype.handleCreatureTitle = function (packet) {
   let creature = gameClient.world.getCreature(packet.guid);

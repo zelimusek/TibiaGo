@@ -134,7 +134,14 @@ PartyAchievementSystem.prototype.__tickClubRank = function (player, seconds, now
   if (previousRank === state.clubRank) return;
   state.clubRank = previousRank;
   let rank = CLUB_RANKS[previousRank];
+  let next = CLUB_RANKS[previousRank + 1] || null;
+  player.write(new PartyAchievementPacket("rank", {
+    title: rank.title,
+    seconds: state.clubTimeSeconds,
+    nextRankSeconds: next ? Math.max(0, next.seconds - state.clubTimeSeconds) : 0
+  }));
   player.sendCancelMessage("Club rank reached: %s!".format(rank.title));
+  this.__showWorldConfetti(player);
 };
 
 PartyAchievementSystem.prototype.increment = function (player, counter, amount) {
