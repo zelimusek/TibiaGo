@@ -63,6 +63,9 @@ PacketReader.prototype.readCharacterInformation = function () {
     "vocation": this.readUInt8(),
     "role": this.readUInt8(),
     "partyTitle": this.readString(),
+    "clubRank": this.readString(),
+    "clubTimeSeconds": this.readUInt32(),
+    "clubNextRankSeconds": this.readUInt32(),
     "achievementCount": this.readUInt16()
   });
 

@@ -134,9 +134,6 @@ PartyAchievementSystem.prototype.__tickClubRank = function (player, seconds, now
   if (previousRank === state.clubRank) return;
   state.clubRank = previousRank;
   let rank = CLUB_RANKS[previousRank];
-  let active = this.getActiveTitle(player);
-  player.broadcast(new CreatureTitlePacket(player.getId(), active.title, active.rarity));
-  player.write(new CreatureTitlePacket(player.getId(), active.title, active.rarity));
   player.sendCancelMessage("Club rank reached: %s!".format(rank.title));
 };
 
@@ -270,8 +267,21 @@ PartyAchievementSystem.prototype.getActiveTitle = function (player) {
   let state = this.getState(player);
   let definition = state.activeTitle ? this.__byId.get(state.activeTitle) : null;
   if (definition) return { title: definition.title, rarity: definition.rarity || "common" };
+  return { title: "", rarity: "common" };
+};
+
+PartyAchievementSystem.prototype.getClubRankInfo = function (player) {
+  if (!player || !player.isPlayer || !player.isPlayer()) {
+    return { title: "", seconds: 0, nextRankSeconds: 0 };
+  }
+  let state = this.getState(player);
   let rank = CLUB_RANKS[state.clubRank] || CLUB_RANKS[0];
-  return { title: rank.title, rarity: rank.rarity };
+  let next = CLUB_RANKS[state.clubRank + 1] || null;
+  return {
+    title: rank.title,
+    seconds: state.clubTimeSeconds,
+    nextRankSeconds: next ? Math.max(0, next.seconds - state.clubTimeSeconds) : 0
+  };
 };
 
 PartyAchievementSystem.prototype.getUnlockedCount = function (player) {

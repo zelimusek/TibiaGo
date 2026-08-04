@@ -750,11 +750,18 @@ const CreatureInformationPacket = function (creature) {
   );
   let partyTitle = getCreaturePartyTitle(creature);
   let titleEncoded = encodePartyString(partyTitle.title);
+  let handler = process.gameServer && process.gameServer.world
+    ? process.gameServer.world.creatureHandler : null;
+  let clubRank = handler && handler.partyAchievements
+    ? handler.partyAchievements.getClubRankInfo(creature)
+    : { title: "Newcomer", seconds: 0, nextRankSeconds: 0 };
+  let clubRankEncoded = encodePartyString(clubRank.title);
 
   PacketWriter.call(
     this,
     CONST.PROTOCOL.SERVER.CREATURE_INFORMATION,
-    stringEncoded.getEncodedLength() + titleEncoded.getEncodedLength() + 7
+    stringEncoded.getEncodedLength() + titleEncoded.getEncodedLength()
+      + clubRankEncoded.getEncodedLength() + 15
   );
 
   this.writeBuffer(stringEncoded);
@@ -783,8 +790,9 @@ const CreatureInformationPacket = function (creature) {
     this.writeUInt8(0);
   }
   this.writeBuffer(titleEncoded);
-  let handler = process.gameServer && process.gameServer.world
-    ? process.gameServer.world.creatureHandler : null;
+  this.writeBuffer(clubRankEncoded);
+  this.writeUInt32(clubRank.seconds);
+  this.writeUInt32(clubRank.nextRankSeconds);
   this.writeUInt16(handler && handler.partyAchievements
     ? handler.partyAchievements.getUnlockedCount(creature) : 0);
 };

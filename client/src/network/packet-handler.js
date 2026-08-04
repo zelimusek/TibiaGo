@@ -1119,6 +1119,15 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
 
   let message = "You see %s (Level %s). %s".format(packet.name, packet.level, vocationDescription);
   if (packet.partyTitle) message += " Party title: %s.".format(packet.partyTitle);
+  if (packet.clubRank) {
+    message += " Club rank: %s. Party time: %s.".format(
+      packet.clubRank,
+      this.__formatPartyTime(packet.clubTimeSeconds || 0)
+    );
+    if (packet.clubNextRankSeconds > 0) {
+      message += " Next rank in %s.".format(this.__formatPartyTime(packet.clubNextRankSeconds));
+    }
+  }
   message += " Achievements: %s/12.".format(packet.achievementCount || 0);
 
   // Show a server message
@@ -1427,6 +1436,14 @@ PacketHandler.prototype.handleDefaultMessage = function (packet) {
   entity.say(packet);
 
 }
+
+PacketHandler.prototype.__formatPartyTime = function (seconds) {
+  seconds = Math.max(0, Number(seconds) || 0);
+  let hours = Math.floor(seconds / 3600);
+  let minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return "%sh %sm".format(hours, minutes);
+  return "%sm".format(minutes);
+};
 
 PacketHandler.prototype.handleCreatureYell = function (packet) {
 
