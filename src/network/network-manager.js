@@ -89,6 +89,7 @@ NetworkManager.prototype.readIncomingBuffer = function (gameSocket) {
   // Extend the idle lock if a packet is received
   if (packet.isReadable()) {
     gameSocket.player.idleHandler.extend();
+    gameSocket.player.__lastPartyActivityAt = Date.now();
   }
 
   // Keep parsing the incoming buffer

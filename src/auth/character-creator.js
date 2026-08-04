@@ -2,6 +2,7 @@
 
 const Position = requireModule("utils/position");
 const Outfit = requireModule("entities/outfit");
+const Skill = requireModule("utils/skill");
 
 const CharacterCreator = function () {
 
@@ -75,7 +76,7 @@ const CharacterCreator = function () {
 
 }
 
-CharacterCreator.prototype.create = function (name, sex) {
+CharacterCreator.prototype.create = function (name, sex, options) {
 
   /*
    * CharacterCreator.create
@@ -87,6 +88,28 @@ CharacterCreator.prototype.create = function (name, sex) {
 
   // Replace the character name
   copiedTemplate.properties.name = name;
+
+  let discoMode = CONFIG.SERVER.DISCO_MODE && CONFIG.SERVER.DISCO_MODE.ENABLED === true
+    && (!options || options.discoMode !== false);
+  if (discoMode) {
+    let discoConfig = CONFIG.SERVER.DISCO_MODE;
+    let spawn = discoConfig.SPAWN || { x: 32516, y: 32394, z: 7 };
+    let level = Number.isInteger(discoConfig.START_LEVEL) && discoConfig.START_LEVEL > 0
+      ? discoConfig.START_LEVEL
+      : 20;
+    let experienceSkill = new Skill(CONST.PROPERTIES.EXPERIENCE, 0);
+    let experience = experienceSkill.getRequiredSkillPoints(level, CONST.VOCATION.NONE);
+    copiedTemplate.position = new Position(spawn.x, spawn.y, spawn.z);
+    copiedTemplate.templePosition = new Position(spawn.x, spawn.y, spawn.z);
+    copiedTemplate.skills.experience = experience;
+    copiedTemplate.skills.level = level;
+    copiedTemplate.properties.health = 5 * (level + 29);
+    copiedTemplate.properties.maxHealth = copiedTemplate.properties.health;
+    copiedTemplate.properties.mana = 5 * (level + 10);
+    copiedTemplate.properties.maxMana = copiedTemplate.properties.mana;
+    copiedTemplate.properties.maxCapacity = 10 * (level + 39);
+    copiedTemplate.properties.speed = 109 + level;
+  }
 
   // And sex specific attributes
   if (sex === "male") {

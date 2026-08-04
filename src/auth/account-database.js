@@ -73,6 +73,7 @@ AccountDatabase.prototype.__createDefaultCharacter = async function (
     outfit: Number.isInteger(DEFAULT_CHARACTER.OUTFIT)
       ? DEFAULT_CHARACTER.OUTFIT
       : CONST.LOOKTYPES.OTHER.GAMEMASTER,
+    discoMode: false,
   };
 
   // Check if default character already exists
@@ -205,7 +206,9 @@ AccountDatabase.prototype.createAccount = function (queryObject, callback) {
             // Creates a new character from a blueprint
             const account = queryObject.account.toLowerCase();
             const name = queryObject.name.capitalize();
-            const character = JSON.parse(this.characterCreator.create(name, queryObject.sex));
+            const character = JSON.parse(this.characterCreator.create(name, queryObject.sex, {
+              discoMode: queryObject.discoMode !== false
+            }));
 
             // Only the configured bootstrap account receives a privileged role.
             // All ordinary registrations keep the CharacterCreator default (NONE).

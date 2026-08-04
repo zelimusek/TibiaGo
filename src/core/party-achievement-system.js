@@ -8,6 +8,18 @@ const DANCE_FLOOR = {
   to: { x: 32521, y: 32352, z: 7 }
 };
 
+const CLUB_RANKS = [
+  { title: "Newcomer", seconds: 0, rarity: "common" },
+  { title: "Party Guest", seconds: 1800, rarity: "common" },
+  { title: "Clubber", seconds: 7200, rarity: "rare" },
+  { title: "Dancefloor Regular", seconds: 18000, rarity: "rare" },
+  { title: "Groove Seeker", seconds: 43200, rarity: "epic" },
+  { title: "Nightlife Enthusiast", seconds: 90000, rarity: "epic" },
+  { title: "Party Veteran", seconds: 180000, rarity: "legendary" },
+  { title: "Disco Legend", seconds: 360000, rarity: "legendary" }
+];
+const CLUB_AFK_LIMIT_MS = 2 * 60 * 60 * 1000;
+
 const RARITY_COLORS = {
   common: "#ffffff",
   rare: "#56a8ff",
@@ -58,11 +70,14 @@ PartyAchievementSystem.prototype.getState = function (player) {
   state.unlocked = state.unlocked && typeof state.unlocked === "object" ? state.unlocked : {};
   state.visitDates = Array.isArray(state.visitDates) ? state.visitDates : [];
   state.activeTitle = typeof state.activeTitle === "string" ? state.activeTitle : null;
+  state.clubTimeSeconds = Math.max(0, Number(state.clubTimeSeconds) || 0);
+  state.clubRank = Math.max(0, Math.min(CLUB_RANKS.length - 1, Number(state.clubRank) || 0));
   return state;
 };
 
 PartyAchievementSystem.prototype.initializePlayer = function (player) {
   this.preparePlayer(player);
+  player.__lastPartyActivityAt = Date.now();
   this.__recordPartyVisit(player);
   this.__evaluate(player);
 };
@@ -98,10 +113,31 @@ PartyAchievementSystem.prototype.tick = function () {
   this.__lastTickAt = now;
   this.__creatureHandler.getConnectedPlayers().forEach(function (player) {
     this.__recordPartyVisit(player);
+    this.__tickClubRank(player, seconds, now);
     if (this.__isInside(player.position, DANCE_FLOOR)) {
       this.increment(player, "danceFloorSeconds", seconds);
     }
   }, this);
+};
+
+PartyAchievementSystem.prototype.__tickClubRank = function (player, seconds, now) {
+  if (!this.__creatureHandler.isInsidePartyRadioZone(player.position)) return;
+  let lastActivity = Number(player.__lastPartyActivityAt) || now;
+  if (now - lastActivity > CLUB_AFK_LIMIT_MS) return;
+  let state = this.getState(player);
+  let previousRank = state.clubRank;
+  state.clubTimeSeconds += seconds;
+  while (previousRank + 1 < CLUB_RANKS.length
+      && state.clubTimeSeconds >= CLUB_RANKS[previousRank + 1].seconds) {
+    previousRank++;
+  }
+  if (previousRank === state.clubRank) return;
+  state.clubRank = previousRank;
+  let rank = CLUB_RANKS[previousRank];
+  let active = this.getActiveTitle(player);
+  player.broadcast(new CreatureTitlePacket(player.getId(), active.title, active.rarity));
+  player.write(new CreatureTitlePacket(player.getId(), active.title, active.rarity));
+  player.sendCancelMessage("Club rank reached: %s!".format(rank.title));
 };
 
 PartyAchievementSystem.prototype.increment = function (player, counter, amount) {
@@ -233,7 +269,9 @@ PartyAchievementSystem.prototype.getActiveTitle = function (player) {
   if (!player || !player.isPlayer || !player.isPlayer()) return { title: "", rarity: "common" };
   let state = this.getState(player);
   let definition = state.activeTitle ? this.__byId.get(state.activeTitle) : null;
-  return definition ? { title: definition.title, rarity: definition.rarity || "common" } : { title: "", rarity: "common" };
+  if (definition) return { title: definition.title, rarity: definition.rarity || "common" };
+  let rank = CLUB_RANKS[state.clubRank] || CLUB_RANKS[0];
+  return { title: rank.title, rarity: rank.rarity };
 };
 
 PartyAchievementSystem.prototype.getUnlockedCount = function (player) {
