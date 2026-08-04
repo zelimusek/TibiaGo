@@ -974,11 +974,15 @@ showFrame = setVipShow(100, "fire", "intense", "all", 54000, crowdParticipants, 
 assert.strictEqual(showFrame.vipShow.effectCount, 18, "crowd all mode must include the interactive circuit scene");
 
 const chairStrokesBefore = strokes;
+const chairSquares = [
+  { x: 32512, y: 32344, z: 7 },
+  { x: 32518, y: 32349, z: 7 }
+];
 weather.setDiscoLights(true, true, 80, 100, 120, 6, {
   x: 32515, y: 32346, z: 7
 }, null, null, {
   phase: "claiming",
-  elapsedMs: 700,
+  elapsedMs: 1500,
   durationMs: 7000,
   round: 1,
   remaining: 3,
@@ -986,14 +990,46 @@ weather.setDiscoLights(true, true, 80, 100, 120, 6, {
     from: { x: 32509, y: 32340, z: 7 },
     to: { x: 32521, y: 32352, z: 7 }
   },
-  squares: [
-    { x: 32512, y: 32344, z: 7 },
-    { x: 32518, y: 32349, z: 7 }
-  ]
+  squares: chairSquares
 });
 context.gameClient.renderer.debugger.__nFrames++;
-assert.strictEqual(weather.__getDiscoLightFrame().chairGame.phase, "claiming");
+let chairFrame = weather.__getDiscoLightFrame();
+assert.strictEqual(chairFrame.chairGame.phase, "claiming");
+assert.strictEqual(chairFrame.chairLasers.targets.length, 9, "all nine permanent club lasers must receive an independent chair route");
+assert.ok(chairFrame.chairLasers.amount > 0.99, "club lasers must physically control their beams while drawing squares");
+const lastClaimTargets = chairFrame.chairLasers.targets.map((target) => ({ x: target.x, y: target.y }));
+const lastClaimAmount = chairFrame.chairLasers.amount;
 weather.drawDiscoLights();
 assert.ok(strokes >= chairStrokesBefore + 6, "Laser Chairs must draw the closed floor border and every SQM square");
+
+weather.setDiscoLights(true, true, 80, 100, 120, 6, {
+  x: 32515, y: 32346, z: 7
+}, null, null, {
+  phase: "result",
+  elapsedMs: 0,
+  durationMs: 1500,
+  round: 1,
+  remaining: 2,
+  floor: {
+    from: { x: 32509, y: 32340, z: 7 },
+    to: { x: 32521, y: 32352, z: 7 }
+  },
+  squares: chairSquares
+});
+context.gameClient.renderer.debugger.__nFrames++;
+chairFrame = weather.__getDiscoLightFrame();
+assert.ok(Math.abs(chairFrame.chairLasers.amount - lastClaimAmount) < 0.001,
+  "the return choreography must begin at the previous beam strength without blinking"
+);
+chairFrame.chairLasers.targets.forEach((target, index) => {
+  assert.ok(Math.hypot(target.x - lastClaimTargets[index].x, target.y - lastClaimTargets[index].y) < 0.01,
+    "a result transition must continue from each laser's previous endpoint without teleporting"
+  );
+});
+now += 1400;
+context.gameClient.renderer.debugger.__nFrames++;
+chairFrame = weather.__getDiscoLightFrame();
+assert.ok(chairFrame.chairLasers.amount < 0.01, "lasers must smoothly release back to their normal club movement");
+assert.ok(chairFrame.chairLasers.trailLines.length >= 10, "the drawn border and chair squares must remain visible after the beams leave");
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

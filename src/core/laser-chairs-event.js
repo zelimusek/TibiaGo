@@ -283,7 +283,6 @@ LaserChairsEvent.prototype.__resolveClaim = function () {
   }, this);
 
   if (seated.length === 0) {
-    this.__state.squares.clear();
     this.__broadcast("Nobody found a square — this round will be repeated!");
     this.__setPhase("result", LASER_CHAIRS_CONFIG.resultMs);
     this.__state.repeatRound = true;
@@ -297,7 +296,6 @@ LaserChairsEvent.prototype.__resolveClaim = function () {
       else this.__state.eliminated.add(name);
     }
   }, this);
-  this.__state.squares.clear();
   let remaining = this.__getSurvivorNames().length;
   if (remaining <= 1) {
     this.__finish();

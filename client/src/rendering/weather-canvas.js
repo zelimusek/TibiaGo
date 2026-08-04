@@ -29,6 +29,7 @@ const WeatherCanvas = function(screen) {
   this.__spotlightFocusVisual = null;
   this.__spotlightFocusTransition = null;
   this.__laserShowPhaseTransition = null;
+  this.__chairLaserTransition = null;
   this.__vipShowTrail = [];
   this.__vipShowTrailTarget = null;
   this.__vipCrowdTrails = new Map();
@@ -361,6 +362,23 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
     && chairGame.floor && chairGame.floor.from && chairGame.floor.to
     && Number.isFinite(chairGame.durationMs) && chairGame.durationMs > 0
     && Array.isArray(chairGame.squares);
+  let previousChairGame = this.__discoLights.chairGame;
+
+  if(previousChairGame && validChairGame && previousChairGame.phase !== chairGame.phase
+      && this.__discoLightFrame && this.__discoLightFrame.chairLasers) {
+    this.__chairLaserTransition = {
+      phase: chairGame.phase,
+      startedAt: transitionNow,
+      amount: this.__discoLightFrame.chairLasers.amount,
+      anchorX: this.__discoLightFrame.centerX,
+      anchorY: this.__discoLightFrame.centerY,
+      targets: this.__discoLightFrame.chairLasers.targets.map(function(target) {
+        return { x: target.x, y: target.y };
+      })
+    };
+  } else if(!validChairGame) {
+    this.__chairLaserTransition = null;
+  }
 
   if((previousTargetId !== nextTargetId || previousLaserFocus !== nextLaserFocus) && this.__discoLightFrame && this.__discoLightFrame.lights) {
     this.__spotlightFocusTransition = {
@@ -1948,15 +1966,237 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
 
 }
 
+WeatherCanvas.prototype.__getLaserChairsFrame = function(game, now) {
+
+  if(!game || !game.floor || !game.floor.from || !game.floor.to) return null;
+
+  let elapsed = game.elapsedMs + Math.max(0, now - game.receivedAt);
+  let fromScreen = gameClient.renderer.getStaticScreenPosition(new Position(
+    game.floor.from.x, game.floor.from.y, game.floor.from.z
+  ));
+  let toScreen = gameClient.renderer.getStaticScreenPosition(new Position(
+    game.floor.to.x, game.floor.to.y, game.floor.to.z
+  ));
+  let border = {
+    x: Math.min(fromScreen.x, toScreen.x) * 32,
+    y: Math.min(fromScreen.y, toScreen.y) * 32,
+    width: (Math.abs(toScreen.x - fromScreen.x) + 1) * 32,
+    height: (Math.abs(toScreen.y - fromScreen.y) + 1) * 32
+  };
+  let targets = Array.from({ length: 9 }, function() {
+    return { x: border.x, y: border.y };
+  });
+  let trailLines = [];
+
+  function clamp(value) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function ease(value) {
+    value = clamp(value);
+    return value * value * (3 - 2 * value);
+  }
+
+  function perimeterLength(rectangle) {
+    return rectangle.width * 2 + rectangle.height * 2;
+  }
+
+  function perimeterPoint(rectangle, fraction) {
+    let perimeter = perimeterLength(rectangle);
+    let distance = (((fraction % 1) + 1) % 1) * perimeter;
+    if(distance <= rectangle.width) return { x: rectangle.x + distance, y: rectangle.y };
+    distance -= rectangle.width;
+    if(distance <= rectangle.height) return { x: rectangle.x + rectangle.width, y: rectangle.y + distance };
+    distance -= rectangle.height;
+    if(distance <= rectangle.width) return { x: rectangle.x + rectangle.width - distance, y: rectangle.y + rectangle.height };
+    distance -= rectangle.width;
+    return { x: rectangle.x, y: rectangle.y + rectangle.height - distance };
+  }
+
+  function addPerimeterRange(rectangle, startFraction, endFraction, colorIndex, alpha) {
+    let perimeter = perimeterLength(rectangle);
+    let start = startFraction * perimeter;
+    let end = endFraction * perimeter;
+    let boundaries = [0, rectangle.width, rectangle.width + rectangle.height,
+      rectangle.width * 2 + rectangle.height, perimeter];
+    let cursor = start;
+    while(cursor < end - 0.001) {
+      let wrapped = ((cursor % perimeter) + perimeter) % perimeter;
+      let nextBoundary = boundaries.find(function(boundary) { return boundary > wrapped + 0.001; });
+      if(nextBoundary === undefined) nextBoundary = perimeter;
+      let length = Math.min(end - cursor, nextBoundary - wrapped);
+      let first = perimeterPoint(rectangle, cursor / perimeter);
+      let second = perimeterPoint(rectangle, (cursor + length) / perimeter);
+      trailLines.push({
+        x1: first.x, y1: first.y, x2: second.x, y2: second.y,
+        alpha: alpha, colorIndex: colorIndex
+      });
+      cursor += Math.max(0.001, length);
+    }
+  }
+
+  function addCompleteBorder() {
+    for(let index = 0; index < 9; index++) {
+      addPerimeterRange(border, index / 9, (index + 1) / 9, index % 3, 0.72);
+    }
+  }
+
+  let amount = 0;
+  if(game.phase === "countdown") {
+    let approachMs = 900;
+    let drawMs = 2200;
+    let returnMs = 1300;
+    let drawProgress = clamp((elapsed - approachMs) / drawMs);
+    if(elapsed < approachMs) amount = ease(elapsed / approachMs);
+    else if(elapsed < approachMs + drawMs) amount = 1;
+    else amount = 1 - ease((elapsed - approachMs - drawMs) / returnMs);
+
+    for(let index = 0; index < 9; index++) {
+      let start = index / 9;
+      targets[index] = perimeterPoint(border, start + drawProgress / 9);
+      if(drawProgress > 0) {
+        addPerimeterRange(border, start, start + drawProgress / 9, index % 3, 0.92);
+      }
+    }
+  } else {
+    addCompleteBorder();
+  }
+
+  let squareRectangles = game.squares.map(function(position) {
+    let screen = gameClient.renderer.getStaticScreenPosition(new Position(position.x, position.y, position.z));
+    return { x: screen.x * 32 + 3, y: screen.y * 32 + 3, width: 26, height: 26 };
+  });
+
+  let tasks = Array.from({ length: 9 }, function() { return []; });
+  if(squareRectangles.length > 0 && squareRectangles.length <= 9) {
+    squareRectangles.forEach(function(rectangle, squareIndex) {
+      let members = [];
+      for(let laser = squareIndex; laser < 9; laser += squareRectangles.length) members.push(laser);
+      members.forEach(function(laser, memberIndex) {
+        tasks[laser].push({
+          rectangle: rectangle,
+          start: memberIndex / members.length,
+          end: (memberIndex + 1) / members.length
+        });
+      });
+    });
+  } else {
+    squareRectangles.forEach(function(rectangle, squareIndex) {
+      tasks[squareIndex % 9].push({ rectangle: rectangle, start: 0, end: 1 });
+    });
+  }
+
+  function finalTaskTarget(laser) {
+    let route = tasks[laser];
+    if(route.length === 0) return perimeterPoint(border, laser / 9);
+    let task = route[route.length - 1];
+    return perimeterPoint(task.rectangle, task.end);
+  }
+
+  function drawTaskRoutes(route, progress, colorIndex) {
+    if(route.length === 0) return null;
+    let routePosition = Math.min(route.length - 0.000001, clamp(progress) * route.length);
+    let activeIndex = Math.floor(routePosition);
+    let local = routePosition - activeIndex;
+    for(let index = 0; index < activeIndex; index++) {
+      addPerimeterRange(route[index].rectangle, route[index].start, route[index].end, colorIndex, 0.92);
+    }
+    let active = route[activeIndex];
+    let previous = activeIndex > 0
+      ? perimeterPoint(route[activeIndex - 1].rectangle, route[activeIndex - 1].end)
+      : perimeterPoint(active.rectangle, active.start);
+    let start = perimeterPoint(active.rectangle, active.start);
+    if(activeIndex > 0 && local < 0.22) {
+      let travel = ease(local / 0.22);
+      return {
+        x: previous.x + (start.x - previous.x) * travel,
+        y: previous.y + (start.y - previous.y) * travel
+      };
+    }
+    let drawProgress = activeIndex > 0 ? clamp((local - 0.22) / 0.78) : local;
+    addPerimeterRange(
+      active.rectangle,
+      active.start,
+      active.start + (active.end - active.start) * drawProgress,
+      colorIndex,
+      1
+    );
+    return perimeterPoint(active.rectangle, active.start + (active.end - active.start) * drawProgress);
+  }
+
+  if(game.phase === "claiming" && squareRectangles.length > 0) {
+    let approachMs = 700;
+    let drawMs = 1600;
+    let returnMs = 1300;
+    let drawProgress = clamp((elapsed - approachMs) / drawMs);
+    if(elapsed < approachMs) amount = ease(elapsed / approachMs);
+    else if(elapsed < approachMs + drawMs) amount = 1;
+    else amount = 1 - ease((elapsed - approachMs - drawMs) / returnMs);
+
+    tasks.forEach(function(route, laser) {
+      if(route.length === 0) {
+        targets[laser] = perimeterPoint(border, laser / 9);
+        return;
+      }
+      let first = perimeterPoint(route[0].rectangle, route[0].start);
+      if(elapsed < approachMs) {
+        targets[laser] = first;
+      } else if(elapsed < approachMs + drawMs) {
+        targets[laser] = drawTaskRoutes(route, drawProgress, laser % 3) || first;
+      } else {
+        route.forEach(function(task) {
+          addPerimeterRange(task.rectangle, task.start, task.end, laser % 3, 0.9);
+        });
+        targets[laser] = finalTaskTarget(laser);
+      }
+    });
+  } else if(game.phase === "result" && squareRectangles.length > 0) {
+    amount = 1 - ease(elapsed / 1300);
+    tasks.forEach(function(route, laser) {
+      route.forEach(function(task) {
+        addPerimeterRange(task.rectangle, task.start, task.end, laser % 3, 0.82);
+      });
+      targets[laser] = finalTaskTarget(laser);
+    });
+  }
+
+  let transition = this.__chairLaserTransition;
+  if(transition && transition.phase === game.phase) {
+    let progress = ease((now - transition.startedAt) / 900);
+    let currentAnchorX = border.x + border.width * 0.5;
+    let currentAnchorY = border.y + border.height * 0.5;
+    let cameraDeltaX = currentAnchorX - transition.anchorX;
+    let cameraDeltaY = currentAnchorY - transition.anchorY;
+    targets = targets.map(function(target, index) {
+      let origin = transition.targets[index] || target;
+      return {
+        x: origin.x + cameraDeltaX + (target.x - origin.x - cameraDeltaX) * progress,
+        y: origin.y + cameraDeltaY + (target.y - origin.y - cameraDeltaY) * progress
+      };
+    });
+    amount = transition.amount + (amount - transition.amount) * progress;
+    if(progress >= 1) this.__chairLaserTransition = null;
+  }
+
+  return {
+    phase: game.phase,
+    elapsedMs: elapsed,
+    amount: clamp(amount),
+    targets: targets,
+    trailLines: trailLines
+  };
+
+};
+
 WeatherCanvas.prototype.__getDiscoLightFrame = function() {
 
   let disco = this.__discoLights;
   let now = performance.now();
   let show = disco.laserShow;
   let showElapsed = show ? show.elapsedMs + Math.max(0, now - show.receivedAt) : 0;
-  let showActive = show != null && showElapsed < show.durationMs;
-  let vipRequested = disco.focus && disco.focus.vipShow;
   let chairActive = disco.chairGame !== null;
+  let showActive = !chairActive && show != null && showElapsed < show.durationMs;
+  let vipRequested = disco.focus && disco.focus.vipShow;
   if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive && !vipRequested && !chairActive) || !disco.center || disco.radius <= 0) {
     return null;
   }
@@ -1975,12 +2215,15 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let centerScreen = gameClient.renderer.getStaticScreenPosition(center);
   let centerX = (centerScreen.x + 0.5) * 32;
   let centerY = (centerScreen.y + 0.5) * 32;
+  let chairLaserFrame = chairActive
+    ? this.__getLaserChairsFrame(disco.chairGame, now)
+    : null;
   let laserShowFrame = showActive
     ? this.__getLaserShowFrame(show, centerX, centerY, radius, now)
     : null;
   let focus = disco.focus;
   let focusElapsed = focus ? focus.elapsedMs + Math.max(0, now - focus.receivedAt) : 0;
-  let focusActive = !showActive && focus !== null && (focus.persistent || focusElapsed < focus.durationMs);
+  let focusActive = !showActive && !chairActive && focus !== null && (focus.persistent || focusElapsed < focus.durationMs);
   if(focus && !focusActive && !focus.expiryTransitionStarted) {
     focus.expiryTransitionStarted = true;
     if(this.__discoLightFrame && this.__discoLightFrame.lights) {
@@ -2132,7 +2375,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     spotlightsEnabled: disco.spotlightsEnabled || showActive || Boolean(
       vipShowFrame && vipShowFrame.effect !== "circuit"
     ),
-    legacyLasersEnabled: disco.legacyLasersEnabled || showActive || Boolean(
+    legacyLasersEnabled: disco.legacyLasersEnabled || showActive || chairActive || Boolean(
       vipShowFrame && ["laser", "name", "duel"].includes(vipShowFrame.effect)
     ),
     radius: radius,
@@ -2148,6 +2391,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusRadius: laserFocusRadius,
     laserShow: laserShowFrame,
     chairGame: disco.chairGame,
+    chairLasers: chairLaserFrame,
     vipShow: vipShowFrame,
     vipLaserTargets: vipShowFrame ? vipShowFrame.laserTargets : null,
     clip: {
@@ -3098,99 +3342,6 @@ WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
 
 }
 
-WeatherCanvas.prototype.__drawLaserChairs = function(context, frame) {
-
-  let game = frame.chairGame;
-  if(!game) return;
-
-  let now = performance.now();
-  let elapsed = game.elapsedMs + Math.max(0, now - game.receivedAt);
-  let from = game.floor.from;
-  let to = game.floor.to;
-  let fromScreen = gameClient.renderer.getStaticScreenPosition(new Position(from.x, from.y, from.z));
-  let toScreen = gameClient.renderer.getStaticScreenPosition(new Position(to.x, to.y, to.z));
-  let floorX = Math.min(fromScreen.x, toScreen.x) * 32;
-  let floorY = Math.min(fromScreen.y, toScreen.y) * 32;
-  let floorWidth = (Math.abs(toScreen.x - fromScreen.x) + 1) * 32;
-  let floorHeight = (Math.abs(toScreen.y - fromScreen.y) + 1) * 32;
-  let borderProgress = game.phase === "countdown"
-    ? Math.max(0, Math.min(1, elapsed / 1800))
-    : 1;
-  let squareProgress = game.phase === "claiming"
-    ? Math.max(0, Math.min(1, elapsed / 650))
-    : 0;
-  let pulse = 0.82 + 0.18 * Math.sin(now / 125);
-  let colors = ["#41e8ff", "#ff46f2", "#47ffac", "#ffd84a"];
-
-  function rectangleProgress(x, y, width, height, progress) {
-    let lengths = [width, height, width, height];
-    let points = [
-      [x, y, x + width, y],
-      [x + width, y, x + width, y + height],
-      [x + width, y + height, x, y + height],
-      [x, y + height, x, y]
-    ];
-    let remaining = (width * 2 + height * 2) * Math.max(0, Math.min(1, progress));
-    context.beginPath();
-    points.forEach(function(segment, index) {
-      if(remaining <= 0) return;
-      let amount = Math.min(1, remaining / lengths[index]);
-      context.moveTo(segment[0], segment[1]);
-      context.lineTo(
-        segment[0] + (segment[2] - segment[0]) * amount,
-        segment[1] + (segment[3] - segment[1]) * amount
-      );
-      remaining -= lengths[index];
-    });
-    context.stroke();
-  }
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  context.beginPath();
-  context.rect(floorX - 12, floorY - 12, floorWidth + 24, floorHeight + 24);
-  context.clip();
-
-  context.strokeStyle = "rgba(70, 225, 255, 0.20)";
-  context.lineWidth = 11;
-  rectangleProgress(floorX, floorY, floorWidth, floorHeight, borderProgress);
-  context.strokeStyle = "rgba(105, 245, 255, 0.95)";
-  context.lineWidth = 2.6;
-  rectangleProgress(floorX, floorY, floorWidth, floorHeight, borderProgress);
-
-  if(squareProgress > 0) {
-    game.squares.forEach(function(position, index) {
-      let screen = gameClient.renderer.getStaticScreenPosition(new Position(position.x, position.y, position.z));
-      let x = screen.x * 32 + 3;
-      let y = screen.y * 32 + 3;
-      let size = 26;
-      let color = colors[index % colors.length];
-      context.globalAlpha = pulse;
-      context.strokeStyle = color;
-      context.lineWidth = 9;
-      rectangleProgress(x, y, size, size, squareProgress);
-      context.globalAlpha = 1;
-      context.lineWidth = 2.4;
-      rectangleProgress(x, y, size, size, squareProgress);
-
-      if(squareProgress >= 1) {
-        let glow = context.createRadialGradient(x + 13, y + 13, 1, x + 13, y + 13, 18);
-        glow.addColorStop(0, "rgba(255, 255, 255, 0.22)");
-        glow.addColorStop(0.55, color);
-        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
-        context.globalAlpha = 0.22 * pulse;
-        context.fillStyle = glow;
-        context.beginPath();
-        context.arc(x + 13, y + 13, 18, 0, Math.PI * 2);
-        context.fill();
-      }
-    });
-  }
-
-  context.restore();
-
-};
-
 WeatherCanvas.prototype.drawDiscoLights = function() {
 
   let frame = this.__getDiscoLightFrame();
@@ -3285,11 +3436,14 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
   let beamLength = Math.max(this.screen.canvas.width, this.screen.canvas.height) * 1.5;
   let laserFocusAmount = frame.laserFocusAmount || 0;
   let laserShow = frame.laserShow;
-  let laserControlAmount = laserShow ? laserShow.amount : laserFocusAmount;
+  let chairLasers = frame.chairLasers;
+  let laserControlAmount = chairLasers ? chairLasers.amount : (laserShow ? laserShow.amount : laserFocusAmount);
   let focusedLaserRadius = frame.laserFocusRadius;
   let laserOrbitAngle = -Math.PI * 0.5 + frame.now * Math.PI * 2 / 3200;
   let laserBrightness = laserShow
     ? 1.08 + 0.22 * Math.max(0, Math.sin(frame.now / 180))
+    : chairLasers
+      ? 1.12 + 0.20 * Math.max(0, Math.sin(frame.now / 150))
     : frame.vipShow
       ? 1.16 + 0.30 * frame.vipShow.beatStrength
       : 1 + (frame.focusStrength - 1) * laserFocusAmount;
@@ -3314,17 +3468,22 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       let beamIndex = index * 3 + beam + 1;
       let normalBeamAngle = normalAngle + beam * 0.24;
       let focusTargetAngle = laserOrbitAngle + beamIndex * Math.PI * 2 / 9;
+      let chairEndpoint = chairLasers && chairLasers.targets[beamIndex];
       let showEndpoint = laserShow && laserShow.targets[beamIndex];
       let vipEndpoint = frame.vipLaserTargets && frame.vipLaserTargets[beamIndex];
-      let hasControlledTarget = Boolean(showEndpoint) || Boolean(vipEndpoint) || hasFocusCenter;
-      let focusedTargetX = showEndpoint
+      let hasControlledTarget = Boolean(chairEndpoint) || Boolean(showEndpoint) || Boolean(vipEndpoint) || hasFocusCenter;
+      let focusedTargetX = chairEndpoint
+        ? chairEndpoint.x
+        : showEndpoint
         ? showEndpoint.x
         : vipEndpoint
           ? vipEndpoint.x
         : hasFocusCenter
           ? frame.laserFocusCenterX + Math.cos(focusTargetAngle) * focusedLaserRadius
         : x + Math.cos(normalBeamAngle) * beamLength;
-      let focusedTargetY = showEndpoint
+      let focusedTargetY = chairEndpoint
+        ? chairEndpoint.y
+        : showEndpoint
         ? showEndpoint.y
         : vipEndpoint
           ? vipEndpoint.y
@@ -3368,11 +3527,12 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.fill();
   });
 
-  if(laserShow && laserShow.trailLines.length > 0) {
+  let controlledTrails = chairLasers || laserShow;
+  if(controlledTrails && controlledTrails.trailLines.length > 0) {
     context.lineWidth = 2.4;
-    laserShow.trailLines.forEach(function(line) {
+    controlledTrails.trailLines.forEach(function(line) {
       let color = legacyColors[line.colorIndex % legacyColors.length];
-      context.globalAlpha = laserShow.amount * line.alpha * 0.72;
+      context.globalAlpha = (chairLasers ? 1 : laserShow.amount) * line.alpha * 0.72;
       context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
       context.beginPath();
       context.moveTo(line.x1, line.y1);
@@ -3381,8 +3541,6 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     });
   }
   context.restore();
-
-  this.__drawLaserChairs(context, frame);
 
   if(frame.vipShow) {
     this.__drawVipShow(context, frame, mobile);
