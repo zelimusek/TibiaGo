@@ -21,7 +21,8 @@ assert.strictEqual(guide.includes("/radio"), false, "the GOD-only /radio command
 assert.strictEqual(guide.includes("/bomb"), false, "the obsolete /bomb command must remain outside the public guide");
 assert.ok(guide.includes("Bomberman Bomb"), "Bomberman instructions must name the hotkey spell");
 assert.strictEqual(guide.includes("If nobody claims one, the round repeats."), false);
-assert.ok(guide.includes("See how you rank against the whole club in Party Maniacs."));
+assert.ok(guide.includes("Complete party challenges to unlock new titles."));
+assert.ok(guide.includes("See how you rank against the whole club on the Party Maniacs leaderboard."));
 ["achievement-rare", "achievement-epic", "achievement-legendary"].forEach(function (rarityClass) {
   assert.ok(guide.includes(rarityClass), "Party Guide must show " + rarityClass + " achievement colours");
 });
