@@ -21,7 +21,7 @@ const ModalManager = function () {
   this.register(Modal, "settings-box");
   this.register(Modal, "floater-enter");
   this.register(CreateAccountModal, "floater-create");
-  this.register(Modal, "information-modal");
+  this.register(PartyGuideModal, "information-modal");
   this.register(ReadableModal, "readable-modal");
   this.register(OfferModal, "offer-modal");
   this.register(MapModal, "map-modal");

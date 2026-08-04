@@ -12,6 +12,7 @@ let teleports = [];
 let celebrations = [];
 let yells = [];
 let ambienceSyncs = 0;
+let achievementWins = [];
 
 const originalProcessGameServer = process.gameServer;
 const originalGlobalGameServer = global.gameServer;
@@ -44,6 +45,9 @@ function createPlayer(name, x, y) {
 const handler = {
   floorLava: { isRunning: () => false },
   bomberman: { isRunning: () => false },
+  partyAchievements: {
+    recordLaserChairsWin(player) { achievementWins.push(player.name); }
+  },
   getConnectedPlayers() { return players; },
   isInsidePartyRadioZone() { return true; },
   __resyncRadioAmbience() { ambienceSyncs++; },
@@ -114,6 +118,7 @@ try {
   event.tick();
   assert.strictEqual(event.isRunning(), false);
   assert.deepStrictEqual(celebrations, ["Alice"]);
+  assert.deepStrictEqual(achievementWins, ["Alice"]);
   assert.ok(yells.some((entry) => entry.npc === "DJ Thomas" && /Alice wins Laser Chairs/.test(entry.message)));
 
   players.clear();

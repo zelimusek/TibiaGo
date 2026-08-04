@@ -19,6 +19,14 @@ const CLUB_RANKS = [
   { title: "Disco Legend", seconds: 360000, rarity: "legendary" }
 ];
 const CLUB_AFK_LIMIT_MS = 2 * 60 * 60 * 1000;
+const ACHIEVEMENT_RULESET_VERSION = 2;
+
+const COUNTER_LABELS = {
+  lavaWins: "Floor Is Lava wins",
+  bomberEliminationWins: "Elimination wins",
+  bomberMayhemWins: "Mayhem wins",
+  laserChairsWins: "Laser Chairs wins"
+};
 
 const RARITY_COLORS = {
   common: "#ffffff",
@@ -56,7 +64,13 @@ const PartyAchievementSystem = function (creatureHandler) {
 };
 
 PartyAchievementSystem.prototype.__createState = function () {
-  return { counters: {}, unlocked: {}, activeTitle: null, visitDates: [] };
+  return {
+    counters: {},
+    unlocked: {},
+    activeTitle: null,
+    visitDates: [],
+    rulesetVersion: ACHIEVEMENT_RULESET_VERSION
+  };
 };
 
 PartyAchievementSystem.prototype.getState = function (player) {
@@ -70,6 +84,7 @@ PartyAchievementSystem.prototype.getState = function (player) {
   state.unlocked = state.unlocked && typeof state.unlocked === "object" ? state.unlocked : {};
   state.visitDates = Array.isArray(state.visitDates) ? state.visitDates : [];
   state.activeTitle = typeof state.activeTitle === "string" ? state.activeTitle : null;
+  state.rulesetVersion = Math.max(0, Number(state.rulesetVersion) || 0);
   state.clubTimeSeconds = Math.max(0, Number(state.clubTimeSeconds) || 0);
   state.clubRank = Math.max(0, Math.min(CLUB_RANKS.length - 1, Number(state.clubRank) || 0));
   return state;
@@ -83,8 +98,42 @@ PartyAchievementSystem.prototype.initializePlayer = function (player) {
 };
 
 PartyAchievementSystem.prototype.preparePlayer = function (player) {
+  this.__migrateRuleset(player);
   let state = this.getState(player);
   if (state.activeTitle && !state.unlocked[state.activeTitle]) state.activeTitle = null;
+};
+
+PartyAchievementSystem.prototype.__getEligibleAchievementIds = function (state) {
+  let evaluation = {
+    counters: state.counters && typeof state.counters === "object" ? state.counters : {},
+    unlocked: {}
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    this.__definitions.forEach(function (definition) {
+      if (!evaluation.unlocked[definition.id] && this.__meetsDefinition(evaluation, definition)) {
+        evaluation.unlocked[definition.id] = true;
+      }
+    }, this);
+  }
+  return new Set(Object.keys(evaluation.unlocked));
+};
+
+PartyAchievementSystem.prototype.__migrateRuleset = function (player) {
+  let state = this.getState(player);
+  if (state.rulesetVersion >= ACHIEVEMENT_RULESET_VERSION) return false;
+  let previousUnlocked = state.unlocked;
+  let previousActiveTitle = state.activeTitle;
+  let eligible = this.__getEligibleAchievementIds(state);
+  let migratedAt = new Date().toISOString();
+  state.unlocked = {};
+  eligible.forEach(function (id) {
+    state.unlocked[id] = previousUnlocked[id] || migratedAt;
+  });
+  state.activeTitle = previousActiveTitle && eligible.has(previousActiveTitle)
+    ? previousActiveTitle
+    : null;
+  state.rulesetVersion = ACHIEVEMENT_RULESET_VERSION;
+  return true;
 };
 
 PartyAchievementSystem.prototype.__isInside = function (position, area) {
@@ -234,9 +283,19 @@ PartyAchievementSystem.prototype.__toClientEntry = function (player, definition)
       return candidate.id !== definition.id && state.unlocked[candidate.id];
     }).length;
   } else {
-    progress = Math.min(Number(state.counters[definition.counter]) || 0, definition.target);
+    progress = Math.max(0, Number(state.counters[definition.counter]) || 0);
     target = definition.target;
   }
+  let progressDetails = definition.requirements
+    ? Object.keys(definition.requirements).map(function (counter) {
+      return {
+        counter: counter,
+        label: COUNTER_LABELS[counter] || counter,
+        progress: Math.max(0, Number(state.counters[counter]) || 0),
+        target: definition.requirements[counter]
+      };
+    })
+    : [];
   return {
     id: definition.id,
     title: definition.title,
@@ -245,6 +304,7 @@ PartyAchievementSystem.prototype.__toClientEntry = function (player, definition)
     color: RARITY_COLORS[definition.rarity] || RARITY_COLORS.common,
     progress: progress,
     target: target,
+    progressDetails: progressDetails,
     unlocked: Boolean(state.unlocked[definition.id]),
     unlockedAt: state.unlocked[definition.id] || null,
     active: state.activeTitle === definition.id
@@ -310,10 +370,10 @@ PartyAchievementSystem.prototype.getLeaderboardEntry = function (name, character
     ? storage.partyAchievements
     : {};
   let seconds = Math.max(0, Math.floor(Number(state.clubTimeSeconds) || 0));
-  let unlocked = state.unlocked && typeof state.unlocked === "object" ? state.unlocked : {};
-  let unlockedCount = this.__definitions.filter(function (definition) {
-    return Boolean(unlocked[definition.id]);
-  }).length;
+  let unlockedCount = this.__getEligibleAchievementIds({
+    counters: state.counters && typeof state.counters === "object" ? state.counters : {},
+    unlocked: {}
+  }).size;
   let rank = CLUB_RANKS[0];
   CLUB_RANKS.forEach(function (candidate) {
     if (seconds >= candidate.seconds) rank = candidate;
@@ -371,6 +431,10 @@ PartyAchievementSystem.prototype.recordLavaWin = function (player) {
 PartyAchievementSystem.prototype.recordBombermanWin = function (player, mode, deaths) {
   this.increment(player, mode === "mayhem" ? "bomberMayhemWins" : "bomberEliminationWins", 1);
   if ((Number(deaths) || 0) === 0) this.increment(player, "untouchableWins", 1);
+};
+
+PartyAchievementSystem.prototype.recordLaserChairsWin = function (player) {
+  this.increment(player, "laserChairsWins", 1);
 };
 
 module.exports = PartyAchievementSystem;

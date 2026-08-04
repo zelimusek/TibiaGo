@@ -1,20 +1,23 @@
 [
   { "id": "lava-survivor", "title": "Lava Survivor", "description": "Win Floor Is Lava for the first time.", "rarity": "rare", "counter": "lavaWins", "target": 1 },
-  { "id": "hot-feet", "title": "Hot Feet", "description": "Win five Floor Is Lava rounds.", "rarity": "epic", "counter": "lavaWins", "target": 5 },
-  { "id": "bomb-maniac", "title": "Bomb Maniac", "description": "Place 100 bombs in Bomberman.", "rarity": "rare", "counter": "bombsPlaced", "target": 100 },
-  { "id": "chain-reaction", "title": "Chain Reaction", "description": "Trigger a chain reaction of at least five bombs.", "rarity": "epic", "counter": "largestBombChain", "target": 5 },
-  { "id": "untouchable", "title": "Untouchable", "description": "Win a Bomberman round without being hit.", "rarity": "legendary", "counter": "untouchableWins", "target": 1 },
-  { "id": "mayhem-master", "title": "Mayhem Master", "description": "Win a Bomberman Mayhem round.", "rarity": "epic", "counter": "bomberMayhemWins", "target": 1 },
-  { "id": "dance-machine", "title": "Dance Machine", "description": "Spend 60 minutes on the dance floor.", "rarity": "rare", "counter": "danceFloorSeconds", "target": 3600 },
-  { "id": "party-animal", "title": "Party Animal", "description": "Visit the party on seven different days.", "rarity": "epic", "counter": "partyVisitDays", "target": 7 },
-  { "id": "smoke-machine", "title": "Smoke Machine", "description": "Use a water-pipe 50 times.", "rarity": "rare", "counter": "pipeUses", "target": 50 },
-  { "id": "bouncers-favourite", "title": "Bouncer's Favourite", "description": "Pass the bouncers' test ten times.", "rarity": "rare", "counter": "bouncerPasses", "target": 10 },
+  { "id": "hot-feet", "title": "Hot Feet", "description": "Win 20 Floor Is Lava rounds.", "rarity": "epic", "counter": "lavaWins", "target": 20 },
+  { "id": "bomb-maniac", "title": "Bomb Maniac", "description": "Place 500 bombs in Bomberman.", "rarity": "rare", "counter": "bombsPlaced", "target": 500 },
+  { "id": "chain-reaction", "title": "Chain Reaction", "description": "Trigger a single chain reaction of at least seven bombs.", "rarity": "epic", "counter": "largestBombChain", "target": 7 },
+  { "id": "untouchable", "title": "Untouchable", "description": "Win five Bomberman rounds without being hit.", "rarity": "legendary", "counter": "untouchableWins", "target": 5 },
+  { "id": "mayhem-master", "title": "Mayhem Master", "description": "Win 10 Bomberman Mayhem rounds.", "rarity": "epic", "counter": "bomberMayhemWins", "target": 10 },
+  { "id": "elimination-expert", "title": "Elimination Expert", "description": "Win 10 Bomberman Elimination rounds.", "rarity": "epic", "counter": "bomberEliminationWins", "target": 10 },
+  { "id": "chair-dancer", "title": "Chair Dancer", "description": "Win Laser Chairs for the first time.", "rarity": "rare", "counter": "laserChairsWins", "target": 1 },
+  { "id": "chair-champion", "title": "Chair Champion", "description": "Win 10 Laser Chairs games.", "rarity": "epic", "counter": "laserChairsWins", "target": 10 },
+  { "id": "dance-machine", "title": "Dance Machine", "description": "Spend 10 hours on the dance floor.", "rarity": "epic", "counter": "danceFloorSeconds", "target": 36000 },
+  { "id": "party-animal", "title": "Party Animal", "description": "Visit the party on 30 different days.", "rarity": "legendary", "counter": "partyVisitDays", "target": 30 },
+  { "id": "smoke-machine", "title": "Smoke Machine", "description": "Use a water-pipe 500 times.", "rarity": "epic", "counter": "pipeUses", "target": 500 },
+  { "id": "bouncers-favourite", "title": "Bouncer's Favourite", "description": "Pass the bouncers' test 25 times.", "rarity": "rare", "counter": "bouncerPasses", "target": 25 },
   {
-    "id": "last-one-dancing",
-    "title": "Last One Dancing",
-    "description": "Win Floor Is Lava and both Bomberman modes.",
+    "id": "triple-crown",
+    "title": "Triple Crown",
+    "description": "Win five games of every Party Zone minigame.",
     "rarity": "legendary",
-    "requirements": { "lavaWins": 1, "bomberMayhemWins": 1, "bomberEliminationWins": 1 }
+    "requirements": { "lavaWins": 5, "bomberEliminationWins": 5, "bomberMayhemWins": 5, "laserChairsWins": 5 }
   },
   { "id": "party-legend", "title": "Party Legend", "description": "Unlock every other party achievement.", "rarity": "legendary", "requiresAllOther": true }
 ]

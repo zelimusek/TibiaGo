@@ -469,6 +469,7 @@ button.symbol-button {
 .achievement-content { flex: 1; }
 .achievement-content strong { margin-bottom: 2px; color: currentColor; }
 .achievement-progress { margin-top: 4px; color: #aaa; font-size: 10px; }
+.achievement-progress-detail { margin-top: 2px; color: #bbb; font-size: 10px; }
 .achievement-common { color: #fff; }
 .achievement-rare { color: #56a8ff; }
 .achievement-epic { color: #c36bff; }
@@ -492,6 +493,32 @@ button.symbol-button {
 .party-maniacs-player small { margin-top: 2px; color: #aaa; font-size: 10px; }
 .party-maniacs-online { min-width: 42px; color: #55ef94; text-align: right; font-size: 9px; font-weight: 700; }
 .party-maniacs-modal .modal-footer { flex: 0 0 auto; margin-top: 8px; }
+
+.party-guide-modal { box-sizing: border-box; width: min(620px, calc(100% - 24px)); height: min(500px, calc(100% - 24px)); overflow: hidden; }
+.party-guide-modal .modal-body { box-sizing: border-box; display: flex; flex-direction: column; height: calc(100% - 22px); min-height: 0; }
+.party-guide-tabs { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px; }
+.party-guide-tab { min-width: 0; margin: 0; padding: 7px 3px; color: #aaa; border: 1px solid #555; background: rgba(5, 5, 10, .82); font-size: 11px; }
+.party-guide-tab.selected { color: #ffd34d; border-color: #ffd34d; box-shadow: inset 0 0 12px rgba(255, 211, 77, .16); }
+.party-guide-content { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.party-guide-panel { display: none; box-sizing: border-box; height: 100%; overflow-y: auto; padding: 3px 5px 8px; }
+.party-guide-panel.selected { display: block; }
+.party-guide-panel h2 { margin: 4px 0 8px; color: #ffd34d; text-align: center; font-size: 18px; }
+.party-guide-lead { margin: 4px 0 10px; color: #ccc; text-align: center; line-height: 1.4; }
+.party-guide-rules { margin: 0; padding-left: 27px; }
+.party-guide-rules li { margin: 0 0 8px; padding-left: 3px; line-height: 1.35; }
+.party-guide-card { margin-bottom: 7px; padding: 8px 10px; border: 1px solid #4b4b58; background: rgba(5, 5, 10, .76); }
+.party-guide-card h3 { margin: 0 0 4px; color: #65ddff; font-size: 13px; }
+.party-guide-card p { margin: 0; color: #ccc; line-height: 1.38; }
+.party-guide-achievements { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.party-guide-achievements article { padding: 7px 8px; border: 1px solid #494955; background: rgba(5, 5, 10, .76); }
+.party-guide-achievements strong, .party-guide-achievements span { display: block; }
+.party-guide-achievements strong { margin-bottom: 2px; color: #c878ff; }
+.party-guide-achievements span { color: #bbb; font-size: 10px; line-height: 1.3; }
+.party-guide-ranks { max-width: 430px; margin: 0 auto; display: grid; gap: 5px; }
+.party-guide-ranks div { display: flex; justify-content: space-between; gap: 20px; padding: 8px 11px; border: 1px solid #494955; background: rgba(5, 5, 10, .76); }
+.party-guide-ranks div:nth-child(n+7) { color: #ffd34d; border-color: #8c711e; }
+.party-guide-ranks span { color: #aaa; }
+.party-guide-modal .modal-footer { flex: 0 0 auto; margin-top: 8px; }
 
 .party-achievement-toast {
   position: absolute;
@@ -530,4 +557,7 @@ button.symbol-button {
   .party-achievement-toast { top: 8%; padding: 13px; }
   .party-achievement-name { font-size: 18px; }
   .party-maniacs-modal { width: calc(100% - 14px); height: min(430px, calc(100% - 14px)); }
+  .party-guide-modal { width: calc(100% - 14px); height: min(500px, calc(100% - 14px)); }
+  .party-guide-tabs { grid-template-columns: 1fr 1fr; }
+  .party-guide-achievements { grid-template-columns: 1fr; }
 }

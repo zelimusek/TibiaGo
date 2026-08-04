@@ -28,7 +28,7 @@ AchievementsModal.prototype.__render = function () {
 
     let icon = document.createElement("span");
     icon.className = "achievement-state";
-    icon.innerText = achievement.unlocked ? (achievement.active ? "★" : "✓") : "🔒";
+    icon.innerText = achievement.unlocked ? (achievement.active ? "\u2605" : "\u2713") : "\uD83D\uDD12";
 
     let content = document.createElement("span");
     content.className = "achievement-content";
@@ -38,12 +38,19 @@ AchievementsModal.prototype.__render = function () {
     description.innerText = achievement.description;
     let progress = document.createElement("span");
     progress.className = "achievement-progress";
+    let lifetimeProgress = "%s / %s".format(achievement.progress, achievement.target);
     progress.innerText = achievement.unlocked
-      ? "Unlocked " + new Date(achievement.unlockedAt).toLocaleDateString()
-      : "%s / %s".format(achievement.progress, achievement.target);
+      ? "Unlocked · %s · %s".format(lifetimeProgress, new Date(achievement.unlockedAt).toLocaleDateString())
+      : lifetimeProgress;
     content.appendChild(title);
     content.appendChild(description);
     content.appendChild(progress);
+    (achievement.progressDetails || []).forEach(function (detail) {
+      let detailElement = document.createElement("span");
+      detailElement.className = "achievement-progress-detail";
+      detailElement.innerText = "%s: %s / %s".format(detail.label, detail.progress, detail.target);
+      content.appendChild(detailElement);
+    });
     row.appendChild(icon);
     row.appendChild(content);
 

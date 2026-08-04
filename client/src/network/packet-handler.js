@@ -1174,7 +1174,7 @@ PacketHandler.prototype.handleCharacterInformation = function (packet) {
       message += " Next rank in %s.".format(this.__formatPartyTime(packet.clubNextRankSeconds));
     }
   }
-  message += " Achievements: %s/12.".format(packet.achievementCount || 0);
+  message += " Achievements: %s/15.".format(packet.achievementCount || 0);
 
   // Show a server message
   gameClient.interface.notificationManager.setServerMessage(

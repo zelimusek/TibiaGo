@@ -331,6 +331,9 @@ LaserChairsEvent.prototype.__finish = function () {
     this.__broadcast("Laser Chairs ended without a winner.");
     return;
   }
+  if (winner && this.__creatureHandler.partyAchievements) {
+    this.__creatureHandler.partyAchievements.recordLaserChairsWin(winner);
+  }
   if (winner && typeof this.__creatureHandler.celebratePartyWinner === "function") {
     this.__creatureHandler.celebratePartyWinner(winner);
     gameServer.world.sendMagicEffect(winner.position, CONST.EFFECT.MAGIC.SOUND_WHITE);

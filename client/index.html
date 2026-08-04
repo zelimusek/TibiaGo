@@ -426,20 +426,86 @@
           </div>
         </div>
 
-        <!-- Login Modal for Information -->
-        <div id="information-modal" class="modal">
-          <div class="modal-header">Information</div>
-          <div class="modal-body" style="text-align: center; max-width: 500px;">
-            <p> Tibia Game Client and Game Server written in NodeJS/JavaScript.
-              <hr>
-              <img src="png/gravak.png" style="width: 68px; height: 68px;"></img>
-              <hr>
-              Party Zone loads its required game assets automatically.
-            <p> Copyright by Gravak, 2019 - 2022
-              <hr>
-            <div class="modal-footer">
-              <button action="confirm">Close</button>
+        <!-- Complete public guide to CYRK'S PARTY ZONE -->
+        <div id="information-modal" class="modal party-guide-modal">
+          <div class="modal-header">Party Guide</div>
+          <div class="modal-body">
+            <div class="party-guide-tabs" role="tablist">
+              <button type="button" class="party-guide-tab selected" data-guide-tab="rules">Club Rules</button>
+              <button type="button" class="party-guide-tab" data-guide-tab="games">Minigames</button>
+              <button type="button" class="party-guide-tab" data-guide-tab="achievements">Achievements</button>
+              <button type="button" class="party-guide-tab" data-guide-tab="ranks">Club Ranks</button>
             </div>
+            <div class="party-guide-content">
+              <section class="party-guide-panel selected" data-guide-panel="rules">
+                <h2>Welcome to CYRK'S PARTY ZONE!</h2>
+                <p class="party-guide-lead">Great music, crazy games and two DJs are waiting inside. Keep it fun for everybody.</p>
+                <ol class="party-guide-rules">
+                  <li>Respect other partygoers and the DJs.</li>
+                  <li>Do not deliberately block entrances, the bouncer queue or minigame squares.</li>
+                  <li>Follow Różal and Pudzian's instructions. They may ask a question, request a dance or collect the entrance fee.</li>
+                  <li>Everybody standing on the dance floor when a game starts becomes a participant.</li>
+                  <li>Stay on the dance floor until you are eliminated. Eliminated players must watch from the audience.</li>
+                  <li>Do not spam items or visual effects to make the game unreadable for other players.</li>
+                  <li>Turn up the music, join the fun and party hard!</li>
+                </ol>
+              </section>
+
+              <section class="party-guide-panel" data-guide-panel="games">
+                <article class="party-guide-card">
+                  <h3>Floor Is Lava</h3>
+                  <p>After the countdown, dangerous lava and safe tiles appear. Move onto a safe tile before time runs out. Anyone left on lava is sent to the audience. The final survivor wins.</p>
+                </article>
+                <article class="party-guide-card">
+                  <h3>Bomberman — Elimination</h3>
+                  <p>Put <strong>/bomb</strong> on a hotkey, destroy crates and collect BOMB, RANGE, SPEED and SHIELD bonuses. Bombs block their SQM and can trigger each other. One hit eliminates you; the last survivor wins.</p>
+                </article>
+                <article class="party-guide-card">
+                  <h3>Bomberman — Mayhem</h3>
+                  <p>The chaotic score mode. Hits cause an instant protected respawn instead of elimination. Keep bombing until time expires; the player with the best score wins.</p>
+                </article>
+                <article class="party-guide-card">
+                  <h3>Laser Chairs</h3>
+                  <p>When the music stops, the club lasers draw one fewer square than there are players. Claim a square before time expires; one square protects one player. The player left without a square is eliminated. If nobody claims one, the round repeats.</p>
+                </article>
+              </section>
+
+              <section class="party-guide-panel" data-guide-panel="achievements">
+                <p class="party-guide-lead">Achievement progress never stops at the target. A result such as 790 / 500 shows your true lifetime total.</p>
+                <div class="party-guide-achievements">
+                  <article><strong>Lava Survivor</strong><span>Win Floor Is Lava once.</span></article>
+                  <article><strong>Hot Feet</strong><span>Win 20 Floor Is Lava rounds.</span></article>
+                  <article><strong>Bomb Maniac</strong><span>Place 500 bombs.</span></article>
+                  <article><strong>Chain Reaction</strong><span>Trigger at least 7 bombs in one chain.</span></article>
+                  <article><strong>Untouchable</strong><span>Win 5 Bomberman rounds without being hit.</span></article>
+                  <article><strong>Mayhem Master</strong><span>Win 10 Mayhem rounds.</span></article>
+                  <article><strong>Elimination Expert</strong><span>Win 10 Elimination rounds.</span></article>
+                  <article><strong>Chair Dancer</strong><span>Win Laser Chairs once.</span></article>
+                  <article><strong>Chair Champion</strong><span>Win 10 Laser Chairs games.</span></article>
+                  <article><strong>Dance Machine</strong><span>Spend 10 hours on the dance floor.</span></article>
+                  <article><strong>Party Animal</strong><span>Visit the party on 30 different days.</span></article>
+                  <article><strong>Smoke Machine</strong><span>Use a water-pipe 500 times.</span></article>
+                  <article><strong>Bouncer's Favourite</strong><span>Pass the bouncers' test 25 times.</span></article>
+                  <article><strong>Triple Crown</strong><span>Win each minigame at least 5 times.</span></article>
+                  <article><strong>Party Legend</strong><span>Unlock every other party achievement.</span></article>
+                </div>
+              </section>
+
+              <section class="party-guide-panel" data-guide-panel="ranks">
+                <p class="party-guide-lead">Club time is earned while you are inside the Party Zone and not considered inactive. Compare your result with everybody else in Party Maniacs.</p>
+                <div class="party-guide-ranks">
+                  <div><strong>Newcomer</strong><span>0 minutes</span></div>
+                  <div><strong>Party Guest</strong><span>30 minutes</span></div>
+                  <div><strong>Clubber</strong><span>2 hours</span></div>
+                  <div><strong>Dancefloor Regular</strong><span>5 hours</span></div>
+                  <div><strong>Groove Seeker</strong><span>12 hours</span></div>
+                  <div><strong>Nightlife Enthusiast</strong><span>25 hours</span></div>
+                  <div><strong>Party Veteran</strong><span>50 hours</span></div>
+                  <div><strong>Disco Legend</strong><span>100 hours</span></div>
+                </div>
+              </section>
+            </div>
+            <div class="modal-footer"><button action="confirm">Close</button></div>
           </div>
         </div>
 
@@ -516,7 +582,7 @@
         <button id="create-account">Create Account</button>
         <button id="party-maniacs">Party Maniacs</button>
         <button id="settings">Options</button>
-        <button id="information">Information</button>
+        <button id="information">Party Guide</button>
       </div>
 
     </div>
