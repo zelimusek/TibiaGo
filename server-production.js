@@ -17,6 +17,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const url = require("url");
+const { accounts } = require("./src/db/schema");
 
 // ─── Load .env file ─────────────────────────────────────────────────────
 // If .env exists in cwd, load it (same logic as cyrkgildia for compatibility)
@@ -471,6 +472,49 @@ function handleLoginAPI(req, res) {
   res.end();
 }
 
+async function handlePartyManiacsAPI(req, res) {
+  if (req.method !== "GET") {
+    res.writeHead(405, { "Allow": "GET" });
+    res.end();
+    return;
+  }
+
+  try {
+    const rows = await loginServer.accountDatabase.db
+      .select({ name: accounts.name, character: accounts.character })
+      .from(accounts);
+    const system = gameServer.world.creatureHandler.partyAchievements;
+    const entries = new Map();
+    rows.forEach(row => {
+      const entry = system.getLeaderboardEntry(row.name, row.character, false);
+      entries.set(entry.name.toLowerCase(), entry);
+    });
+    gameServer.world.creatureHandler.getConnectedPlayers().forEach(player => {
+      const name = player.getProperty(CONST.PROPERTIES.NAME);
+      entries.set(String(name).toLowerCase(), system.getLeaderboardEntry(name, {
+        name: name,
+        storage: player.storage
+      }, true));
+    });
+
+    const rankings = system.createPublicLeaderboards(Array.from(entries.values()), 50);
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    res.end(JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      totalPlayers: entries.size,
+      partyTime: rankings.partyTime,
+      achievements: rankings.achievements
+    }));
+  } catch (error) {
+    console.error("Could not build Party Maniacs leaderboards:", error.message);
+    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "Party Maniacs rankings are temporarily unavailable." }));
+  }
+}
+
 // ─── Override the HTTP server's request handler ─────────────────────────
 // Remove all existing 'request' listeners (the game server's handler that rejects HTTP)
 httpServer.removeAllListeners("request");
@@ -489,14 +533,19 @@ httpServer.on("request", (req, res) => {
     return handleLoginAPI(req, res);
   }
 
-  // 3. Health check
+  // 3. Public party leaderboards shown before login
+  if (pathname === "/api/party-maniacs") {
+    return handlePartyManiacsAPI(req, res);
+  }
+
+  // 4. Health check
   if (pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(getRuntimeStats()));
     return;
   }
 
-  // 4. Static files (HTML5 client)
+  // 5. Static files (HTML5 client)
   serveStaticFile(req, res);
 });
 

@@ -114,6 +114,7 @@
     "src/ui/modals/modal-death.js",
     "src/ui/modals/modal-radio-editor.js",
     "src/ui/modals/modal-achievements.js",
+    "src/ui/modals/modal-party-maniacs.js",
     "src/ui/modals/modal-club-bar.js",
     "src/ui/modals/modal-enter-name.js",
     "src/ui/modals/modal-map.js",

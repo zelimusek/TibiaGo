@@ -1071,10 +1071,7 @@ Interface.prototype.__enableListeners = function () {
     .getElementById("logout-button")
     .addEventListener("click", this.sendLogout.bind(this));
 
-  // The load asset button & delegator
-  document
-    .getElementById("load-assets")
-    .addEventListener("click", this.loadAssetsDelegator);
+  // Assets are delivered automatically by the Party Zone client build.
   document
     .getElementById("asset-selector")
     .addEventListener("change", this.loadGameFiles.bind(this));

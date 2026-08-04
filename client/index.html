@@ -434,9 +434,7 @@
               <hr>
               <img src="png/gravak.png" style="width: 68px; height: 68px;"></img>
               <hr>
-              Load the required <b>Tibia.spr</b> and <b>Tibia.dat</b> files by clicking Load Assets. The asset versions
-              must match the server version and both client/server support versions 7.4 and 10.98 but nothing in
-              between.
+              Party Zone loads its required game assets automatically.
             <p> Copyright by Gravak, 2019 - 2022
               <hr>
             <div class="modal-footer">
@@ -482,6 +480,21 @@
           </div>
         </div>
 
+        <div id="party-maniacs-modal" class="modal party-maniacs-modal">
+          <div class="modal-header">Party Maniacs</div>
+          <div class="modal-body">
+            <div class="party-maniacs-tabs" role="tablist">
+              <button type="button" class="party-maniacs-tab selected" data-ranking="party-time">Party Time</button>
+              <button type="button" class="party-maniacs-tab" data-ranking="achievements">Achievements</button>
+            </div>
+            <div id="party-maniacs-status" class="party-maniacs-status">Loading the party legends...</div>
+            <div id="party-maniacs-list" class="party-maniacs-list"></div>
+            <div class="modal-footer">
+              <button action="confirm">Close</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Information at the top -->
@@ -501,7 +514,7 @@
       <div class="login-settings">
         <button id="login-info">Enter Game</button>
         <button id="create-account">Create Account</button>
-        <button id="load-assets">Load Assets</button>
+        <button id="party-maniacs">Party Maniacs</button>
         <button id="settings">Options</button>
         <button id="information">Information</button>
       </div>

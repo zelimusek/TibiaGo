@@ -31,6 +31,7 @@ const ModalManager = function () {
   this.register(DeathModal, "death-modal");
   this.register(RadioEditorModal, "radio-editor-modal");
   this.register(AchievementsModal, "achievements-modal");
+  this.register(PartyManiacsModal, "party-maniacs-modal");
   this.register(ClubBarModal, "club-bar-modal");
   this.register(WindowQuestLog, "quest-log-modal");
 
@@ -54,6 +55,7 @@ ModalManager.prototype.__addEventListeners = function () {
   document.getElementById("information").addEventListener("click", this.open.bind(this, "information-modal"));
   document.getElementById("login-info").addEventListener("click", this.open.bind(this, "floater-enter"));
   document.getElementById("create-account").addEventListener("click", this.open.bind(this, "floater-create"));
+  document.getElementById("party-maniacs").addEventListener("click", this.open.bind(this, "party-maniacs-modal"));
   document.getElementById("settings").addEventListener("click", this.open.bind(this, "settings-box"));
 
   // Add event listeners to the header elements of the modals

@@ -296,6 +296,57 @@ PartyAchievementSystem.prototype.getUnlockedCount = function (player) {
   return Object.keys(this.getState(player).unlocked).length;
 };
 
+PartyAchievementSystem.prototype.getLeaderboardEntry = function (name, character, online) {
+  while (typeof character === "string") {
+    try {
+      character = JSON.parse(character);
+    } catch (error) {
+      character = {};
+    }
+  }
+  character = character && typeof character === "object" ? character : {};
+  let storage = character.storage && typeof character.storage === "object" ? character.storage : {};
+  let state = storage.partyAchievements && typeof storage.partyAchievements === "object"
+    ? storage.partyAchievements
+    : {};
+  let seconds = Math.max(0, Math.floor(Number(state.clubTimeSeconds) || 0));
+  let unlocked = state.unlocked && typeof state.unlocked === "object" ? state.unlocked : {};
+  let unlockedCount = this.__definitions.filter(function (definition) {
+    return Boolean(unlocked[definition.id]);
+  }).length;
+  let rank = CLUB_RANKS[0];
+  CLUB_RANKS.forEach(function (candidate) {
+    if (seconds >= candidate.seconds) rank = candidate;
+  });
+  return {
+    name: String(name || character.name || "Unknown").slice(0, 32),
+    seconds: seconds,
+    clubRank: rank.title,
+    unlockedCount: unlockedCount,
+    totalAchievements: this.__definitions.length,
+    online: online === true
+  };
+};
+
+PartyAchievementSystem.prototype.createPublicLeaderboards = function (entries, limit) {
+  limit = Math.max(1, Math.min(100, Number(limit) || 50));
+  entries = Array.isArray(entries) ? entries.slice() : [];
+  let byName = function (left, right) {
+    return left.name.localeCompare(right.name, "en", { sensitivity: "base" });
+  };
+  let partyTime = entries.slice().sort(function (left, right) {
+    return right.seconds - left.seconds
+      || right.unlockedCount - left.unlockedCount
+      || byName(left, right);
+  }).slice(0, limit);
+  let achievements = entries.slice().sort(function (left, right) {
+    return right.unlockedCount - left.unlockedCount
+      || right.seconds - left.seconds
+      || byName(left, right);
+  }).slice(0, limit);
+  return { partyTime: partyTime, achievements: achievements };
+};
+
 PartyAchievementSystem.prototype.setTitle = function (player, requestedTitle) {
   let state = this.getState(player);
   let normalized = String(requestedTitle || "").trim().toLowerCase();

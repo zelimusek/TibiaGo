@@ -475,6 +475,24 @@ button.symbol-button {
 .achievement-legendary { color: #ffd34d; }
 .achievements-help { color: #aaa; font-size: 10px; text-align: center; margin: 8px 0 0; }
 
+.party-maniacs-modal { box-sizing: border-box; width: min(480px, calc(100% - 24px)); height: min(430px, calc(100% - 24px)); overflow: hidden; }
+.party-maniacs-modal .modal-body { box-sizing: border-box; display: flex; flex-direction: column; height: calc(100% - 22px); min-height: 0; }
+.party-maniacs-tabs { display: flex; gap: 5px; margin-bottom: 8px; }
+.party-maniacs-tab { flex: 1; margin: 0; padding: 7px; color: #bbb; border: 1px solid #555; background: rgba(5, 5, 10, .8); }
+.party-maniacs-tab.selected { color: #ffd34d; border-color: #ffd34d; box-shadow: inset 0 0 10px rgba(255, 211, 77, .18); }
+.party-maniacs-status { flex: 0 0 auto; min-height: 16px; margin-bottom: 7px; color: #aaa; text-align: center; font-size: 11px; }
+.party-maniacs-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 5px; }
+.party-maniacs-row { display: flex; align-items: center; gap: 9px; padding: 7px 9px; color: #ddd; border: 1px solid #444; background: rgba(5, 5, 10, .82); }
+.party-maniacs-row:nth-child(1) { color: #ffd34d; border-color: #9d761a; }
+.party-maniacs-row:nth-child(2) { color: #d8e1eb; border-color: #768493; }
+.party-maniacs-row:nth-child(3) { color: #d89b65; border-color: #855932; }
+.party-maniacs-position { width: 30px; text-align: center; font-size: 14px; }
+.party-maniacs-player { flex: 1; min-width: 0; }
+.party-maniacs-player strong, .party-maniacs-player small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.party-maniacs-player small { margin-top: 2px; color: #aaa; font-size: 10px; }
+.party-maniacs-online { min-width: 42px; color: #55ef94; text-align: right; font-size: 9px; font-weight: 700; }
+.party-maniacs-modal .modal-footer { flex: 0 0 auto; margin-top: 8px; }
+
 .party-achievement-toast {
   position: absolute;
   z-index: 12000;
@@ -511,4 +529,5 @@ button.symbol-button {
   .party-achievements-modal { width: calc(100% - 14px); height: min(400px, calc(100% - 14px)); max-height: calc(100% - 14px); }
   .party-achievement-toast { top: 8%; padding: 13px; }
   .party-achievement-name { font-size: 18px; }
+  .party-maniacs-modal { width: calc(100% - 14px); height: min(430px, calc(100% - 14px)); }
 }

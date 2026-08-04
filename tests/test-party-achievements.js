@@ -61,6 +61,21 @@ const payload = JSON.parse(overviewPacket.subarray(3, 3 + payloadLength).toStrin
 assert.strictEqual(payload.action, "overview");
 assert.strictEqual(payload.data.totalCount, 12);
 
+const storedEntry = system.getLeaderboardEntry("Tester", {
+  storage: { partyAchievements: system.getState(player) }
+}, true);
+assert.strictEqual(storedEntry.online, true);
+assert.strictEqual(storedEntry.totalAchievements, 12);
+assert.ok(storedEntry.unlockedCount >= 5);
+const leaderboards = system.createPublicLeaderboards([
+  storedEntry,
+  system.getLeaderboardEntry("Listener", {
+    storage: { partyAchievements: { clubTimeSeconds: 100000, unlocked: {} } }
+  }, false)
+], 50);
+assert.strictEqual(leaderboards.partyTime[0].name, "Listener");
+assert.strictEqual(leaderboards.achievements[0].name, "Tester");
+
 const titlePacket = new CreatureTitlePacket(1234, "Bouncer's Favourite", "rare").getBuffer();
 assert.strictEqual(titlePacket[0], CONST.PROTOCOL.SERVER.CREATURE_TITLE);
 assert.strictEqual(titlePacket.readUInt32LE(1), 1234);

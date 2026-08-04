@@ -410,7 +410,7 @@ NetworkManager.prototype.loadGameFilesServer = function () {
     gameClient.interface.modalManager.close();
   }).catch(function (error) {
     console.error("Failed loading client data from server.", error);
-    gameClient.interface.modalManager.open("floater-connecting", "Failed loading client data from server. Please refresh the page or use Load Assets.");
+    gameClient.interface.modalManager.open("floater-connecting", "Failed loading client data from server. Please refresh the page.");
   });
 
 }
