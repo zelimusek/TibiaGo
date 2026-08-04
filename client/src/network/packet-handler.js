@@ -1420,7 +1420,15 @@ PacketHandler.prototype.handleCreatureServerMove = function (packet) {
   if (gameClient.isSelf(entity)) {
     gameClient.player.confirmClientWalk();
     gameClient.world.checkEntityReferences();
-    gameClient.world.checkChunks();
+    let chunksChanged = gameClient.world.checkChunks();
+
+    // Client-side prediction refreshes the cache before the server confirms
+    // the step. When that confirmation crosses a chunk boundary, checkChunks
+    // can remove sectors that are still referenced by the old tile cache.
+    // Rebuild only in that uncommon case so normal walking stays inexpensive.
+    if (chunksChanged) {
+      gameClient.renderer.updateTileCache();
+    }
   }
 
 }

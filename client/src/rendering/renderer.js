@@ -44,6 +44,10 @@ const Renderer = function () {
   // This is the cache where we collect all tiles to be renderered: only needs to be updated when the player moves
   this.__tileCache = new Array();
 
+  // Throttle diagnostics for defensive stale-cache protection. A missing
+  // chunk must never stop requestAnimationFrame and freeze the whole world.
+  this.__lastMissingLightChunkDiagnostic = 0;
+
   // Distance animations belong to a layer
   this.__createAnimationLayers();
 
@@ -533,7 +537,37 @@ Renderer.prototype.__renderLight = function (tile, position, thing, intensity) {
    * Renders the light at a position
    */
 
-  let floor = gameClient.world.getChunkFromWorldPosition(tile.getPosition()).getFirstFloorFromBottomProjected(tile.getPosition());
+  if (!gameClient.world || !gameClient.player || !tile) {
+    return;
+  }
+
+  let tilePosition = tile.getPosition();
+  let chunk = gameClient.world.getChunkFromWorldPosition(tilePosition);
+
+  // A tile cache can only become stale during a chunk transition. Skipping a
+  // single obsolete light for one frame is safe; throwing here would abort the
+  // animation-frame chain and leave the entire game world visually frozen.
+  if (chunk === null) {
+    let now = Date.now();
+    if (
+      typeof window !== "undefined" &&
+      window.tibiaDiagnostics &&
+      now - this.__lastMissingLightChunkDiagnostic >= 10000
+    ) {
+      this.__lastMissingLightChunkDiagnostic = now;
+      window.tibiaDiagnostics.record("renderer-missing-light-chunk", {
+        position: {
+          x: tilePosition.x,
+          y: tilePosition.y,
+          z: tilePosition.z
+        },
+        loadedChunks: gameClient.world.chunks.length
+      }, true);
+    }
+    return;
+  }
+
+  let floor = chunk.getFirstFloorFromBottomProjected(tilePosition);
 
   // Confirm light is visible and should be rendered
   if (floor === null || floor >= gameClient.player.getMaxFloor()) {

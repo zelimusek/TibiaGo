@@ -245,10 +245,24 @@ World.prototype.checkChunks = function () {
    * Will drop buffered chunks that do not need to be kept in memory
    */
 
+  let playerChunk = gameClient.player.getChunk();
+
+  // A server teleport may briefly move the player before the destination
+  // chunk is installed. Keep the current set intact until that chunk exists.
+  if (playerChunk === null) {
+    return false;
+  }
+
+  let previousLength = this.chunks.length;
+
   // Only keep adjacent chunks in memory
   this.chunks = this.chunks.filter(function (chunk) {
-    return gameClient.player.getChunk().besides(chunk);
+    return playerChunk.besides(chunk);
   });
+
+  // Callers use this to invalidate render caches that may still contain tile
+  // references from chunks removed above.
+  return this.chunks.length !== previousLength;
 
 }
 
