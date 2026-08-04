@@ -19,6 +19,7 @@ const CLUB_RANKS = [
   { title: "Disco Legend", seconds: 360000, rarity: "legendary" }
 ];
 const CLUB_AFK_LIMIT_MS = 2 * 60 * 60 * 1000;
+const PUBLIC_PARTY_TIME_MIN_SECONDS = 30 * 60;
 const ACHIEVEMENT_RULESET_VERSION = 2;
 
 const COUNTER_LABELS = {
@@ -394,12 +395,16 @@ PartyAchievementSystem.prototype.createPublicLeaderboards = function (entries, l
   let byName = function (left, right) {
     return left.name.localeCompare(right.name, "en", { sensitivity: "base" });
   };
-  let partyTime = entries.slice().sort(function (left, right) {
+  let partyTime = entries.filter(function (entry) {
+    return Number(entry.seconds) >= PUBLIC_PARTY_TIME_MIN_SECONDS;
+  }).sort(function (left, right) {
     return right.seconds - left.seconds
       || right.unlockedCount - left.unlockedCount
       || byName(left, right);
   }).slice(0, limit);
-  let achievements = entries.slice().sort(function (left, right) {
+  let achievements = entries.filter(function (entry) {
+    return Number(entry.unlockedCount) >= 1;
+  }).sort(function (left, right) {
     return right.unlockedCount - left.unlockedCount
       || right.seconds - left.seconds
       || byName(left, right);

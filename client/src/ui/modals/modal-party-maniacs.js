@@ -51,7 +51,7 @@ PartyManiacsModal.prototype.__render = function () {
   let entries = achievementRanking ? this.__data.achievements : this.__data.partyTime;
   this.__status.innerText = achievementRanking
     ? "Most achievements unlocked"
-    : "Longest time partying with /radio";
+    : "Longest time partying in the dance hall";
   this.__list.innerHTML = "";
   (entries || []).forEach(function (entry, index) {
     let row = document.createElement("div");

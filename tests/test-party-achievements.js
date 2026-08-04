@@ -88,10 +88,20 @@ const leaderboards = system.createPublicLeaderboards([
   storedEntry,
   system.getLeaderboardEntry("Listener", {
     storage: { partyAchievements: { clubTimeSeconds: 100000, unlocked: {} } }
-  }, false)
+  }, false),
+  { name: "Newcomer", seconds: 1799, clubRank: "Newcomer", unlockedCount: 1, totalAchievements: 15, online: false },
+  { name: "Empty Guest", seconds: 1800, clubRank: "Party Guest", unlockedCount: 0, totalAchievements: 15, online: false }
 ], 50);
 assert.strictEqual(leaderboards.partyTime[0].name, "Listener");
 assert.strictEqual(leaderboards.achievements[0].name, "Tester");
+assert.strictEqual(leaderboards.partyTime.some(function (entry) { return entry.name === "Newcomer"; }), false,
+  "Party Time must hide players below Party Guest");
+assert.strictEqual(leaderboards.partyTime.some(function (entry) { return entry.name === "Empty Guest"; }), true,
+  "Party Time must include Party Guest even without achievements");
+assert.strictEqual(leaderboards.achievements.some(function (entry) { return entry.name === "Newcomer"; }), true,
+  "Achievements must include every player with at least one unlock");
+assert.strictEqual(leaderboards.achievements.some(function (entry) { return entry.name === "Empty Guest"; }), false,
+  "Achievements must hide players without an unlock");
 
 const legacyPlayer = {
   storage: {
