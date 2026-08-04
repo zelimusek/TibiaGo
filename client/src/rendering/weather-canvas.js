@@ -1,3 +1,8 @@
+const VIP_CIRCUIT_FLOOR = {
+  from: { x: 32509, y: 32340, z: 7 },
+  to: { x: 32521, y: 32352, z: 7 }
+};
+
 const WeatherCanvas = function(screen) {
 
   /*
@@ -396,14 +401,11 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
           effect: [
             "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
             "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
-            "constellation", "combo", "name", "all"
+            "constellation", "combo", "name", "circuit", "all"
           ].includes(focus.vipShow.effect) ? focus.vipShow.effect : "laser",
           preset: focus.vipShow.preset,
           intensity: focus.vipShow.intensity,
           crowd: focus.vipShow.crowd === true,
-          title: typeof focus.vipShow.title === "string"
-            ? focus.vipShow.title.slice(0, 40)
-            : "DANCE FLOOR STAR!",
           participants: Array.isArray(focus.vipShow.participants)
             ? focus.vipShow.participants.slice(0, 24).filter(function(participant) {
               return participant
@@ -1776,11 +1778,28 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
     bounds.maxY = Math.max(bounds.maxY, participant.y);
     return bounds;
   }, { minX: focusScreen.x, maxX: focusScreen.x, minY: focusScreen.y, maxY: focusScreen.y });
+  let floorFromScreen = gameClient.renderer.getStaticScreenPosition(new Position(
+    VIP_CIRCUIT_FLOOR.from.x,
+    VIP_CIRCUIT_FLOOR.from.y,
+    VIP_CIRCUIT_FLOOR.from.z
+  ));
+  let floorToScreen = gameClient.renderer.getStaticScreenPosition(new Position(
+    VIP_CIRCUIT_FLOOR.to.x,
+    VIP_CIRCUIT_FLOOR.to.y,
+    VIP_CIRCUIT_FLOOR.to.z
+  ));
+  let floorClip = {
+    x: Math.min(floorFromScreen.x, floorToScreen.x) * 32,
+    y: Math.min(floorFromScreen.y, floorToScreen.y) * 32,
+    width: (Math.abs(floorToScreen.x - floorFromScreen.x) + 1) * 32,
+    height: (Math.abs(floorToScreen.y - floorFromScreen.y) + 1) * 32
+  };
   let effectSequence = [
     "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
     "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
     "constellation", "combo", "name"
   ];
+  if(crowd) effectSequence.splice(effectSequence.length - 1, 0, "circuit");
   let requestedEffect = effectSequence.includes(focus.vipShow.effect)
     ? focus.vipShow.effect
     : (focus.vipShow.effect === "all" ? "all" : "laser");
@@ -1884,13 +1903,13 @@ WeatherCanvas.prototype.__getVipShowFrame = function(focus, focusScreen, elapsed
     preset: focus.vipShow.preset,
     intensityName: focus.vipShow.intensity,
     intensityMultiplier: intensityMultiplier,
-    title: focus.vipShow.title,
     targetName: focus.targetName,
     targetId: focus.targetId,
     crowd: crowd,
     crowdCount: crowd ? participants.length : 1,
     crowdLayout: !crowd ? "solo" : (participants.length === 1 ? "solo" : (participants.length === 2 ? "duo" : (participants.length === 3 ? "triangle" : "constellation"))),
     crowdBounds: crowdBounds,
+    floorClip: floorClip,
     centerX: focusScreen.x,
     centerY: focusScreen.y,
     elapsedMs: elapsedMs,
@@ -2092,7 +2111,9 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     beatBpm: disco.beatBpm,
     pulse: pulse,
     intensity: intensity,
-    spotlightsEnabled: disco.spotlightsEnabled || showActive || Boolean(vipShowFrame),
+    spotlightsEnabled: disco.spotlightsEnabled || showActive || Boolean(
+      vipShowFrame && vipShowFrame.effect !== "circuit"
+    ),
     legacyLasersEnabled: disco.legacyLasersEnabled || showActive || Boolean(
       vipShowFrame && ["laser", "name", "duel"].includes(vipShowFrame.effect)
     ),
@@ -2471,22 +2492,6 @@ WeatherCanvas.prototype.__drawVipSpecialEffect = function(context, frame, mobile
     });
   }
 
-  // Keep one consistent stage title. Internal effect names are deliberately
-  // hidden so the show feels like one production instead of a debug preview.
-  if(typeof context.fillText === "function") {
-    context.globalAlpha = 0.78 * strength;
-    context.font = mobile ? "bold 10px Arial" : "bold 13px Arial";
-    context.textAlign = "center";
-    context.textBaseline = "bottom";
-    context.fillStyle = color(1, 1);
-    if(typeof context.strokeText === "function") {
-      context.lineWidth = 3;
-      context.strokeStyle = "rgba(0,0,0,0.9)";
-      context.strokeText(show.title, centerX, centerY - (mobile ? 42 : 58));
-    }
-    context.fillText(show.title, centerX, centerY - (mobile ? 42 : 58));
-  }
-
 }
 
 WeatherCanvas.prototype.__drawVipCrowdEffect = function(context, frame, mobile, rgb, drawGlow) {
@@ -2543,7 +2548,159 @@ WeatherCanvas.prototype.__drawVipCrowdEffect = function(context, frame, mobile, 
     drawGlow(dancer.x, dancer.y, (mobile ? 17 : 23) * pulse, colors[index % colors.length], 0.16 * strength);
   });
 
-  if(show.effect === "laser") {
+  if(show.effect === "circuit") {
+    let floor = show.floorClip;
+    let floorCenterX = floor.x + floor.width / 2;
+    let floorCenterY = floor.y + floor.height / 2;
+    let tileSize = 32;
+    let beatStep = Math.floor((show.elapsedMs / Math.max(1, frame.beatBpm > 0 ? 60000 / frame.beatBpm : 520)));
+
+    function drawCircuitPath(from, bend, to, index, alpha, width) {
+      context.globalAlpha = alpha * strength;
+      context.strokeStyle = color(index, 1);
+      context.lineWidth = width;
+      context.beginPath();
+      context.moveTo(from.x, from.y);
+      context.lineTo(bend.x, bend.y);
+      context.lineTo(to.x, to.y);
+      context.stroke();
+    }
+
+    function pointAlongCircuitPath(from, bend, to, progress) {
+      let firstLength = Math.hypot(bend.x - from.x, bend.y - from.y);
+      let secondLength = Math.hypot(to.x - bend.x, to.y - bend.y);
+      let totalLength = Math.max(1, firstLength + secondLength);
+      let distance = progress * totalLength;
+      if(distance <= firstLength) {
+        let amount = firstLength === 0 ? 1 : distance / firstLength;
+        return {
+          x: from.x + (bend.x - from.x) * amount,
+          y: from.y + (bend.y - from.y) * amount
+        };
+      }
+      let amount = secondLength === 0 ? 1 : (distance - firstLength) / secondLength;
+      return {
+        x: bend.x + (to.x - bend.x) * amount,
+        y: bend.y + (to.y - bend.y) * amount
+      };
+    }
+
+    function perimeterPoint(progress) {
+      let width = floor.width;
+      let height = floor.height;
+      let perimeter = 2 * (width + height);
+      let distance = ((progress % 1) + 1) % 1 * perimeter;
+      if(distance <= width) return { x: floor.x + distance, y: floor.y };
+      distance -= width;
+      if(distance <= height) return { x: floor.x + width, y: floor.y + distance };
+      distance -= height;
+      if(distance <= width) return { x: floor.x + width - distance, y: floor.y + height };
+      distance -= width;
+      return { x: floor.x, y: floor.y + height - distance };
+    }
+
+    context.save();
+    context.beginPath();
+    context.rect(floor.x, floor.y, floor.width, floor.height);
+    context.clip();
+
+    // The physical 13x13 tile grid becomes a dim circuit board.
+    context.lineWidth = mobile ? 0.6 : 0.9;
+    for(let grid = 0; grid <= 13; grid++) {
+      context.globalAlpha = (grid === 0 || grid === 13 ? 0.30 : 0.09) * strength;
+      context.strokeStyle = color(grid, 1);
+      context.beginPath();
+      context.moveTo(floor.x + grid * tileSize, floor.y);
+      context.lineTo(floor.x + grid * tileSize, floor.y + floor.height);
+      context.moveTo(floor.x, floor.y + grid * tileSize);
+      context.lineTo(floor.x + floor.width, floor.y + grid * tileSize);
+      context.stroke();
+    }
+
+    // A moving border and four packets make the square itself part of the show.
+    context.globalAlpha = 0.72 * strength;
+    context.strokeStyle = color(beatStep, 1);
+    context.lineWidth = mobile ? 2 : 3;
+    if(typeof context.setLineDash === "function") {
+      context.setLineDash([12, 8]);
+      context.lineDashOffset = -phase / 28;
+    }
+    context.strokeRect && context.strokeRect(floor.x + 2, floor.y + 2, floor.width - 4, floor.height - 4);
+    if(typeof context.setLineDash === "function") context.setLineDash([]);
+    for(let packet = 0; packet < 4; packet++) {
+      let point = perimeterPoint(phase / 2600 + packet / 4);
+      drawGlow(point.x, point.y, mobile ? 9 : 13, colors[(packet + beatStep) % colors.length], 0.72 * strength);
+    }
+
+    // Crossing scanners wake each occupied SQM as they pass it.
+    let scanProgress = (phase / 1700) % 1;
+    let scanX = floor.x + scanProgress * floor.width;
+    let scanY = floor.y + ((phase / 2100 + 0.5) % 1) * floor.height;
+    context.globalAlpha = 0.32 * strength;
+    context.strokeStyle = color(beatStep + 1, 1);
+    context.lineWidth = mobile ? 1 : 1.5;
+    context.beginPath();
+    context.moveTo(scanX, floor.y);
+    context.lineTo(scanX, floor.y + floor.height);
+    context.moveTo(floor.x, scanY);
+    context.lineTo(floor.x + floor.width, scanY);
+    context.stroke();
+
+    // Every dancer is a live node. Movement rewires the Manhattan paths on
+    // the next frame, while beat packets travel between the current SQMs.
+    dancers.forEach(function(dancer, index) {
+      let target = dancers.length === 1
+        ? { x: floorCenterX, y: floorCenterY }
+        : dancers[(index + 1) % dancers.length];
+      let useHorizontalFirst = (index + beatStep) % 2 === 0;
+      let bend = useHorizontalFirst
+        ? { x: target.x, y: dancer.y }
+        : { x: dancer.x, y: target.y };
+      let tileDistance = (Math.abs(target.x - dancer.x) + Math.abs(target.y - dancer.y)) / tileSize;
+      let proximity = Math.max(0, Math.min(1, 1 - tileDistance / 8));
+      let pathAlpha = 0.30 + proximity * 0.48 + show.beatStrength * 0.14;
+      drawCircuitPath(dancer, bend, target, index + beatStep, pathAlpha, mobile ? 1.3 : 2);
+
+      let packetProgress = (show.beatProgress + index / Math.max(1, dancers.length)) % 1;
+      let packetPoint = pointAlongCircuitPath(dancer, bend, target, packetProgress);
+      drawGlow(packetPoint.x, packetPoint.y, mobile ? 7 : 10, colors[(index + beatStep + 2) % colors.length], 0.72 * strength);
+
+      let nodeRadius = (mobile ? 10 : 14) + show.beatStrength * (mobile ? 6 : 9);
+      context.globalAlpha = (0.58 + proximity * 0.28) * strength;
+      context.strokeStyle = color(index + beatStep, 1);
+      context.lineWidth = mobile ? 1.5 : 2.3;
+      context.beginPath();
+      context.arc(dancer.x, dancer.y, nodeRadius, 0, Math.PI * 2);
+      context.stroke();
+      context.fillStyle = color(index + 2, 1);
+      context.globalAlpha = 0.75 * strength;
+      context.fillRect(dancer.x - 3, dancer.y - 3, 6, 6);
+    });
+
+    // The closing charge converges on the central SQM and expands as a square
+    // pulse, still clipped to the physical dance floor.
+    if(show.effectProgress >= 0.72) {
+      let finale = Math.min(1, (show.effectProgress - 0.72) / 0.28);
+      dancers.forEach(function(dancer, index) {
+        let bend = index % 2 === 0
+          ? { x: floorCenterX, y: dancer.y }
+          : { x: dancer.x, y: floorCenterY };
+        drawCircuitPath(dancer, bend, { x: floorCenterX, y: floorCenterY }, index + 3, 0.66 * finale, mobile ? 1.5 : 2.4);
+      });
+      drawGlow(floorCenterX, floorCenterY, (mobile ? 18 : 26) + finale * (mobile ? 24 : 38), colors[(beatStep + 4) % colors.length], 0.60 * finale * strength);
+      context.globalAlpha = (1 - finale * 0.35) * 0.82 * strength;
+      context.strokeStyle = color(beatStep + 4, 1);
+      context.lineWidth = mobile ? 2 : 3;
+      context.strokeRect && context.strokeRect(
+        floorCenterX - finale * floor.width / 2,
+        floorCenterY - finale * floor.height / 2,
+        finale * floor.width,
+        finale * floor.height
+      );
+    }
+
+    context.restore();
+  } else if(show.effect === "laser") {
     loop(0.52, mobile ? 1.2 : 1.8);
     dancers.forEach(function(dancer, index) {
       link({ x: centerX, y: centerY }, dancer, index + 1, 0.58, mobile ? 1.3 : 2);
@@ -2837,8 +2994,8 @@ WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
     context.stroke();
   }
 
-  // A small neon crown marks the star while leaving the name and health bar
-  // readable. The title is drawn only when text rendering is available.
+  // A small neon crown marks the selected dancer while leaving the name and
+  // health bar readable. Shows deliberately render no generic title text.
   let crownY = centerY - (mobile ? 40 : 50);
   context.globalAlpha = 0.88 * intensity;
   context.fillStyle = rgb(colors[4 % colors.length], 1);
@@ -2852,20 +3009,6 @@ WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
   context.lineTo(centerX + 13, crownY + 8);
   context.closePath();
   context.fill();
-  if(typeof context.fillText === "function") {
-    context.globalAlpha = 0.86 * intensity;
-    context.font = (mobile ? "bold 11px Arial" : "bold 13px Arial");
-    context.textAlign = "center";
-    context.textBaseline = "bottom";
-    context.lineWidth = 3;
-    if(typeof context.strokeText === "function") {
-      context.strokeStyle = "rgba(0, 0, 0, 0.9)";
-      context.strokeText(show.title, centerX, crownY - 11);
-    }
-    context.fillStyle = rgb(colors[1 % colors.length], 1);
-    context.fillText(show.title, centerX, crownY - 11);
-  }
-
   // Romance uses orbiting hearts; other presets get compact neon stars.
   let decorationCount = show.intensityName === "intense" ? 8 : 5;
   for(let decoration = 0; decoration < decorationCount; decoration++) {

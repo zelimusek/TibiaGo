@@ -889,7 +889,6 @@ function setVipShow(elapsedMs, preset, intensityName, effect, durationMs, partic
       preset: preset,
       intensity: intensityName,
       crowd: crowd === true,
-      title: "DANCE FLOOR STAR!",
       participants: participants || [],
     },
   }, null);
@@ -944,7 +943,7 @@ const crowdParticipants = [
   { targetId: 903, targetName: "South East", targetPosition: { x: 32516, y: 32347, z: 7 } },
   { targetId: 904, targetName: "South West", targetPosition: { x: 32514, y: 32347, z: 7 } },
 ];
-const crowdEffects = ["laser"].concat(specialEffects);
+const crowdEffects = ["laser", "circuit"].concat(specialEffects);
 crowdEffects.forEach((effect) => {
   const beforeFills = fills;
   const beforeStrokes = strokes;
@@ -954,16 +953,24 @@ crowdEffects.forEach((effect) => {
   assert.strictEqual(showFrame.vipShow.crowdLayout, "constellation");
   assert.strictEqual(showFrame.vipShow.centerX, 240, "crowd effects must use the dancers' shared center");
   assert.strictEqual(showFrame.vipShow.centerY, 368, "crowd effects must use the dancers' shared center");
+  if(effect === "circuit") {
+    assert.strictEqual(showFrame.vipShow.floorClip.width, 416, "circuit must cover exactly 13 SQMs horizontally");
+    assert.strictEqual(showFrame.vipShow.floorClip.height, 416, "circuit must cover exactly 13 SQMs vertically");
+    assert.strictEqual(showFrame.spotlightsEnabled, false, "circuit must not add lights outside its floor clip");
+  }
   weather.drawDiscoLights();
   assert.ok(fills > beforeFills || strokes > beforeStrokes, effect + " must add visible crowd choreography");
 });
 
 showFrame = setVipShow(100, "fire", "intense", "all", 54000);
 assert.strictEqual(showFrame.vipShow.effect, "laser");
-assert.strictEqual(showFrame.vipShow.effectCount, 17);
+assert.strictEqual(showFrame.vipShow.effectCount, 17, "targeted all mode must not include the dance-floor-only circuit");
 showFrame = setVipShow(54000 / 17 * 4 + 200, "fire", "intense", "all", 54000);
 assert.strictEqual(showFrame.vipShow.effect, "vortex", "all mode must advance through the complete choreography");
-assert.strictEqual(showFrame.vipShow.title, "DANCE FLOOR STAR!", "all scenes must keep one public stage title");
+assert.strictEqual(showFrame.vipShow.title, undefined, "show scenes must expose no generic projection title");
 assert.strictEqual(showFrame.vipShow.effectLabel, undefined, "internal projection names must stay hidden");
+
+showFrame = setVipShow(100, "fire", "intense", "all", 54000, crowdParticipants, true);
+assert.strictEqual(showFrame.vipShow.effectCount, 18, "crowd all mode must include the interactive circuit scene");
 
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

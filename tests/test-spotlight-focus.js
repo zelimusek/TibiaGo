@@ -33,7 +33,7 @@ const spectator = {
   },
 };
 const newcomer = {
-  position: new Position(32514, 32345, 7),
+  position: new Position(32522, 32345, 7),
   getId: () => 779,
   getProperty(property) {
     return property === CONST.PROPERTIES.NAME ? "New Dancer" : null;
@@ -110,12 +110,12 @@ try {
     preset: "fire",
     intensity: "intense",
     crowd: false,
-    title: "DANCE FLOOR STAR!",
     participants: [{ targetId: 778, targetName: "Club Friend", target: spectator }]
   });
   assert.ok(/laser show in fire style \(intense\)/i.test(messages.at(-1)));
   assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.preset, "fire");
   assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.effect, "laser");
+  assert.strictEqual(handler.__getSpotlightFocusPayload().vipShow.title, undefined, "show payloads must contain no projection title");
   assert.deepStrictEqual(handler.__getSpotlightFocusPayload().vipShow.participants[0].targetPosition, {
     x: 32516, y: 32347, z: 7
   });
@@ -144,6 +144,10 @@ try {
   assert.ok(/all show in rainbow style/i.test(messages.at(-1)));
   handler.clearSpotlightFocus();
 
+  commands.handle(gm, "/show Party Hero circuit");
+  assert.strictEqual(handler.__spotlightFocus, null, "circuit must not start as a targeted solo show");
+  assert.ok(/crowd-only/i.test(messages.at(-1)));
+
   commands.handle(gm, "/show crowd all fire intense");
   assert.strictEqual(handler.__spotlightFocus.source, "vip-crowd-show");
   assert.strictEqual(handler.__spotlightFocus.vipShow.crowd, true);
@@ -155,6 +159,9 @@ try {
 
   handler.__playerMap.set("NEW DANCER", newcomer);
   handler.__creatureMap.set(newcomer.getId(), newcomer);
+  assert.strictEqual(handler.__refreshCrowdShowParticipants(), false);
+  assert.strictEqual(handler.__spotlightFocus.vipShow.participants.length, 2, "a player outside the exact 13x13 floor must not join the show");
+  newcomer.position = new Position(32521, 32345, 7);
   assert.strictEqual(handler.__refreshCrowdShowParticipants(), true);
   assert.strictEqual(handler.__spotlightFocus.vipShow.participants.length, 3, "a player entering during the show must join it");
 
@@ -170,6 +177,13 @@ try {
   handler.__creatureMap.set(target.getId(), target);
   handler.__playerMap.delete("NEW DANCER");
   handler.__creatureMap.delete(newcomer.getId());
+
+  commands.handle(gm, "/show crowd circuit ice intense");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.effect, "circuit");
+  assert.strictEqual(handler.__spotlightFocus.vipShow.crowd, true);
+  assert.strictEqual(handler.__spotlightFocus.vipShow.participants.length, 2);
+  assert.ok(/Crowd circuit show started for 2 dancers/i.test(messages.at(-1)));
+  commands.handle(gm, "/show stop");
 
   handler.isInsidePartyRadioZone = () => false;
   commands.handle(gm, "/spotlight Party Hero");

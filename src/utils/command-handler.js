@@ -585,7 +585,7 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   }
   if (action === "help" || action === "effects") {
     return player.sendCancelMessage(
-      "Show effects: laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name and all. Example: /show crowd all fire intense."
+      "Show effects: laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name, circuit and all. Example: /show crowd circuit fire intense."
     );
   }
 
@@ -594,12 +594,13 @@ CommandHandler.prototype.handleCommandVipShow = function (player, message) {
   let effects = new Set([
     "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
     "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
-    "constellation", "combo", "name", "all"
+    "constellation", "combo", "name", "circuit", "all"
   ]);
   let aliases = new Map([
     ["holograms", "hologram"], ["comets", "comet"], ["pixels", "pixel"],
     ["sound", "soundwave"], ["wave", "soundwave"], ["disco", "discoball"],
-    ["freeze", "rewind"], ["dna", "helix"], ["electric", "cage"]
+    ["freeze", "rewind"], ["dna", "helix"], ["electric", "cage"],
+    ["grid", "circuit"], ["livingcircuit", "circuit"]
   ]);
   let effect = "laser";
   let preset = "rainbow";

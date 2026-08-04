@@ -26,6 +26,10 @@ const RADIO_EFFECT_STYLES = {
 };
 
 const PARTY_DANCE_FLOOR_CENTER = { x: 32515, y: 32346, z: 7 };
+const PARTY_DANCE_FLOOR_AREA = {
+  from: { x: 32509, y: 32340, z: 7 },
+  to: { x: 32521, y: 32352, z: 7 }
+};
 const SPOTLIGHT_FOCUS_DURATION_MS = 11200;
 const SPOTLIGHT_FOCUS_FLASH_DURATION_MS = 3000;
 const SPOTLIGHT_FOCUS_FLASH_COUNT = 3;
@@ -37,7 +41,7 @@ const VIP_SHOW_INTENSITIES = new Set(["soft", "normal", "intense"]);
 const VIP_SHOW_EFFECTS = new Set([
   "laser", "hologram", "wings", "equalizer", "vortex", "portal", "comet",
   "rewind", "helix", "pixel", "soundwave", "cage", "duel", "discoball",
-  "constellation", "combo", "name", "all"
+  "constellation", "combo", "name", "circuit", "all"
 ]);
 const LASER_SHOW_DEFAULT_DURATION_MS = 75000;
 const LASER_SHOW_OVERDRIVE_DURATION_MS = 100000;
@@ -447,9 +451,6 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
       preset: VIP_SHOW_PRESETS.has(options.vipShow.preset) ? options.vipShow.preset : "rainbow",
       intensity: VIP_SHOW_INTENSITIES.has(options.vipShow.intensity) ? options.vipShow.intensity : "normal",
       crowd: options.vipShow.crowd === true,
-      title: typeof options.vipShow.title === "string"
-        ? options.vipShow.title.slice(0, 40)
-        : "DANCE FLOOR STAR!",
       participants: Array.isArray(options.vipShow.participants)
         ? options.vipShow.participants.slice(0, VIP_SHOW_MAX_PARTICIPANTS).filter(function (participant) {
           return participant
@@ -487,7 +488,6 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
         preset: vipShow.preset,
         intensity: vipShow.intensity,
         crowd: vipShow.crowd,
-        title: vipShow.title,
         participantIds: vipShow.participants.map(function (participant) {
           return participant.targetId;
         })
@@ -510,13 +510,22 @@ CreatureHandler.prototype.focusSpotlightsOnPlayer = function (player, options) {
   };
 }
 
-CreatureHandler.prototype.__getPartyRadioPlayers = function () {
+CreatureHandler.prototype.isOnPartyDanceFloor = function (position) {
+  return Boolean(position)
+    && position.z === PARTY_DANCE_FLOOR_AREA.from.z
+    && position.x >= PARTY_DANCE_FLOOR_AREA.from.x
+    && position.x <= PARTY_DANCE_FLOOR_AREA.to.x
+    && position.y >= PARTY_DANCE_FLOOR_AREA.from.y
+    && position.y <= PARTY_DANCE_FLOOR_AREA.to.y;
+}
+
+CreatureHandler.prototype.__getDanceFloorPlayers = function () {
   let players = [];
   if (!(this.__playerMap instanceof Map)) return players;
 
   this.__playerMap.forEach(function (player) {
     if (!player || typeof player.getId !== "function" || !player.position) return;
-    if (!this.isInsidePartyRadioZone(player.position)) return;
+    if (!this.isOnPartyDanceFloor(player.position)) return;
     players.push(player);
   }, this);
 
@@ -537,7 +546,7 @@ CreatureHandler.prototype.__refreshCrowdShowParticipants = function () {
   let focus = this.__spotlightFocus;
   if (!focus || !focus.vipShow || focus.vipShow.crowd !== true) return false;
 
-  let players = this.__getPartyRadioPlayers();
+  let players = this.__getDanceFloorPlayers();
   if (players.length === 0) {
     this.__spotlightFocus = null;
     this.__resyncRadioAmbience();
@@ -574,8 +583,11 @@ CreatureHandler.prototype.startVipShow = function (player, effect, preset, inten
   if (!VIP_SHOW_EFFECTS.has(effect)) {
     return {
       ok: false,
-      message: "Unknown show effect. Use laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name or all."
+      message: "Unknown show effect. Use laser, hologram, wings, equalizer, vortex, portal, comet, rewind, helix, pixel, soundwave, cage, duel, discoball, constellation, combo, name, circuit or all."
     };
+  }
+  if (effect === "circuit") {
+    return { ok: false, message: "Circuit is a crowd-only show. Use /show crowd circuit." };
   }
   if (!VIP_SHOW_PRESETS.has(preset)) {
     return {
@@ -614,7 +626,6 @@ CreatureHandler.prototype.startVipShow = function (player, effect, preset, inten
       effect: effect,
       preset: preset,
       intensity: intensity,
-      title: "DANCE FLOOR STAR!",
       participants: participants
     }
   });
@@ -641,9 +652,9 @@ CreatureHandler.prototype.startCrowdShow = function (effect, preset, intensity) 
     return { ok: false, message: "Unknown show intensity. Use soft, normal or intense." };
   }
 
-  let players = this.__getPartyRadioPlayers();
+  let players = this.__getDanceFloorPlayers();
   if (players.length === 0) {
-    return { ok: false, message: "At least one player must be inside the dance hall." };
+    return { ok: false, message: "At least one player must be standing on the 13x13 dance floor." };
   }
 
   players.sort(function (left, right) {
@@ -667,7 +678,6 @@ CreatureHandler.prototype.startCrowdShow = function (effect, preset, intensity) 
       preset: preset,
       intensity: intensity,
       crowd: true,
-      title: "DANCE FLOOR STAR!",
       participants: players.map(this.__toVipShowParticipant.bind(this))
     }
   });
@@ -853,7 +863,6 @@ CreatureHandler.prototype.__getSpotlightFocusPayload = function () {
         preset: focus.vipShow.preset,
         intensity: focus.vipShow.intensity,
         crowd: focus.vipShow.crowd === true,
-        title: focus.vipShow.title,
         participants: focus.vipShow.participants.filter(function (participant) {
           return participant.target
             && participant.target.position
@@ -1069,8 +1078,8 @@ CreatureHandler.prototype.__syncRadioZone = function (player, oldPosition) {
   this.__syncRadioAmbience(player, newZone);
 
   if (this.__spotlightFocus && this.__spotlightFocus.vipShow && this.__spotlightFocus.vipShow.crowd) {
-    let wasInside = oldPosition ? this.isInsidePartyRadioZone(oldPosition) : false;
-    let isInside = this.isInsidePartyRadioZone(player.position);
+    let wasInside = oldPosition ? this.isOnPartyDanceFloor(oldPosition) : false;
+    let isInside = this.isOnPartyDanceFloor(player.position);
     if (wasInside !== isInside) this.__refreshCrowdShowParticipants();
   }
 
