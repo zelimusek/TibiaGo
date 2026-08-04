@@ -35,6 +35,15 @@ const Settings = function (element) {
     resetMobileControls.addEventListener("click", this.__resetMobileControls);
   }
 
+  let clearDatabase = document.getElementById("clear-database");
+  if (clearDatabase) {
+    clearDatabase.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      gameClient.database.clear();
+    });
+  }
+
   this.__init();
 
   // Apply state to the DOM to keep it in sync

@@ -513,12 +513,20 @@ button.symbol-button {
 .party-guide-achievements article { padding: 7px 8px; border: 1px solid #494955; background: rgba(5, 5, 10, .76); }
 .party-guide-achievements strong, .party-guide-achievements span { display: block; }
 .party-guide-achievements strong { margin-bottom: 2px; color: #c878ff; }
+.party-guide-achievements strong.achievement-rare { color: #56a8ff; }
+.party-guide-achievements strong.achievement-epic { color: #c36bff; }
+.party-guide-achievements strong.achievement-legendary { color: #ffd34d; }
 .party-guide-achievements span { color: #bbb; font-size: 10px; line-height: 1.3; }
 .party-guide-ranks { max-width: 430px; margin: 0 auto; display: grid; gap: 5px; }
 .party-guide-ranks div { display: flex; justify-content: space-between; gap: 20px; padding: 8px 11px; border: 1px solid #494955; background: rgba(5, 5, 10, .76); }
 .party-guide-ranks div:nth-child(n+7) { color: #ffd34d; border-color: #8c711e; }
 .party-guide-ranks span { color: #aaa; }
 .party-guide-modal .modal-footer { flex: 0 0 auto; margin-top: 8px; }
+
+.settings-maintenance { max-width: 360px; text-align: center; }
+.settings-maintenance strong { display: block; margin-bottom: 4px; color: #ffd34d; }
+.settings-maintenance p { margin: 0 0 8px; color: #aaa; font-size: 10px; line-height: 1.35; }
+.settings-maintenance button { width: 100%; }
 
 .party-achievement-toast {
   position: absolute;

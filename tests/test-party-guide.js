@@ -18,10 +18,21 @@ const guide = guideMatch[0];
   assert.ok(guide.includes(tab), "Party Guide must include the " + tab + " tab");
 });
 assert.strictEqual(guide.includes("/radio"), false, "the GOD-only /radio command must remain outside the public guide");
+assert.strictEqual(guide.includes("/bomb"), false, "the obsolete /bomb command must remain outside the public guide");
+assert.ok(guide.includes("Bomberman Bomb"), "Bomberman instructions must name the hotkey spell");
+assert.strictEqual(guide.includes("If nobody claims one, the round repeats."), false);
+assert.ok(guide.includes("See how you rank against the whole club in Party Maniacs."));
+["achievement-rare", "achievement-epic", "achievement-legendary"].forEach(function (rarityClass) {
+  assert.ok(guide.includes(rarityClass), "Party Guide must show " + rarityClass + " achievement colours");
+});
 assert.ok(guide.includes("Party Guide"));
 assert.ok(html.includes('<button id="information">Party Guide</button>'));
+assert.strictEqual(html.includes('id="settings-box"'), false, "the obsolete connection settings modal must be removed");
+assert.ok(html.includes('id="clear-database"'), "shared settings must include client maintenance");
 assert.ok(launcher.includes("modal-party-guide.js"));
 assert.ok(modalManager.includes('this.register(PartyGuideModal, "information-modal")'));
+assert.ok(modalManager.includes('this.__openSettings.bind(this, true)'), "login Options must open the shared settings panel");
+assert.ok(modalManager.includes('this.__openSettings.bind(this, false)'), "in-game Settings must open the shared settings panel");
 
 assert.strictEqual(definitions.length, 15);
 const byId = new Map(definitions.map(function (definition) { return [definition.id, definition]; }));

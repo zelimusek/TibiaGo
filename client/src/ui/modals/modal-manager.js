@@ -18,7 +18,6 @@ const ModalManager = function () {
   this.register(EnterNameModal, "enter-name-modal");
   this.register(ConfirmModal, "confirm-modal");
   this.register(TextModal, "floater-connecting");
-  this.register(Modal, "settings-box");
   this.register(Modal, "floater-enter");
   this.register(CreateAccountModal, "floater-create");
   this.register(PartyGuideModal, "information-modal");
@@ -49,17 +48,33 @@ ModalManager.prototype.__addEventListeners = function () {
   // Listener for clicking open modal buttons
   document.getElementById("open-chat-modal").addEventListener("click", this.open.bind(this, "chat-modal"));
   document.getElementById("openOutfit").addEventListener("click", this.open.bind(this, "outfit-modal"));
-  document.getElementById("openSettings").addEventListener("click", this.open.bind(this, "settings-modal"));
+  document.getElementById("openSettings").addEventListener("click", this.__openSettings.bind(this, false));
 
   // Main login window buttons
   document.getElementById("information").addEventListener("click", this.open.bind(this, "information-modal"));
   document.getElementById("login-info").addEventListener("click", this.open.bind(this, "floater-enter"));
   document.getElementById("create-account").addEventListener("click", this.open.bind(this, "floater-create"));
   document.getElementById("party-maniacs").addEventListener("click", this.open.bind(this, "party-maniacs-modal"));
-  document.getElementById("settings").addEventListener("click", this.open.bind(this, "settings-box"));
+  document.getElementById("settings").addEventListener("click", this.__openSettings.bind(this, true));
 
   // Add event listeners to the header elements of the modals
   Array.from(document.querySelectorAll(".modal-header")).forEach(header => header.addEventListener("mousedown", this.__handleHeaderMouseDown));
+
+}
+
+ModalManager.prototype.__openSettings = function (fromLogin) {
+
+  /*
+   * Share one settings panel between the login screen and the game. Moving the
+   * existing element preserves the controls, their listeners and saved state.
+   */
+
+  let wrapper = fromLogin
+    ? document.querySelector("#login-wrapper #login-inner > .modal-wrapper")
+    : document.querySelector("#game-wrapper #canvas-id > .modal-wrapper");
+
+  wrapper.appendChild(this.__modals["settings-modal"].element);
+  this.open("settings-modal");
 
 }
 

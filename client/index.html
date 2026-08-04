@@ -412,20 +412,6 @@
           </div>
         </div>
 
-        <!-- Login Modal for Connection Settings -->
-        <div id="settings-box" class="modal">
-          <div class="modal-header">Connection Settings</div>
-          <div class="modal-body">
-            <p> Login Server Address:
-              <br><input style="text-align: center;" id="host" value="127.0.0.1:1337" placeholder="127.0.0.1:1337">
-              <hr>
-              <button id="clear-database" onclick="gameClient.database.clear()">Reset Client</button>
-            <div class="modal-footer">
-              <button action="confirm">Close</button>
-            </div>
-          </div>
-        </div>
-
         <!-- Complete public guide to CYRK'S PARTY ZONE -->
         <div id="information-modal" class="modal party-guide-modal">
           <div class="modal-header">Party Guide</div>
@@ -458,7 +444,7 @@
                 </article>
                 <article class="party-guide-card">
                   <h3>Bomberman — Elimination</h3>
-                  <p>Put <strong>/bomb</strong> on a hotkey, destroy crates and collect BOMB, RANGE, SPEED and SHIELD bonuses. Bombs block their SQM and can trigger each other. One hit eliminates you; the last survivor wins.</p>
+                  <p>Add the <strong>Bomberman Bomb</strong> spell to a hotkey, destroy crates and collect BOMB, RANGE, SPEED and SHIELD bonuses. Bombs block their SQM and can trigger each other. One hit eliminates you; the last survivor wins.</p>
                 </article>
                 <article class="party-guide-card">
                   <h3>Bomberman — Mayhem</h3>
@@ -466,33 +452,33 @@
                 </article>
                 <article class="party-guide-card">
                   <h3>Laser Chairs</h3>
-                  <p>When the music stops, the club lasers draw one fewer square than there are players. Claim a square before time expires; one square protects one player. The player left without a square is eliminated. If nobody claims one, the round repeats.</p>
+                  <p>When the music stops, the club lasers draw one fewer square than there are players. Claim a square before time expires; one square protects one player. The player left without a square is eliminated.</p>
                 </article>
               </section>
 
               <section class="party-guide-panel" data-guide-panel="achievements">
                 <p class="party-guide-lead">Achievement progress never stops at the target. A result such as 790 / 500 shows your true lifetime total.</p>
                 <div class="party-guide-achievements">
-                  <article><strong>Lava Survivor</strong><span>Win Floor Is Lava once.</span></article>
-                  <article><strong>Hot Feet</strong><span>Win 20 Floor Is Lava rounds.</span></article>
-                  <article><strong>Bomb Maniac</strong><span>Place 500 bombs.</span></article>
-                  <article><strong>Chain Reaction</strong><span>Trigger at least 7 bombs in one chain.</span></article>
-                  <article><strong>Untouchable</strong><span>Win 5 Bomberman rounds without being hit.</span></article>
-                  <article><strong>Mayhem Master</strong><span>Win 10 Mayhem rounds.</span></article>
-                  <article><strong>Elimination Expert</strong><span>Win 10 Elimination rounds.</span></article>
-                  <article><strong>Chair Dancer</strong><span>Win Laser Chairs once.</span></article>
-                  <article><strong>Chair Champion</strong><span>Win 10 Laser Chairs games.</span></article>
-                  <article><strong>Dance Machine</strong><span>Spend 10 hours on the dance floor.</span></article>
-                  <article><strong>Party Animal</strong><span>Visit the party on 30 different days.</span></article>
-                  <article><strong>Smoke Machine</strong><span>Use a water-pipe 500 times.</span></article>
-                  <article><strong>Bouncer's Favourite</strong><span>Pass the bouncers' test 25 times.</span></article>
-                  <article><strong>Triple Crown</strong><span>Win each minigame at least 5 times.</span></article>
-                  <article><strong>Party Legend</strong><span>Unlock every other party achievement.</span></article>
+                  <article><strong class="achievement-rare">Lava Survivor</strong><span>Win Floor Is Lava once.</span></article>
+                  <article><strong class="achievement-epic">Hot Feet</strong><span>Win 20 Floor Is Lava rounds.</span></article>
+                  <article><strong class="achievement-rare">Bomb Maniac</strong><span>Place 500 bombs.</span></article>
+                  <article><strong class="achievement-epic">Chain Reaction</strong><span>Trigger at least 7 bombs in one chain.</span></article>
+                  <article><strong class="achievement-legendary">Untouchable</strong><span>Win 5 Bomberman rounds without being hit.</span></article>
+                  <article><strong class="achievement-epic">Mayhem Master</strong><span>Win 10 Mayhem rounds.</span></article>
+                  <article><strong class="achievement-epic">Elimination Expert</strong><span>Win 10 Elimination rounds.</span></article>
+                  <article><strong class="achievement-rare">Chair Dancer</strong><span>Win Laser Chairs once.</span></article>
+                  <article><strong class="achievement-epic">Chair Champion</strong><span>Win 10 Laser Chairs games.</span></article>
+                  <article><strong class="achievement-epic">Dance Machine</strong><span>Spend 10 hours on the dance floor.</span></article>
+                  <article><strong class="achievement-legendary">Party Animal</strong><span>Visit the party on 30 different days.</span></article>
+                  <article><strong class="achievement-epic">Smoke Machine</strong><span>Use a water-pipe 500 times.</span></article>
+                  <article><strong class="achievement-rare">Bouncer's Favourite</strong><span>Pass the bouncers' test 25 times.</span></article>
+                  <article><strong class="achievement-legendary">Triple Crown</strong><span>Win each minigame at least 5 times.</span></article>
+                  <article><strong class="achievement-legendary">Party Legend</strong><span>Unlock every other party achievement.</span></article>
                 </div>
               </section>
 
               <section class="party-guide-panel" data-guide-panel="ranks">
-                <p class="party-guide-lead">Club time is earned while you are inside the Party Zone and not considered inactive. Compare your result with everybody else in Party Maniacs.</p>
+                <p class="party-guide-lead">Club time is earned while you are inside the Party Zone and not considered inactive. See how you rank against the whole club in Party Maniacs.</p>
                 <div class="party-guide-ranks">
                   <div><strong>Newcomer</strong><span>0 minutes</span></div>
                   <div><strong>Party Guest</strong><span>30 minutes</span></div>
@@ -847,6 +833,14 @@
                 <div class="settings-row mobile-layout-settings-row">
                   <label>Mobile Controls:</label>
                   <button id="reset-mobile-controls" type="button">Reset Layout</button>
+                </div>
+
+                <hr>
+
+                <div class="settings-maintenance">
+                  <strong>Client Maintenance</strong>
+                  <p>Clear downloaded assets, cached map data and saved client settings, then reload the client.</p>
+                  <button id="clear-database" type="button">Reset Client / Clear Cache</button>
                 </div>
               </div>
             </div>
