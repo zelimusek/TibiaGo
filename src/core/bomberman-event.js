@@ -435,6 +435,10 @@ BombermanEvent.prototype.start = function (mode) {
     return { ok: false, message: "Stop Floor is Lava before starting Bomberman." };
   }
 
+  if (this.__creatureHandler.laserChairs && this.__creatureHandler.laserChairs.isRunning()) {
+    return { ok: false, message: "Stop Laser Chairs before starting Bomberman." };
+  }
+
   if (this.__getAudiencePosition() === null) {
     return { ok: false, message: "Neither audience strip contains a walkable tile." };
   }

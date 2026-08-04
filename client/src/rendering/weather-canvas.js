@@ -24,7 +24,7 @@ const WeatherCanvas = function(screen) {
   this.__flash = 0;
   this.__isRaining = false;
   this.__weatherType = "none";
-  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null, focus: null, laserShow: null };
+  this.__discoLights = { spotlightsEnabled: false, legacyLasersEnabled: false, intensity: 60, spotlightSpeed: 100, beatBpm: 0, radius: 0, center: null, focus: null, laserShow: null, chairGame: null };
   this.__discoLightFrame = null;
   this.__spotlightFocusVisual = null;
   this.__spotlightFocusTransition = null;
@@ -334,7 +334,7 @@ WeatherCanvas.prototype.setWeatherType = function(type) {
 
 }
 
-WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, spotlightSpeed, beatBpm, radius, center, focus, laserShow) {
+WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLasersEnabled, intensity, spotlightSpeed, beatBpm, radius, center, focus, laserShow, chairGame) {
 
   let validFocus = focus
     && Number.isInteger(focus.targetId)
@@ -356,6 +356,11 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
     && typeof laserShow.text === "string"
     && Number.isFinite(laserShow.durationMs)
     && laserShow.durationMs > 0;
+  let validChairGame = chairGame
+    && ["countdown", "dancing", "claiming", "result"].includes(chairGame.phase)
+    && chairGame.floor && chairGame.floor.from && chairGame.floor.to
+    && Number.isFinite(chairGame.durationMs) && chairGame.durationMs > 0
+    && Array.isArray(chairGame.squares);
 
   if((previousTargetId !== nextTargetId || previousLaserFocus !== nextLaserFocus) && this.__discoLightFrame && this.__discoLightFrame.lights) {
     this.__spotlightFocusTransition = {
@@ -433,6 +438,18 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
       text: laserShow.text.slice(0, 12),
       elapsedMs: Math.max(0, Number(laserShow.elapsedMs) || 0),
       durationMs: laserShow.durationMs,
+      receivedAt: performance.now()
+    } : null,
+    chairGame: validChairGame ? {
+      phase: chairGame.phase,
+      elapsedMs: Math.max(0, Number(chairGame.elapsedMs) || 0),
+      durationMs: chairGame.durationMs,
+      round: Math.max(0, Number(chairGame.round) || 0),
+      remaining: Math.max(0, Number(chairGame.remaining) || 0),
+      floor: chairGame.floor,
+      squares: chairGame.squares.slice(0, 168).filter(function(position) {
+        return position && Number.isInteger(position.x) && Number.isInteger(position.y) && Number.isInteger(position.z);
+      }),
       receivedAt: performance.now()
     } : null
   };
@@ -1939,7 +1956,8 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   let showElapsed = show ? show.elapsedMs + Math.max(0, now - show.receivedAt) : 0;
   let showActive = show != null && showElapsed < show.durationMs;
   let vipRequested = disco.focus && disco.focus.vipShow;
-  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive && !vipRequested) || !disco.center || disco.radius <= 0) {
+  let chairActive = disco.chairGame !== null;
+  if((!disco.spotlightsEnabled && !disco.legacyLasersEnabled && !showActive && !vipRequested && !chairActive) || !disco.center || disco.radius <= 0) {
     return null;
   }
 
@@ -2129,6 +2147,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     laserFocusCenterY: laserFocusCenter ? laserFocusCenter.y : null,
     laserFocusRadius: laserFocusRadius,
     laserShow: laserShowFrame,
+    chairGame: disco.chairGame,
     vipShow: vipShowFrame,
     vipLaserTargets: vipShowFrame ? vipShowFrame.laserTargets : null,
     clip: {
@@ -3079,6 +3098,99 @@ WeatherCanvas.prototype.__drawVipShow = function(context, frame, mobile) {
 
 }
 
+WeatherCanvas.prototype.__drawLaserChairs = function(context, frame) {
+
+  let game = frame.chairGame;
+  if(!game) return;
+
+  let now = performance.now();
+  let elapsed = game.elapsedMs + Math.max(0, now - game.receivedAt);
+  let from = game.floor.from;
+  let to = game.floor.to;
+  let fromScreen = gameClient.renderer.getStaticScreenPosition(new Position(from.x, from.y, from.z));
+  let toScreen = gameClient.renderer.getStaticScreenPosition(new Position(to.x, to.y, to.z));
+  let floorX = Math.min(fromScreen.x, toScreen.x) * 32;
+  let floorY = Math.min(fromScreen.y, toScreen.y) * 32;
+  let floorWidth = (Math.abs(toScreen.x - fromScreen.x) + 1) * 32;
+  let floorHeight = (Math.abs(toScreen.y - fromScreen.y) + 1) * 32;
+  let borderProgress = game.phase === "countdown"
+    ? Math.max(0, Math.min(1, elapsed / 1800))
+    : 1;
+  let squareProgress = game.phase === "claiming"
+    ? Math.max(0, Math.min(1, elapsed / 650))
+    : 0;
+  let pulse = 0.82 + 0.18 * Math.sin(now / 125);
+  let colors = ["#41e8ff", "#ff46f2", "#47ffac", "#ffd84a"];
+
+  function rectangleProgress(x, y, width, height, progress) {
+    let lengths = [width, height, width, height];
+    let points = [
+      [x, y, x + width, y],
+      [x + width, y, x + width, y + height],
+      [x + width, y + height, x, y + height],
+      [x, y + height, x, y]
+    ];
+    let remaining = (width * 2 + height * 2) * Math.max(0, Math.min(1, progress));
+    context.beginPath();
+    points.forEach(function(segment, index) {
+      if(remaining <= 0) return;
+      let amount = Math.min(1, remaining / lengths[index]);
+      context.moveTo(segment[0], segment[1]);
+      context.lineTo(
+        segment[0] + (segment[2] - segment[0]) * amount,
+        segment[1] + (segment[3] - segment[1]) * amount
+      );
+      remaining -= lengths[index];
+    });
+    context.stroke();
+  }
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.beginPath();
+  context.rect(floorX - 12, floorY - 12, floorWidth + 24, floorHeight + 24);
+  context.clip();
+
+  context.strokeStyle = "rgba(70, 225, 255, 0.20)";
+  context.lineWidth = 11;
+  rectangleProgress(floorX, floorY, floorWidth, floorHeight, borderProgress);
+  context.strokeStyle = "rgba(105, 245, 255, 0.95)";
+  context.lineWidth = 2.6;
+  rectangleProgress(floorX, floorY, floorWidth, floorHeight, borderProgress);
+
+  if(squareProgress > 0) {
+    game.squares.forEach(function(position, index) {
+      let screen = gameClient.renderer.getStaticScreenPosition(new Position(position.x, position.y, position.z));
+      let x = screen.x * 32 + 3;
+      let y = screen.y * 32 + 3;
+      let size = 26;
+      let color = colors[index % colors.length];
+      context.globalAlpha = pulse;
+      context.strokeStyle = color;
+      context.lineWidth = 9;
+      rectangleProgress(x, y, size, size, squareProgress);
+      context.globalAlpha = 1;
+      context.lineWidth = 2.4;
+      rectangleProgress(x, y, size, size, squareProgress);
+
+      if(squareProgress >= 1) {
+        let glow = context.createRadialGradient(x + 13, y + 13, 1, x + 13, y + 13, 18);
+        glow.addColorStop(0, "rgba(255, 255, 255, 0.22)");
+        glow.addColorStop(0.55, color);
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        context.globalAlpha = 0.22 * pulse;
+        context.fillStyle = glow;
+        context.beginPath();
+        context.arc(x + 13, y + 13, 18, 0, Math.PI * 2);
+        context.fill();
+      }
+    });
+  }
+
+  context.restore();
+
+};
+
 WeatherCanvas.prototype.drawDiscoLights = function() {
 
   let frame = this.__getDiscoLightFrame();
@@ -3269,6 +3381,8 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     });
   }
   context.restore();
+
+  this.__drawLaserChairs(context, frame);
 
   if(frame.vipShow) {
     this.__drawVipShow(context, frame, mobile);

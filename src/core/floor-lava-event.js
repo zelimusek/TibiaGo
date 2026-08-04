@@ -226,6 +226,10 @@ FloorLavaEvent.prototype.start = function () {
     return { ok: false, message: "Stop Bomberman before starting Floor is Lava." };
   }
 
+  if (this.__creatureHandler.laserChairs && this.__creatureHandler.laserChairs.isRunning()) {
+    return { ok: false, message: "Stop Laser Chairs before starting Floor is Lava." };
+  }
+
   let playableTiles = this.__getPlayableFloorTiles();
 
   if (playableTiles.length < 2) {

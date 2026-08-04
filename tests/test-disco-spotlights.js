@@ -973,4 +973,27 @@ assert.strictEqual(showFrame.vipShow.effectLabel, undefined, "internal projectio
 showFrame = setVipShow(100, "fire", "intense", "all", 54000, crowdParticipants, true);
 assert.strictEqual(showFrame.vipShow.effectCount, 18, "crowd all mode must include the interactive circuit scene");
 
+const chairStrokesBefore = strokes;
+weather.setDiscoLights(true, true, 80, 100, 120, 6, {
+  x: 32515, y: 32346, z: 7
+}, null, null, {
+  phase: "claiming",
+  elapsedMs: 700,
+  durationMs: 7000,
+  round: 1,
+  remaining: 3,
+  floor: {
+    from: { x: 32509, y: 32340, z: 7 },
+    to: { x: 32521, y: 32352, z: 7 }
+  },
+  squares: [
+    { x: 32512, y: 32344, z: 7 },
+    { x: 32518, y: 32349, z: 7 }
+  ]
+});
+context.gameClient.renderer.debugger.__nFrames++;
+assert.strictEqual(weather.__getDiscoLightFrame().chairGame.phase, "claiming");
+weather.drawDiscoLights();
+assert.ok(strokes >= chairStrokesBefore + 6, "Laser Chairs must draw the closed floor border and every SQM square");
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

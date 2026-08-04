@@ -157,6 +157,7 @@ try {
   assert.deepStrictEqual(correctionOptions, {
     ignoreFloorLava: true,
     ignoreBomberman: true,
+    ignoreLaserChairs: true,
   });
 
   console.log(

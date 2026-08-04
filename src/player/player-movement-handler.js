@@ -79,7 +79,8 @@ PlayerMovementHandler.prototype.handleMovement = function (direction) {
         // server position, not a new movement attempt. Event movement guards
         // must not block it or the client remains one SQM out of sync.
         ignoreFloorLava: true,
-        ignoreBomberman: true
+        ignoreBomberman: true,
+        ignoreLaserChairs: true
       }
     );
   }

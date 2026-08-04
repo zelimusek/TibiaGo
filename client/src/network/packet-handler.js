@@ -706,7 +706,11 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
         ambience.discoCanvasRadius,
         ambience.discoCanvasCenter,
         ambience.spotlightFocus,
-        ambience.laserShow
+        ambience.laserShow,
+        ambience.chairGame
+      );
+      gameClient.interface.soundManager.setRadioGameDuck(
+        Boolean(ambience.chairGame && ambience.chairGame.phase === "claiming")
       );
       gameClient.renderer.weatherCanvas.setRaining(weather === "rain" || weather === "storm");
       gameClient.renderer.weatherCanvas.setWeather(
@@ -734,6 +738,7 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
 
   if (!packet.enabled) {
     gameClient.interface.soundManager.setRadioEnvironmentalMute(false);
+    gameClient.interface.soundManager.setRadioGameDuck(false);
   }
   gameClient.interface.soundManager.setRadioStream(packet.enabled ? packet.url : "", packet.volume);
 

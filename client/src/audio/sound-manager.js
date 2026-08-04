@@ -28,6 +28,9 @@ const SoundManager = function(enabled) {
   this.__currentAmbientTrace = null;
   this.__radioStream = null;
   this.__radioUrl = "";
+  this.__radioZoneVolume = 1;
+  this.__radioGameVolume = 1;
+  this.__radioGameVolumeTarget = 1;
   this.__radioEnvironmentalMute = false;
 
 }
@@ -65,7 +68,7 @@ SoundManager.prototype.setMasterVolume = function(amount) {
     this.__currentAmbientTrace.setVolume(this.__radioEnvironmentalMute ? 0 : amount);
   }
   if(this.__radioStream !== null) {
-    this.__radioStream.volume = amount;
+    this.__applyRadioVolume();
   }
 
 }
@@ -118,6 +121,33 @@ SoundManager.prototype.tick = function() {
   Object.values(this.ambientTraces).forEach(function(trace) {
     trace.tick();
   });
+
+  if(Math.abs(this.__radioGameVolume - this.__radioGameVolumeTarget) > 0.002) {
+    this.__radioGameVolume += (this.__radioGameVolumeTarget - this.__radioGameVolume) * 0.18;
+    this.__applyRadioVolume();
+  } else if(this.__radioGameVolume !== this.__radioGameVolumeTarget) {
+    this.__radioGameVolume = this.__radioGameVolumeTarget;
+    this.__applyRadioVolume();
+  }
+
+}
+
+SoundManager.prototype.__applyRadioVolume = function() {
+
+  if(this.__radioStream === null) return;
+  this.__radioStream.volume = Math.max(0, Math.min(
+    1,
+    this.__masterVolume * this.__radioZoneVolume * this.__radioGameVolume
+  ));
+
+}
+
+SoundManager.prototype.setRadioGameDuck = function(ducked) {
+
+  this.__radioGameVolumeTarget = ducked === true ? 0 : 1;
+  if(this.__radioStream === null) {
+    this.__radioGameVolume = this.__radioGameVolumeTarget;
+  }
 
 }
 
@@ -209,17 +239,19 @@ SoundManager.prototype.setRadioStream = function(url, volume) {
   }
 
   if(this.__radioUrl === url && this.__radioStream !== null) {
-    this.__radioStream.volume = Math.min(this.__masterVolume, volume === undefined ? 1 : volume);
+    this.__radioZoneVolume = Math.max(0, Math.min(1, volume === undefined ? 1 : volume));
+    this.__applyRadioVolume();
     return;
   }
 
   this.stopRadioStream();
 
   this.__radioUrl = url;
+  this.__radioZoneVolume = Math.max(0, Math.min(1, volume === undefined ? 1 : volume));
   this.__radioStream = new Audio(url);
   this.__radioStream.loop = false;
   this.__radioStream.preload = "none";
-  this.__radioStream.volume = Math.min(this.__masterVolume, volume === undefined ? 1 : volume);
+  this.__applyRadioVolume();
 
   let playPromise = this.__radioStream.play();
   if(playPromise && typeof playPromise.catch === "function") {
@@ -242,6 +274,7 @@ SoundManager.prototype.stopRadioStream = function() {
   this.__radioStream.load();
   this.__radioStream = null;
   this.__radioUrl = "";
+  this.__radioZoneVolume = 1;
 
 }
 

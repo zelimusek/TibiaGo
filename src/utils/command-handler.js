@@ -86,6 +86,7 @@ CommandHandler.prototype.handleCommandTeleport = function (player, coordinates) 
     {
       ignoreFloorLava: true,
       ignoreBomberman: true,
+      ignoreLaserChairs: true,
     }
   );
 
@@ -494,6 +495,26 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
 
 };
 
+CommandHandler.prototype.handleCommandLaserChairs = function (player, message) {
+
+  let action = (message[1] || "start").toLowerCase();
+  let result;
+
+  if (action === "start") {
+    result = gameServer.world.creatureHandler.laserChairs.start();
+  } else if (action === "stop") {
+    result = gameServer.world.creatureHandler.laserChairs.stop();
+  } else if (action === "status") {
+    return player.sendCancelMessage(gameServer.world.creatureHandler.laserChairs.getStatus());
+  } else {
+    return player.sendCancelMessage("Usage: /chair [start|stop|status] or /chairs [start|stop|status].");
+  }
+
+  if (!result.ok) return player.sendCancelMessage(result.message);
+  return true;
+
+};
+
 CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
   let command = message[0] === "/spotlights" ? "/spotlights" : "/spotlight";
   let includeLasers = command === "/spotlights";
@@ -841,6 +862,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/bomber") {
     return this.handleCommandBomberman(player, message);
+  }
+
+  if (message[0] === "/chair" || message[0] === "/chairs") {
+    return this.handleCommandLaserChairs(player, message);
   }
 
   if (message[0] === "/spotlight" || message[0] === "/spotlights") {

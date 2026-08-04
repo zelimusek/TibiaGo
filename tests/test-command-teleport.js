@@ -51,6 +51,7 @@ try {
   assert.deepStrictEqual(teleportCalls[0].options, {
     ignoreFloorLava: true,
     ignoreBomberman: true,
+    ignoreLaserChairs: true,
   });
   assert.strictEqual(gm.messages.at(-1), "Teleported to 32515, 32346, 7.");
 
