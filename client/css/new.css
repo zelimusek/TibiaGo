@@ -528,6 +528,27 @@ button.symbol-button {
 .settings-maintenance p { margin: 0 0 8px; color: #aaa; font-size: 10px; line-height: 1.35; }
 .settings-maintenance button { width: 100%; }
 
+.party-choice-modal { box-sizing: border-box; width: min(500px, calc(100% - 24px)); overflow: hidden; }
+.party-choice-modal .modal-body { padding: 12px; }
+.party-choice-intro { margin: 0 0 10px; color: #ddd; text-align: center; }
+.party-choice-section { margin-top: 9px; padding: 9px; border: 1px solid #4a4a55; background: rgba(4, 4, 10, .78); }
+.party-choice-section h3 { margin: 0 0 8px; text-align: center; font-size: 12px; text-transform: uppercase; letter-spacing: .7px; }
+.party-choice-games h3 { color: #65ddff; }
+.party-choice-chance { border-color: #9b7420; box-shadow: inset 0 0 18px rgba(255, 201, 56, .08); }
+.party-choice-chance h3 { color: #ffd34d; }
+.party-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.party-choice-grid button { min-height: 42px; margin: 0; padding: 7px 9px; white-space: normal; }
+.party-choice-games button { border-color: #35667a; }
+.party-choice-roulette { color: #ffe47a; border-color: #d29b24 !important; box-shadow: inset 0 0 13px rgba(255, 205, 59, .16); }
+.party-choice-random { color: #d18cff; border-color: #8954ae !important; box-shadow: inset 0 0 13px rgba(195, 107, 255, .16); }
+.party-choice-timer { margin-top: 10px; color: #ffd34d; text-align: center; font-weight: 700; }
+
+@media screen and (max-width: 520px) {
+  .party-choice-modal { width: calc(100% - 20px); max-height: calc(100dvh - 20px); overflow-y: auto; }
+  .party-choice-grid { grid-template-columns: 1fr; }
+  .party-choice-grid button { min-height: 44px; }
+}
+
 .party-achievement-toast {
   position: absolute;
   z-index: 12000;

@@ -338,6 +338,9 @@ LaserChairsEvent.prototype.__finish = function () {
     this.__creatureHandler.celebratePartyWinner(winner);
     gameServer.world.sendMagicEffect(winner.position, CONST.EFFECT.MAGIC.SOUND_WHITE);
   }
+  if (winner && this.__creatureHandler.partyGameFlow) {
+    this.__creatureHandler.partyGameFlow.handleGameWinner(winner, "chairs");
+  }
   this.__broadcast("%s wins Laser Chairs!".format(winnerName));
   if (typeof this.__creatureHandler.announceNpcYell === "function") {
     this.__creatureHandler.announceNpcYell("DJ Thomas", "%s wins Laser Chairs!".format(winnerName));

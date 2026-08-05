@@ -464,6 +464,12 @@ CommandHandler.prototype.handleCommandFloorLava = function (player, message) {
     return player.sendCancelMessage(result.message);
   }
 
+  if (action === "start" && gameServer.world.creatureHandler.partyGameFlow) {
+    gameServer.world.creatureHandler.partyGameFlow.handleGameStarted("lava");
+  } else if (action === "stop" && gameServer.world.creatureHandler.partyGameFlow) {
+    gameServer.world.creatureHandler.partyGameFlow.stop("The party game chain was stopped by a game master.");
+  }
+
   return true;
 
 };
@@ -491,6 +497,16 @@ CommandHandler.prototype.handleCommandBomberman = function (player, message) {
     return player.sendCancelMessage(result.message);
   }
 
+  if (action === "start" && gameServer.world.creatureHandler.partyGameFlow) {
+    gameServer.world.creatureHandler.partyGameFlow.handleGameStarted(
+      (message[2] || "mayhem").toLowerCase() === "elimination"
+        ? "bomber-elimination"
+        : "bomber-mayhem"
+    );
+  } else if (action === "stop" && gameServer.world.creatureHandler.partyGameFlow) {
+    gameServer.world.creatureHandler.partyGameFlow.stop("The party game chain was stopped by a game master.");
+  }
+
   return true;
 
 };
@@ -511,8 +527,19 @@ CommandHandler.prototype.handleCommandLaserChairs = function (player, message) {
   }
 
   if (!result.ok) return player.sendCancelMessage(result.message);
+  if (action === "start" && gameServer.world.creatureHandler.partyGameFlow) {
+    gameServer.world.creatureHandler.partyGameFlow.handleGameStarted("chairs");
+  } else if (action === "stop" && gameServer.world.creatureHandler.partyGameFlow) {
+    gameServer.world.creatureHandler.partyGameFlow.stop("The party game chain was stopped by a game master.");
+  }
   return true;
 
+};
+
+CommandHandler.prototype.handlePartyGameChoice = function (player, message) {
+  let flow = gameServer.world.creatureHandler.partyGameFlow;
+  if (!flow) return player.sendCancelMessage("Party game selection is unavailable.");
+  return flow.handleChoice(player, message[1]);
 };
 
 CommandHandler.prototype.handleCommandSpotlight = function (player, message) {
@@ -835,6 +862,11 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/title") {
     return this.handleCommandTitle(player, message);
+  }
+
+  // The winner's modal sends this hidden, server-authorized selection.
+  if (message[0] === "/party-choice") {
+    return this.handlePartyGameChoice(player, message);
   }
 
   // Slash commands in this handler are administrative tools (spawning,

@@ -31,6 +31,7 @@ const ModalManager = function () {
   this.register(RadioEditorModal, "radio-editor-modal");
   this.register(AchievementsModal, "achievements-modal");
   this.register(PartyManiacsModal, "party-maniacs-modal");
+  this.register(PartyChoiceModal, "party-choice-modal");
   this.register(ClubBarModal, "club-bar-modal");
   this.register(WindowQuestLog, "quest-log-modal");
 

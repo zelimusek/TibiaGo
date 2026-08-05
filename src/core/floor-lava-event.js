@@ -476,6 +476,9 @@ FloorLavaEvent.prototype.__finishIfResolved = function () {
     if (typeof this.__creatureHandler.celebratePartyWinner === "function") {
       this.__creatureHandler.celebratePartyWinner(winner);
     }
+    if (this.__creatureHandler.partyGameFlow) {
+      this.__creatureHandler.partyGameFlow.handleGameWinner(winner, "lava");
+    }
     gameServer.world.sendMagicEffect(winner.position, CONST.EFFECT.MAGIC.SOUND_WHITE);
   }
 

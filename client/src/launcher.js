@@ -116,6 +116,7 @@
     "src/ui/modals/modal-achievements.js",
     "src/ui/modals/modal-party-guide.js",
     "src/ui/modals/modal-party-maniacs.js",
+    "src/ui/modals/modal-party-choice.js",
     "src/ui/modals/modal-club-bar.js",
     "src/ui/modals/modal-enter-name.js",
     "src/ui/modals/modal-map.js",

@@ -856,6 +856,30 @@
               </div>
             </div>
 
+            <div id="party-choice-modal" class="modal party-choice-modal">
+              <div class="modal-header">Choose the Next Challenge!</div>
+              <div class="modal-body">
+                <p class="party-choice-intro">You won! What should everybody play next?</p>
+                <section class="party-choice-section party-choice-games">
+                  <h3>Choose a Minigame</h3>
+                  <div class="party-choice-grid">
+                    <button type="button" data-party-choice="lava">Floor Is Lava</button>
+                    <button type="button" data-party-choice="bomber-elimination">Bomberman: Elimination</button>
+                    <button type="button" data-party-choice="bomber-mayhem">Bomberman: Mayhem</button>
+                    <button type="button" data-party-choice="chairs">Laser Chairs</button>
+                  </div>
+                </section>
+                <section class="party-choice-section party-choice-chance">
+                  <h3>Leave It to Chance</h3>
+                  <div class="party-choice-grid">
+                    <button type="button" class="party-choice-roulette" data-party-choice="laser-roulette">Laser Roulette</button>
+                    <button type="button" class="party-choice-random" data-party-choice="random-game">Random Game</button>
+                  </div>
+                </section>
+                <div id="party-choice-timer" class="party-choice-timer">Make your choice: 30 seconds</div>
+              </div>
+            </div>
+
             <!-- Quest Log Modal -->
             <div id="quest-log-modal" class="modal"
               style="width: auto; height: auto; background: transparent; padding: 0; box-shadow: none; border: none;">

@@ -8,6 +8,7 @@ const Position = requireModule("utils/position");
 const FloorLavaEvent = requireModule("core/floor-lava-event");
 const BombermanEvent = requireModule("core/bomberman-event");
 const LaserChairsEvent = requireModule("core/laser-chairs-event");
+const PartyGameFlow = requireModule("core/party-game-flow");
 const PartyBouncerEvent = requireModule("core/party-bouncer-event");
 const PartyAchievementSystem = requireModule("core/party-achievement-system");
 const fs = require("fs");
@@ -125,6 +126,9 @@ const CreatureHandler = function () {
 
   // Server-authoritative musical chairs played with laser-drawn SQMs.
   this.laserChairs = new LaserChairsEvent(this);
+
+  // Automatic party lobby, Laser Roulette and winner-controlled game chain.
+  this.partyGameFlow = new PartyGameFlow(this);
 
   // Two coordinated door bouncers, their physical queue and per-player passes.
   this.partyBouncers = new PartyBouncerEvent(this);
@@ -943,12 +947,13 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       spotlightFocus: this.__getSpotlightFocusPayload(),
       laserShow: this.__getLaserShowPayload(),
       chairGame: this.laserChairs ? this.laserChairs.getPayload() : null,
+      partyFlow: this.partyGameFlow ? this.partyGameFlow.getPayload() : null,
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
       radioEnvironmentalMute: true
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, chairGame: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0, radioEnvironmentalMute: false };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, chairGame: null, partyFlow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0, radioEnvironmentalMute: false };
   let ambienceKey = JSON.stringify(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser
@@ -1403,6 +1408,7 @@ CreatureHandler.prototype.tick = function () {
   this.floorLava.tick();
   this.bomberman.tick();
   this.laserChairs.tick();
+  this.partyGameFlow.tick();
   if (this.partyBouncers) {
     this.partyBouncers.tick();
   }
@@ -1809,6 +1815,14 @@ CreatureHandler.prototype.teleportCreature = function (creature, position, optio
     }
   }
 
+  if (creature.isPlayer() && this.partyGameFlow && options.ignorePartyGameFlow !== true) {
+    let partyFlowRedirect = this.partyGameFlow.handleDestination(creature, position);
+    if (partyFlowRedirect !== null) {
+      if (partyFlowRedirect.position === null) return false;
+      position = partyFlowRedirect.position;
+    }
+  }
+
   let tile = gameServer.world.getTileFromWorldPosition(position);
   let oldPosition = creature.position;
   let oldTile = gameServer.world.getTileFromWorldPosition(oldPosition);
@@ -1923,6 +1937,18 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
         creature,
         laserChairsRedirect.position,
         { ignoreLaserChairs: true }
+      );
+    }
+  }
+
+  if (creature.isPlayer() && this.partyGameFlow) {
+    let partyFlowRedirect = this.partyGameFlow.handleDestination(creature, position);
+    if (partyFlowRedirect !== null) {
+      if (partyFlowRedirect.position === null) return false;
+      return this.teleportCreature(
+        creature,
+        partyFlowRedirect.position,
+        { ignorePartyGameFlow: true }
       );
     }
   }

@@ -664,6 +664,23 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
   let editorPrefix = "radio-editor:";
   let ambiencePrefix = "radio-ambience:";
   let clubMenuPrefix = "club-menu:";
+  let partyChoicePrefix = "party-choice:";
+
+  if (packet.enabled && packet.url.startsWith(partyChoicePrefix)) {
+    try {
+      let choice = JSON.parse(decodeURIComponent(packet.url.slice(partyChoicePrefix.length)));
+      let modal = gameClient.interface.modalManager.get("party-choice-modal");
+      if (choice.action === "close") {
+        if (modal && modal.element.style.display === "block") gameClient.interface.modalManager.close();
+      } else {
+        gameClient.interface.modalManager.open("party-choice-modal", choice);
+      }
+    } catch (error) {
+      gameClient.interface.setCancelMessage("Could not open the party game selection.");
+    }
+    return;
+  }
+
   if(packet.enabled && packet.url.startsWith(clubMenuPrefix)) {
     gameClient.interface.modalManager.open("club-bar-modal", JSON.parse(decodeURIComponent(packet.url.slice(clubMenuPrefix.length))));
     return;
@@ -707,10 +724,18 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
         ambience.discoCanvasCenter,
         ambience.spotlightFocus,
         ambience.laserShow,
-        ambience.chairGame
+        ambience.chairGame,
+        ambience.partyFlow
       );
       gameClient.interface.soundManager.setRadioGameDuck(
-        Boolean(ambience.chairGame && ambience.chairGame.phase === "claiming")
+        Boolean(
+          (ambience.chairGame && ambience.chairGame.phase === "claiming")
+          || (ambience.partyFlow && (
+            ambience.partyFlow.phase === "roulette"
+            || (ambience.partyFlow.phase === "lobby"
+              && ambience.partyFlow.durationMs - ambience.partyFlow.elapsedMs <= 5000)
+          ))
+        )
       );
       gameClient.renderer.weatherCanvas.setRaining(weather === "rain" || weather === "storm");
       gameClient.renderer.weatherCanvas.setWeather(
