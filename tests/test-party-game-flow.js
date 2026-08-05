@@ -125,11 +125,17 @@ const html = fs.readFileSync(path.join(root, "client", "index.html"), "utf8");
 const launcher = fs.readFileSync(path.join(root, "client", "src", "launcher.js"), "utf8");
 const packetHandler = fs.readFileSync(path.join(root, "client", "src", "network", "packet-handler.js"), "utf8");
 const weather = fs.readFileSync(path.join(root, "client", "src", "rendering", "weather-canvas.js"), "utf8");
+const modalManager = fs.readFileSync(path.join(root, "client", "src", "ui", "modals", "modal-manager.js"), "utf8");
+const partyChoiceModal = fs.readFileSync(path.join(root, "client", "src", "ui", "modals", "modal-party-choice.js"), "utf8");
 assert.ok(html.includes('id="party-choice-modal"'));
 assert.ok(html.includes("Choose a Minigame"));
 assert.ok(html.includes("Leave It to Chance"));
 assert.ok(launcher.includes("modal-party-choice.js"));
 assert.ok(packetHandler.includes('let partyChoicePrefix = "party-choice:"'));
 assert.ok(weather.includes("__getPartyFlowFrame"));
+assert.ok(partyChoiceModal.includes("this.blocksDismissal = true"));
+assert.ok(partyChoiceModal.includes("modalManager.close(true)"));
+assert.ok(modalManager.includes("this.__openedModal.blocksDismissal === true && force !== true"));
+assert.ok(packetHandler.includes("modalManager.close(true)"));
 
 console.log("PASS: capped party lobby, Laser Roulette, protected winner choice and responsive game queue work together.");

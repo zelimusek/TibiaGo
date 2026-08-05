@@ -671,7 +671,7 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
       let choice = JSON.parse(decodeURIComponent(packet.url.slice(partyChoicePrefix.length)));
       let modal = gameClient.interface.modalManager.get("party-choice-modal");
       if (choice.action === "close") {
-        if (modal && modal.element.style.display === "block") gameClient.interface.modalManager.close();
+        if (modal && modal.element.style.display === "block") gameClient.interface.modalManager.close(true);
       } else {
         gameClient.interface.modalManager.open("party-choice-modal", choice);
       }

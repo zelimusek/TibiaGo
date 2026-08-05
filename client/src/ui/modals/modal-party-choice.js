@@ -1,5 +1,6 @@
 const PartyChoiceModal = function (element) {
   Modal.call(this, element);
+  this.blocksDismissal = true;
   this.__timer = document.getElementById("party-choice-timer");
   this.__interval = null;
   Array.from(this.element.querySelectorAll("[data-party-choice]")).forEach(function (button) {
@@ -33,5 +34,5 @@ PartyChoiceModal.prototype.__choose = function (choice) {
   });
   clearInterval(this.__interval);
   gameClient.send(new ChannelMessagePacket(CONST.CHANNEL.DEFAULT, 1, "/party-choice " + choice));
-  gameClient.interface.modalManager.close();
+  gameClient.interface.modalManager.close(true);
 };

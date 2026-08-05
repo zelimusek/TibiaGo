@@ -169,7 +169,7 @@ ModalManager.prototype.handleConfirm = function () {
 
 }
 
-ModalManager.prototype.close = function () {
+ModalManager.prototype.close = function (force) {
 
   /*
    * Function ModalManager.close
@@ -180,6 +180,13 @@ ModalManager.prototype.close = function () {
     return;
   }
 
+  // The winner's game choice must remain visible while the player moves,
+  // presses Escape/Enter or clicks the game world. Only an explicit choice or
+  // the server-side timeout may dismiss a protected modal.
+  if (this.__openedModal.blocksDismissal === true && force !== true) {
+    return false;
+  }
+
   // Hide the current modal
   this.__openedModal.element.style.display = "none";
   this.__openedModal = null;
@@ -188,6 +195,8 @@ ModalManager.prototype.close = function () {
   if (document.activeElement) {
     document.activeElement.blur();
   }
+
+  return true;
 
 }
 
@@ -246,9 +255,18 @@ ModalManager.prototype.open = function (id, options) {
     return null;
   }
 
-  // Already opened: close the previous modal
+  // Refresh an already-open instance (for example after a reconnect/resync)
+  // without dismissing a protected modal first.
   if (this.isOpened()) {
-    this.close();
+    if (this.__openedModal === this.get(id)) {
+      this.__openedModal.show();
+      this.__openedModal.handleOpen(options);
+      return this.__openedModal;
+    }
+
+    if (this.close() === false) {
+      return this.__openedModal;
+    }
   }
 
   this.__openedModal = this.get(id);
