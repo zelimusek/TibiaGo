@@ -847,6 +847,29 @@ CommandHandler.prototype.findCreatureByName = function (name) {
   return { target, targetName };
 };
 
+CommandHandler.prototype.handleCommandDj = function (player, message) {
+  /*
+   * Makes DJ Thomas yell a custom announcement to the local Party Zone,
+   * using the exact same range-filtered NPC yell path as minigame winners.
+   */
+
+  let text = message.slice(1).join(" ").trim();
+
+  if (!text) {
+    return player.sendCancelMessage("Usage: /dj <message>");
+  }
+
+  if (text.length > 160) {
+    return player.sendCancelMessage("DJ message is limited to 160 characters.");
+  }
+
+  if (!gameServer.world.creatureHandler.announceNpcYell("DJ Thomas", text)) {
+    return player.sendCancelMessage("DJ Thomas is not currently available.");
+  }
+
+  return true;
+};
+
 CommandHandler.prototype.handle = function (player, message) {
   message = message.split(" ");
 
@@ -886,6 +909,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/radio") {
     return this.handleCommandRadio(player, message);
+  }
+
+  if (message[0] === "/dj") {
+    return this.handleCommandDj(player, message);
   }
 
   if (message[0] === "/lava") {
