@@ -56,6 +56,9 @@ const Interface = function () {
   // A native browser warning can force the document out of fullscreen.
   // Restoring it requires another explicit user gesture.
   this.__fullScreenPreferred = false;
+  this.__hiddenAt = null;
+  this.__wasConnectedBeforeHidden = false;
+  this.__visibilityReconnectInProgress = false;
 
   // Enable all the listeners in the DOM
   this.__enableListeners();
@@ -1008,15 +1011,55 @@ Interface.prototype.__handleVisibiliyChange = function (event) {
    * Callback fired when the window is hidden
    */
 
-  // Must be connected to the gameserver
-  if (!gameClient.networkManager.isConnected()) {
+  if (document.hidden) {
+    this.__hiddenAt = Date.now();
+    this.__wasConnectedBeforeHidden = gameClient.networkManager.isConnected();
+    if (window.tibiaDiagnostics) {
+      window.tibiaDiagnostics.record("client-hidden", {
+        connected: this.__wasConnectedBeforeHidden
+      }, false);
+    }
+    if (this.__wasConnectedBeforeHidden) {
+      gameClient.keyboard.setInactive();
+      if (gameClient.renderer) {
+        gameClient.renderer.__handleVisibiliyChange(event);
+      }
+    }
     return;
   }
 
-  // Disable the keyboard when tabbing out: reset all active keys to prevent "hanging"
-  gameClient.keyboard.setInactive();
+  if (this.__hiddenAt === null) return;
+  let inactiveMs = Math.max(0, Date.now() - this.__hiddenAt);
+  let wasConnected = this.__wasConnectedBeforeHidden;
+  this.__hiddenAt = null;
+  this.__wasConnectedBeforeHidden = false;
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("client-visible", {
+      inactiveMs: inactiveMs,
+      connected: gameClient.networkManager.isConnected()
+    }, false);
+  }
+  if (inactiveMs < 30000 || !wasConnected) return;
 
-  return gameClient.renderer.__handleVisibiliyChange(event);
+  let inactiveSeconds = Math.floor(inactiveMs / 1000);
+  let minutes = Math.floor(inactiveSeconds / 60);
+  let seconds = inactiveSeconds % 60;
+  let duration = minutes > 0
+    ? "%d minute%s %d second%s".format(minutes, minutes === 1 ? "" : "s", seconds, seconds === 1 ? "" : "s")
+    : "%d second%s".format(seconds, seconds === 1 ? "" : "s");
+  if (gameClient.networkManager.isConnected()) {
+    return this.setCancelMessage("The client was inactive for %s. Connection restored.".format(duration));
+  }
+  if (this.__visibilityReconnectInProgress) return;
+  this.__visibilityReconnectInProgress = true;
+  this.modalManager.open("floater-connecting", "The client was inactive for %s. Connection lost. Reconnecting...".format(duration));
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("visibility-reconnect-attempt", { inactiveMs: inactiveMs }, true);
+  }
+  window.setTimeout(function () {
+    this.__visibilityReconnectInProgress = false;
+    if (!gameClient.networkManager.isConnected()) gameClient.connect();
+  }.bind(this), 250);
 };
 
 Interface.prototype.__handleResizeWindow = function () {
