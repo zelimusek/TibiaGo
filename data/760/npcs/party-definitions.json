@@ -1,0 +1,38 @@
+{
+  "dj_thomas": {
+    "position": {
+      "x": 32514,
+      "y": 32337,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "dj_thomas.json"
+  },
+  "dj_hubertuse": {
+    "position": {
+      "x": 32516,
+      "y": 32337,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "dj_hubertuse.json"
+  },
+  "rozal": {
+    "position": {
+      "x": 32514,
+      "y": 32358,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "rozal.json"
+  },
+  "pudzian": {
+    "position": {
+      "x": 32516,
+      "y": 32358,
+      "z": 7
+    },
+    "enabled": true,
+    "definition": "pudzian.json"
+  }
+}

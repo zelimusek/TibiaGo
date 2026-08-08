@@ -43,9 +43,14 @@ CommandHandler.prototype.handleCommandWaypoint = function (player, waypoint) {
     return player.sendCancelMessage("This waypoint does not exist.");
   }
 
+  let position = this.WAYPOINTS[waypoint];
+  if (gameServer.world.getTileFromWorldPosition(position) === null) {
+    return player.sendCancelMessage("This waypoint is outside the active world.");
+  }
+
   return gameServer.world.creatureHandler.teleportCreature(
     player,
-    this.WAYPOINTS[waypoint]
+    position
   );
 };
 

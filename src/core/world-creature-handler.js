@@ -1495,6 +1495,14 @@ CreatureHandler.prototype.createNewPlayer = async function (gameSocket, data) {
    * Creates a new player and adds it to the game world
    */
 
+  // Disco-only maps do not contain the historical temples. Keep every
+  // existing character's respawn point valid; an out-of-crop saved position
+  // will then fall back to this tile during login.
+  let discoMode = CONFIG.SERVER.DISCO_MODE;
+  if (discoMode && discoMode.ENABLED === true && discoMode.SPAWN) {
+    data.templePosition = Position.prototype.fromLiteral(discoMode.SPAWN);
+  }
+
   // Create the class that wraps the data
   let player = new Player(data);
   let position = Position.prototype.fromLiteral(data.position);

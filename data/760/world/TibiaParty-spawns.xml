@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<spawns>
+	<spawn centerx="32491" centery="32294" centerz="8" radius="1">
+		<monster name="troll" x="0" y="0" z="8" spawntime="60" />
+		<monster name="troll" x="1" y="0" z="8" spawntime="60" />
+	</spawn>
+	<spawn centerx="32459" centery="32326" centerz="8" radius="1">
+		<monster name="swamp troll" x="0" y="0" z="8" spawntime="60" />
+		<monster name="swamp troll" x="1" y="0" z="8" spawntime="60" />
+		<monster name="swamp troll" x="1" y="1" z="8" spawntime="60" />
+	</spawn>
+	<spawn centerx="32488" centery="32299" centerz="9" radius="1">
+		<monster name="troll" x="0" y="0" z="9" spawntime="60" />
+		<monster name="troll" x="1" y="0" z="9" spawntime="60" />
+		<monster name="troll" x="1" y="1" z="9" spawntime="60" />
+	</spawn>
+	<spawn centerx="32505" centery="32300" centerz="9" radius="1">
+		<monster name="troll" x="0" y="0" z="9" spawntime="60" />
+		<monster name="troll" x="1" y="0" z="9" spawntime="60" />
+	</spawn>
+	<spawn centerx="32504" centery="32299" centerz="10" radius="1">
+		<monster name="rat" x="0" y="0" z="10" spawntime="60" />
+	</spawn>
+	<spawn centerx="32514" centery="32304" centerz="10" radius="1">
+		<monster name="slime" x="0" y="0" z="10" spawntime="60" />
+	</spawn>
+</spawns>

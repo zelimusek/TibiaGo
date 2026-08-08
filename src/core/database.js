@@ -159,7 +159,7 @@ Database.prototype.initialize = function () {
 
   // NPCs if they are enabled
   if (CONFIG.WORLD.NPCS.ENABLED) {
-    this.npcs = this.__loadNPCDefinitions("npcs");
+    this.npcs = this.__loadNPCDefinitions("npcs", CONFIG.WORLD.NPCS.FILE);
   }
 
   // Spawns if they are enabled
@@ -505,7 +505,8 @@ Database.prototype.__loadSpawnDefinitions = function (definition) {
   });
 
   // Determine the path to the spawn file
-  let path = getDataFile("world", "Tibia74-spawns.xml");
+  let spawnFile = CONFIG.WORLD.SPAWNS.FILE || "Tibia74-spawns.xml";
+  let path = getDataFile("world", spawnFile);
 
   if (!fs.existsSync(path)) {
     return console.log("Could not find spawn file at %s".format(path));
@@ -570,7 +571,7 @@ Database.prototype.__loadSpawnDefinitions = function (definition) {
 
 }
 
-Database.prototype.__loadNPCDefinitions = function (definition) {
+Database.prototype.__loadNPCDefinitions = function (definition, filename) {
 
   /*
    * Function Database.__loadNPCDefinitions
@@ -579,7 +580,7 @@ Database.prototype.__loadNPCDefinitions = function (definition) {
 
   let reference = new Object();
 
-  Object.entries(this.readDataDefinition(definition)).forEach(function ([key, value]) {
+  Object.entries(this.readDataDefinition(definition, filename)).forEach(function ([key, value]) {
     reference[key] = this.__readNPCDefinition(value);
   }, this);
 
@@ -734,14 +735,14 @@ Database.prototype.__createClassFromId = function (id) {
 
 }
 
-Database.prototype.readDataDefinition = function (definition) {
+Database.prototype.readDataDefinition = function (definition, filename) {
 
   /*
    * Function Database.readDataDefinition
    * Loads a JSON definition file from a particular folder
    */
 
-  return JSON.parse(fs.readFileSync(getDataFile(definition, "definitions.json")));
+  return JSON.parse(fs.readFileSync(getDataFile(definition, filename || "definitions.json")));
 
 }
 

@@ -55,7 +55,7 @@
   },
   "WORLD": {
     "GLOBAL_COOLDOWN_MS": 1000,
-    "WORLD_FILE": "Tibia74.otbm",
+    "WORLD_FILE": "TibiaParty.otbm",
     "LAZY_TILE_NEIGHBOURS": false,
     "IDLE": {
       "WARN_SECONDS": 300,
@@ -71,10 +71,12 @@
       "START": "08:00"
     },
     "SPAWNS": {
-      "ENABLED": true
+      "ENABLED": true,
+      "FILE": "TibiaParty-spawns.xml"
     },
     "NPCS": {
-      "ENABLED": true
+      "ENABLED": true,
+      "FILE": "party-definitions.json"
     }
   },
   "COMBAT": {
