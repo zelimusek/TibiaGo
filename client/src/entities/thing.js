@@ -166,6 +166,22 @@ Thing.prototype.__getGlobalFrame = function () {
 
   let frameGroup = this.getFrameGroup(FrameGroup.prototype.NONE);
 
+  // Run one complete six-phase Party Zone speaker pulse per music beat.
+  // At the default 140 BPM this is a ~429 ms loop (~71 ms per frame), which is
+  // four times faster than the previous four-beat cycle. When a radio zone
+  // supplies its own BPM, keep the speaker synchronized with that value.
+  if ((this.id === 5090 || this.id === 20029) && frameGroup.animationLength === 6) {
+    const discoLights = gameClient.renderer.weatherCanvas
+      && gameClient.renderer.weatherCanvas.__discoLights;
+    const configuredBpm = discoLights && Number(discoLights.beatBpm);
+    const bpm = Number.isFinite(configuredBpm) && configuredBpm > 0
+      ? configuredBpm
+      : 140;
+    const beatDuration = 60000 / bpm;
+    const frameDuration = beatDuration / frameGroup.animationLength;
+    return Math.floor((gameClient.renderer.__nMiliseconds % beatDuration) / frameDuration);
+  }
+
   // Global animations for old versions
   if (!gameClient.hasExtendedAnimations()) {
     return ((gameClient.renderer.__nMiliseconds / this.DEFAULT_FRAME_LENGTH_MS) % frameGroup.animationLength) | 0;
