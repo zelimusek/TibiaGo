@@ -2427,9 +2427,17 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     return this.__discoLightFrame;
   }
 
-  let pulse = disco.beatBpm > 0
-    ? 0.62 + 0.38 * Math.max(0, Math.sin(now * Math.PI * 2 * disco.beatBpm / 60000))
-    : 0.76 + 0.24 * Math.sin(now / 260);
+  let soundManager = gameClient.interface && gameClient.interface.soundManager;
+  let radioRhythm = soundManager && typeof soundManager.getRadioRhythm === "function"
+    ? soundManager.getRadioRhythm(disco.beatBpm, now)
+    : null;
+  let effectiveBeatBpm = radioRhythm ? radioRhythm.bpm : disco.beatBpm;
+  let beatPulse = radioRhythm
+    ? radioRhythm.pulse
+    : disco.beatBpm > 0
+      ? Math.max(0, Math.sin(now * Math.PI * 2 * disco.beatBpm / 60000))
+      : Math.max(0, Math.min(1, (0.76 + 0.24 * Math.sin(now / 260) - 0.62) / 0.38));
+  let pulse = 0.62 + 0.38 * beatPulse;
   let intensity = disco.intensity / 100;
   let radius = Math.max(2, disco.radius);
   let center = new Position(disco.center.x, disco.center.y, disco.center.z);
@@ -2524,7 +2532,7 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
     this.__spotlightFocusVisual = null;
   }
   let vipShowFrame = focusActive && focus.vipShow && focusScreen
-    ? this.__getVipShowFrame(focus, focusScreen, focusElapsed, now, disco.beatBpm)
+    ? this.__getVipShowFrame(focus, focusScreen, focusElapsed, now, effectiveBeatBpm)
     : null;
   let activeFocusScreen = vipShowFrame
     ? { x: vipShowFrame.centerX, y: vipShowFrame.centerY }
@@ -2620,7 +2628,10 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
   this.__discoLightFrame = {
     frameNumber: frameNumber,
     now: now,
-    beatBpm: disco.beatBpm,
+    beatBpm: effectiveBeatBpm,
+    beatSource: radioRhythm ? radioRhythm.source : "bpm",
+    beatPulse: beatPulse,
+    beatStrength: radioRhythm ? radioRhythm.strength : 1,
     pulse: pulse,
     intensity: intensity,
     spotlightsEnabled: disco.spotlightsEnabled || showActive || partyActive || Boolean(
@@ -3732,9 +3743,11 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     [-frame.radius, frame.radius * 0.5],
     [frame.radius, frame.radius * 0.5]
   ];
-  let legacyPulse = frame.beatBpm > 0
-    ? 0.55 + 0.45 * Math.max(0, Math.sin(frame.now * Math.PI * 2 * frame.beatBpm / 60000))
-    : 0.72 + 0.28 * Math.sin(frame.now / 260);
+  let legacyPulse = Number.isFinite(frame.beatPulse)
+    ? 0.55 + 0.45 * frame.beatPulse
+    : frame.beatBpm > 0
+      ? 0.55 + 0.45 * Math.max(0, Math.sin(frame.now * Math.PI * 2 * frame.beatBpm / 60000))
+      : 0.72 + 0.28 * Math.sin(frame.now / 260);
   let beamLength = Math.max(this.screen.canvas.width, this.screen.canvas.height) * 1.5;
   let laserFocusAmount = frame.laserFocusAmount || 0;
   let laserShow = frame.laserShow;

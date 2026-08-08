@@ -1054,4 +1054,32 @@ assert.strictEqual(crowdedChairFrame.drawDurationMs, 3200,
   "twenty players should give nineteen squares a readable 3.2-second choreography"
 );
 
+let sharedRhythmCalls = 0;
+context.gameClient.interface = {
+  soundManager: {
+    getRadioRhythm(fallbackBpm, requestedAt) {
+      sharedRhythmCalls++;
+      assert.strictEqual(fallbackBpm, 120);
+      assert.strictEqual(requestedAt, now);
+      return {
+        source: "bass",
+        bpm: 96,
+        pulse: 0.9,
+        strength: 0.85,
+        now: requestedAt
+      };
+    }
+  }
+};
+weather.setDiscoLights(true, true, 80, 100, 120, 6, {
+  x: 32515, y: 32346, z: 7
+});
+context.gameClient.renderer.debugger.__nFrames++;
+let bassFrame = weather.__getDiscoLightFrame();
+assert.strictEqual(sharedRhythmCalls, 1, "disco lights should consume the shared radio rhythm once per frame");
+assert.strictEqual(bassFrame.beatSource, "bass");
+assert.strictEqual(bassFrame.beatBpm, 96, "laser and spotlight choreography should receive the detected music tempo");
+assert.strictEqual(bassFrame.beatPulse, 0.9, "laser and spotlight brightness should receive the detected bass pulse");
+assert.ok(Math.abs(bassFrame.pulse - 0.962) < 0.001);
+
 console.log("PASS: disco spotlights illuminate, draw and move across the dance floor.");

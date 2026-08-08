@@ -174,13 +174,18 @@ Thing.prototype.__getGlobalFrame = function () {
     const discoLights = gameClient.renderer.weatherCanvas
       && gameClient.renderer.weatherCanvas.__discoLights;
     const configuredBpm = discoLights && Number(discoLights.beatBpm);
-    const bpm = Number.isFinite(configuredBpm) && configuredBpm > 0
-      ? configuredBpm
-      : 140;
+    const fallbackBpm = Number.isFinite(configuredBpm) && configuredBpm > 0
+      ? configuredBpm : 140;
+    const soundManager = gameClient.interface && gameClient.interface.soundManager;
+    const rhythm = soundManager && typeof soundManager.getRadioRhythm === "function"
+      ? soundManager.getRadioRhythm(fallbackBpm)
+      : null;
+    const bpm = rhythm ? rhythm.bpm : fallbackBpm;
+    const animationClock = rhythm ? rhythm.now : gameClient.renderer.__nMiliseconds;
     const beatDuration = 60000 / bpm;
     const cycleDuration = beatDuration * 4 / 3;
     const frameDuration = cycleDuration / frameGroup.animationLength;
-    return Math.floor((gameClient.renderer.__nMiliseconds % cycleDuration) / frameDuration);
+    return Math.floor((animationClock % cycleDuration) / frameDuration);
   }
 
   // Global animations for old versions
