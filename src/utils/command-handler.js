@@ -355,6 +355,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
   let legacyLasersEnabled;
   let discoCanvasIntensity;
   let spotlightSpeed;
+  let rhythmMode;
+  let bassSensitivity;
 
   // Cached clients still send the former aggregate checkbox followed by the
   // intensity. Treat it as enabling both effects until they refresh.
@@ -367,6 +369,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     discoCanvasIntensity = Number(message[14]);
     spotlightSpeed = message[15] === undefined ? 100 : Number(message[15]);
   }
+  rhythmMode = message[16] === undefined ? "auto" : String(message[16]).toLowerCase();
+  bassSensitivity = message[17] === undefined ? 50 : Number(message[17]);
   let validEffectStyles = ["disco", "magic", "rings", "fire", "energy", "poison", "death", "teleport", "blood", "lightning"];
   let validWeather = ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"];
   let validLight = ["none", "night", "blue", "purple", "red"];
@@ -418,6 +422,14 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Spotlight speed must be from 0% to 250% in steps of 5%.");
   }
 
+  if (["auto", "fixed"].indexOf(rhythmMode) === -1) {
+    return player.sendCancelMessage("Choose Auto bass or Fixed BPM rhythm mode.");
+  }
+
+  if (!Number.isInteger(bassSensitivity) || bassSensitivity < 1 || bassSensitivity > 100) {
+    return player.sendCancelMessage("Bass sensitivity must be a whole number from 1 to 100.");
+  }
+
   if (!gameServer.world.creatureHandler.setRadioZoneAt(
     player.position,
     url,
@@ -434,6 +446,8 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     legacyLasersEnabled,
     discoCanvasIntensity,
     spotlightSpeed,
+    rhythmMode,
+    bassSensitivity,
     player.getProperty(CONST.PROPERTIES.NAME)
   )) {
     return player.sendCancelMessage("Could not save the radio zone.");

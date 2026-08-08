@@ -13,7 +13,12 @@ const RadioEditorModal = function (element) {
   this.__effectStyles = Array.from(document.querySelectorAll("input[name='radio-effect-style']"));
   this.__effectInterval = document.getElementById("radio-editor-effect-interval");
   this.__effectIntensity = document.getElementById("radio-editor-effect-intensity");
+  this.__rhythmMode = document.getElementById("radio-editor-rhythm-mode");
   this.__beatBpm = document.getElementById("radio-editor-beat-bpm");
+  this.__beatBpmLabel = document.getElementById("radio-editor-beat-bpm-label");
+  this.__bassSensitivity = document.getElementById("radio-editor-bass-sensitivity");
+  this.__bassSensitivityValue = document.getElementById("radio-editor-bass-sensitivity-value");
+  this.__rhythmStatus = document.getElementById("radio-editor-rhythm-status");
   this.__weather = document.getElementById("radio-editor-weather");
   this.__light = document.getElementById("radio-editor-light");
   this.__spotlights = document.getElementById("radio-editor-spotlights");
@@ -22,6 +27,10 @@ const RadioEditorModal = function (element) {
   this.__spotlightSpeed = document.getElementById("radio-editor-spotlight-speed");
   this.__spotlightSpeedValue = document.getElementById("radio-editor-spotlight-speed-value");
   this.__spotlightSpeed.oninput = this.__updateSpotlightSpeedValue.bind(this);
+  this.__rhythmMode.onchange = this.__updateRhythmControls.bind(this);
+  this.__beatBpm.oninput = this.__updateRhythmStatus.bind(this, true);
+  this.__bassSensitivity.oninput = this.__updateRhythmControls.bind(this);
+  this.__lastRhythmStatusAt = 0;
 
 }
 
@@ -31,6 +40,43 @@ RadioEditorModal.prototype.constructor = RadioEditorModal;
 RadioEditorModal.prototype.__updateSpotlightSpeedValue = function () {
   let value = Number(this.__spotlightSpeed.value);
   this.__spotlightSpeedValue.innerText = value === 0 ? "Static" : value + "%";
+}
+
+RadioEditorModal.prototype.__updateRhythmControls = function () {
+  let sensitivity = Number(this.__bassSensitivity.value);
+  this.__bassSensitivityValue.innerText = Math.round(sensitivity) + "%";
+  this.__beatBpmLabel.innerText = this.__rhythmMode.value === "fixed"
+    ? "Fixed BPM"
+    : "Fallback BPM";
+  this.__bassSensitivity.disabled = this.__rhythmMode.value === "fixed";
+  this.__updateRhythmStatus(true);
+}
+
+RadioEditorModal.prototype.__updateRhythmStatus = function (force) {
+  let now = performance.now();
+  if (force !== true && now - this.__lastRhythmStatusAt < 250) return;
+  this.__lastRhythmStatusAt = now;
+
+  let soundManager = gameClient.interface && gameClient.interface.soundManager;
+  if (!soundManager || typeof soundManager.getRadioRhythm !== "function") {
+    this.__rhythmStatus.innerText = "Rhythm unavailable";
+    return;
+  }
+
+  let rhythm = soundManager.getRadioRhythm(
+    Number(this.__beatBpm.value),
+    now,
+    { mode: this.__rhythmMode.value }
+  );
+  let label = rhythm.source === "bass"
+    ? "Bass detected"
+    : rhythm.source === "fixed"
+      ? "Fixed rhythm"
+      : rhythm.analyserAvailable
+        ? "Listening · fallback"
+        : "Fallback rhythm";
+  this.__rhythmStatus.innerText = label + " · " + Math.round(rhythm.bpm) + " BPM";
+  this.__rhythmStatus.dataset.source = rhythm.source;
 }
 
 RadioEditorModal.prototype.handleOpen = function (config) {
@@ -48,7 +94,9 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   });
   this.__effectInterval.value = Number.isFinite(config.effectInterval) ? config.effectInterval : 2;
   this.__effectIntensity.value = Number.isInteger(config.effectIntensity) ? config.effectIntensity : 3;
+  this.__rhythmMode.value = config.rhythmMode === "fixed" ? "fixed" : "auto";
   this.__beatBpm.value = Number.isInteger(config.beatBpm) ? config.beatBpm : 0;
+  this.__bassSensitivity.value = Number.isInteger(config.bassSensitivity) ? config.bassSensitivity : 50;
   this.__weather.value = config.weather || "none";
   this.__light.value = config.light || "none";
   this.__spotlights.checked = config.spotlightsEnabled === true;
@@ -56,6 +104,7 @@ RadioEditorModal.prototype.handleOpen = function (config) {
   this.__discoIntensity.value = Number.isInteger(config.discoCanvasIntensity) ? config.discoCanvasIntensity : 60;
   this.__spotlightSpeed.value = Number.isInteger(config.spotlightSpeed) && config.spotlightSpeed >= 0 && config.spotlightSpeed <= 250 ? config.spotlightSpeed : 100;
   this.__updateSpotlightSpeedValue();
+  this.__updateRhythmControls();
 
   setTimeout(function () {
     this.__url.focus();
@@ -74,7 +123,9 @@ RadioEditorModal.prototype.handleConfirm = function () {
     .map(function (element) { return element.value; });
   let effectInterval = Number(this.__effectInterval.value);
   let effectIntensity = Number(this.__effectIntensity.value);
+  let rhythmMode = this.__rhythmMode.value;
   let beatBpm = Number(this.__beatBpm.value);
+  let bassSensitivity = Number(this.__bassSensitivity.value);
   let weather = this.__weather.value;
   let light = this.__light.value;
   let spotlightsEnabled = this.__spotlights.checked ? 1 : 0;
@@ -122,6 +173,16 @@ RadioEditorModal.prototype.handleConfirm = function () {
     return false;
   }
 
+  if (["auto", "fixed"].indexOf(rhythmMode) === -1) {
+    gameClient.interface.setCancelMessage("Choose Auto bass or Fixed BPM rhythm mode.");
+    return false;
+  }
+
+  if (!Number.isInteger(bassSensitivity) || bassSensitivity < 1 || bassSensitivity > 100) {
+    gameClient.interface.setCancelMessage("Bass sensitivity must be a whole number from 1 to 100.");
+    return false;
+  }
+
   if (!Number.isInteger(discoCanvasIntensity) || discoCanvasIntensity < 10 || discoCanvasIntensity > 100) {
     gameClient.interface.setCancelMessage("Club effect intensity must be a whole number from 10 to 100.");
     return false;
@@ -137,9 +198,13 @@ RadioEditorModal.prototype.handleConfirm = function () {
   gameClient.send(new ChannelMessagePacket(
     CONST.CHANNEL.DEFAULT,
     1,
-    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, spotlightSpeed)
+    "/radio set %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s".format(url, radius, fadeRadius, effectsEnabled, effectStyles.join(","), effectInterval, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, spotlightSpeed, rhythmMode, bassSensitivity)
   ));
 
   return true;
 
+}
+
+RadioEditorModal.prototype.handleRender = function () {
+  this.__updateRhythmStatus(false);
 }

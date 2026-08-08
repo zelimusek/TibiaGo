@@ -715,6 +715,10 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
       };
       let color = lightColors[ambience.light] || lightColors.none;
 
+      gameClient.interface.soundManager.setRadioRhythmConfig(
+        ambience.rhythmMode,
+        ambience.bassSensitivity
+      );
       gameClient.renderer.weatherCanvas.setWeatherType(weather);
       gameClient.renderer.weatherCanvas.setDiscoLights(
         ambience.spotlightsEnabled !== undefined
@@ -770,6 +774,7 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
   if (!packet.enabled) {
     gameClient.interface.soundManager.setRadioEnvironmentalMute(false);
     gameClient.interface.soundManager.setRadioGameDuck(false);
+    gameClient.interface.soundManager.setRadioRhythmConfig("auto", 50);
   }
   gameClient.interface.soundManager.setRadioStream(packet.enabled ? packet.url : "", packet.volume);
 

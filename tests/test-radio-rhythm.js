@@ -80,4 +80,38 @@ assert.strictEqual(fallback.source, "bpm", "stale or missing audio analysis must
 assert.strictEqual(fallback.bpm, 140, "the /radio BPM must be preserved by the fallback");
 assert.ok(fallback.pulse >= 0 && fallback.pulse <= 1);
 
+manager.setRadioRhythmConfig("fixed", 85);
+let fixed = manager.getRadioRhythm(120, now);
+assert.strictEqual(fixed.source, "fixed", "fixed mode must ignore detected bass beats");
+assert.strictEqual(fixed.bpm, 120, "fixed mode must preserve the configured BPM");
+assert.strictEqual(manager.__radioBassSensitivity, 85, "the configured bass sensitivity should be retained");
+
+manager.setRadioRhythmConfig("auto", 500);
+assert.strictEqual(manager.__radioRhythmMode, "auto");
+assert.strictEqual(manager.__radioBassSensitivity, 100, "bass sensitivity must be clamped safely");
+
+function detectModerateTransient(sensitivity) {
+  let detector = new context.SoundManager(true);
+  let detectorEnergy = 50;
+  detector.setRadioRhythmConfig("auto", sensitivity);
+  detector.__radioAudioContext = { state: "running", sampleRate: 44100 };
+  detector.__radioAnalyser = {
+    fftSize: 2048,
+    frequencyBinCount: 1024,
+    getByteFrequencyData(buffer) { buffer.fill(detectorEnergy); },
+  };
+  detector.__radioFrequencyData = new Uint8Array(1024);
+  for(let index = 0; index < 24; index++) {
+    now += 16;
+    detector.__sampleRadioRhythm(now);
+  }
+  detectorEnergy = 68;
+  now += 250;
+  detector.__sampleRadioRhythm(now);
+  return detector.__radioRhythm.beatSequence;
+}
+
+assert.strictEqual(detectModerateTransient(1), 0, "low sensitivity should reject a moderate transient");
+assert.strictEqual(detectModerateTransient(100), 1, "high sensitivity should accept the same transient");
+
 console.log("Radio bass rhythm and BPM fallback tests passed.");

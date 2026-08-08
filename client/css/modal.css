@@ -264,6 +264,39 @@
   flex: 1 1 50%;
 }
 
+.radio-editor-rhythm {
+  align-items: end;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid #444;
+  border-radius: 3px;
+  display: grid;
+  gap: 4px 8px;
+  grid-template-columns: 1fr 0.8fr 1.35fr;
+  padding: 6px 8px;
+}
+
+.radio-editor-rhythm label {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 3px;
+  min-width: 0;
+}
+
+.radio-editor-rhythm-status {
+  color: #ffd500;
+  font-size: 10px;
+  font-weight: bold;
+  grid-column: 1 / -1;
+  line-height: 1.2;
+  min-height: 12px;
+  text-align: center;
+}
+
+.radio-editor-rhythm-status[data-source="bass"] {
+  color: #65ffb0;
+}
+
 .radio-editor-help {
   color: #ccc;
   font-size: 10px;
@@ -301,7 +334,7 @@
 .radio-editor-styles {
   display: grid;
   gap: 4px 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .radio-editor-styles > span {
@@ -317,6 +350,23 @@
 
 .radio-editor-styles input {
   width: auto;
+}
+
+@media (max-width: 620px), (max-height: 620px) {
+  .radio-editor-body {
+    gap: 2px;
+    max-height: 76vh;
+    padding: 6px 8px;
+  }
+
+  .radio-editor-rhythm {
+    gap: 3px 6px;
+    padding: 4px 6px;
+  }
+
+  .radio-editor-styles {
+    gap: 2px 6px;
+  }
 }
 
 .hotbar-config-tabs {

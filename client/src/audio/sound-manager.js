@@ -36,6 +36,8 @@ const SoundManager = function(enabled) {
   this.__radioSourceNode = null;
   this.__radioAnalyser = null;
   this.__radioFrequencyData = null;
+  this.__radioRhythmMode = "auto";
+  this.__radioBassSensitivity = 50;
   this.__radioRhythm = {
     baseline: 0,
     samples: 0,
@@ -161,6 +163,16 @@ SoundManager.prototype.__resetRadioRhythm = function() {
     beatSequence: 0,
     beatStrength: 0
   };
+
+}
+
+SoundManager.prototype.setRadioRhythmConfig = function(mode, sensitivity) {
+
+  this.__radioRhythmMode = mode === "fixed" ? "fixed" : "auto";
+  sensitivity = Number(sensitivity);
+  this.__radioBassSensitivity = Number.isFinite(sensitivity)
+    ? Math.max(1, Math.min(100, Math.round(sensitivity)))
+    : 50;
 
 }
 
@@ -294,8 +306,18 @@ SoundManager.prototype.__sampleRadioRhythm = function(now) {
     rhythm.baseline += (energy - rhythm.baseline) * baselineSpeed;
   }
 
-  let threshold = Math.max(rhythm.baseline * 1.30, rhythm.baseline + 7);
-  let rising = energy > rhythm.lastEnergy * 1.025;
+  // Sensitivity 50 preserves the original detector. Higher values accept a
+  // smaller transient above the rolling bass baseline, while lower values
+  // require a clearer kick and reduce false positives from bass-heavy songs.
+  let sensitivity = this.__radioBassSensitivity;
+  let thresholdRatio = 1.45 - sensitivity * 0.003;
+  let thresholdDelta = 10 - sensitivity * 0.06;
+  let risingFactor = 1.04 - sensitivity * 0.0003;
+  let threshold = Math.max(
+    rhythm.baseline * thresholdRatio,
+    rhythm.baseline + thresholdDelta
+  );
+  let rising = energy > rhythm.lastEnergy * risingFactor;
   let cooldownElapsed = now - rhythm.lastBeatAt;
   if(rhythm.samples > 18 && energy > threshold && rising && cooldownElapsed >= 240) {
     if(rhythm.lastBeatAt > 0) {
@@ -318,11 +340,15 @@ SoundManager.prototype.__sampleRadioRhythm = function(now) {
 
 }
 
-SoundManager.prototype.getRadioRhythm = function(fallbackBpm, now) {
+SoundManager.prototype.getRadioRhythm = function(fallbackBpm, now, options) {
 
   let fallback = Number(fallbackBpm);
   if(!Number.isFinite(fallback) || fallback < 40 || fallback > 240) fallback = 140;
   now = Number.isFinite(now) ? now : performance.now();
+  options = options || {};
+  let rhythmMode = options.mode === "fixed" || options.mode === "auto"
+    ? options.mode
+    : this.__radioRhythmMode;
 
   let rhythm = this.__radioRhythm;
   let signalFresh = rhythm.lastSignalAt > 0 && now - rhythm.lastSignalAt < 1500;
@@ -339,7 +365,7 @@ SoundManager.prototype.getRadioRhythm = function(fallbackBpm, now) {
     if(rawBpm >= 40 && rawBpm <= 240) detectedBpm = rawBpm;
   }
 
-  let useBass = signalFresh && beatFresh;
+  let useBass = rhythmMode === "auto" && signalFresh && beatFresh;
   let bpm = useBass ? detectedBpm : fallback;
   let beatDuration = 60000 / bpm;
   let beatPulse;
@@ -356,12 +382,16 @@ SoundManager.prototype.getRadioRhythm = function(fallbackBpm, now) {
   }
 
   return {
-    source: useBass ? "bass" : "bpm",
+    source: useBass ? "bass" : rhythmMode === "fixed" ? "fixed" : "bpm",
     bpm: bpm,
     phase: phase,
     pulse: Math.max(0, Math.min(1, beatPulse)),
     strength: useBass ? rhythm.beatStrength : 1,
     sequence: rhythm.beatSequence,
+    analyserAvailable: this.__radioAnalyser !== null
+      && this.__radioAudioContext !== null
+      && this.__radioAudioContext.state === "running",
+    signalFresh: signalFresh,
     now: now
   };
 

@@ -293,6 +293,8 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
     effectInterval: zone && Number.isFinite(zone.effectIntervalMs) ? zone.effectIntervalMs / 1000 : 2,
     effectIntensity: zone && Number.isInteger(zone.effectIntensity) ? zone.effectIntensity : 3,
     beatBpm: zone && Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
+    rhythmMode: zone && zone.rhythmMode === "fixed" ? "fixed" : "auto",
+    bassSensitivity: zone && Number.isInteger(zone.bassSensitivity) ? zone.bassSensitivity : 50,
     weather: zone && ["none", "rain", "fog", "storm", "snow", "sandstorm", "ash", "embers"].indexOf(zone.weather) !== -1 ? zone.weather : "none",
     light: zone && ["none", "night", "blue", "purple", "red"].indexOf(zone.light) !== -1 ? zone.light : "none",
     spotlightsEnabled: zone && zone.spotlightsEnabled !== undefined
@@ -307,7 +309,7 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
 
 }
 
-CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, spotlightSpeed, owner) {
+CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fadeRadius, effectsEnabled, effectStyles, effectIntervalMs, effectIntensity, beatBpm, weather, light, spotlightsEnabled, legacyLasersEnabled, discoCanvasIntensity, spotlightSpeed, rhythmMode, bassSensitivity, owner) {
 
   /*
    * Creates or updates the radio zone centered on a particular tile and
@@ -328,6 +330,8 @@ CreatureHandler.prototype.setRadioZoneAt = function (position, url, radius, fade
     effectIntervalMs: effectIntervalMs,
     effectIntensity: effectIntensity,
     beatBpm: beatBpm,
+    rhythmMode: rhythmMode === "fixed" ? "fixed" : "auto",
+    bassSensitivity: Number.isInteger(bassSensitivity) ? bassSensitivity : 50,
     weather: weather,
     light: light,
     // Keep the old aggregate flag so cached clients and older saved zones
@@ -951,9 +955,11 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       discoCanvasRadius: Number.isInteger(zone.radius) ? zone.radius : 0,
       discoCanvasCenter: zone.center || null,
       beatBpm: Number.isInteger(zone.beatBpm) ? zone.beatBpm : 0,
+      rhythmMode: zone.rhythmMode === "fixed" ? "fixed" : "auto",
+      bassSensitivity: Number.isInteger(zone.bassSensitivity) ? zone.bassSensitivity : 50,
       radioEnvironmentalMute: true
     }
-    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, chairGame: null, partyFlow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0, radioEnvironmentalMute: false };
+    : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, chairGame: null, partyFlow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0, rhythmMode: "auto", bassSensitivity: 50, radioEnvironmentalMute: false };
   let ambienceKey = this.__getRadioAmbienceKey(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser

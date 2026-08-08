@@ -700,10 +700,23 @@
                     <input id="radio-editor-effect-intensity" type="number" min="1" max="12" step="1">
                   </label>
                 </div>
-                <label for="radio-editor-beat-bpm">Beat rhythm (BPM, 0 = use frequency)
-                  <input id="radio-editor-beat-bpm" type="number" min="0" max="240" step="1">
-                </label>
-                <p class="radio-editor-help">Set the BPM of the music to pulse once per beat. This overrides Frequency.</p>
+                <div class="radio-editor-rhythm">
+                  <label for="radio-editor-rhythm-mode">Rhythm
+                    <select id="radio-editor-rhythm-mode">
+                      <option value="auto">Auto bass</option>
+                      <option value="fixed">Fixed BPM</option>
+                    </select>
+                  </label>
+                  <label for="radio-editor-beat-bpm"><span id="radio-editor-beat-bpm-label">Fallback BPM</span>
+                    <input id="radio-editor-beat-bpm" type="number" min="0" max="240" step="1">
+                  </label>
+                  <label for="radio-editor-bass-sensitivity">
+                    <span class="radio-editor-range-title">Bass sensitivity <output id="radio-editor-bass-sensitivity-value">50%</output></span>
+                    <input id="radio-editor-bass-sensitivity" type="range" min="1" max="100" step="1" value="50">
+                  </label>
+                  <output id="radio-editor-rhythm-status" class="radio-editor-rhythm-status">Listening · fallback · 140 BPM</output>
+                </div>
+                <p class="radio-editor-help">Auto follows detected bass; BPM is the fallback. With BPM 0, client fallback is 140 and server SQM effects use Frequency.</p>
                 <div class="radio-editor-row">
                   <label for="radio-editor-weather">Venue weather
                     <select id="radio-editor-weather">
