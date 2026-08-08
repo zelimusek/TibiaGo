@@ -69,6 +69,7 @@ const Player = function (data) {
   // Private state for the player
   this.__movementEvent = null;
   this.__movementBuffer = null;
+  this.__directionMovementBuffer = null;
   this.__openedContainers = new Set();
 
   // Can only work again if the server has confirmed
@@ -329,6 +330,21 @@ Player.prototype.setMovementBuffer = function (key) {
    */
 
   this.__movementBuffer = key;
+  this.__directionMovementBuffer = null;
+};
+
+Player.prototype.setDirectionMovementBuffer = function (direction) {
+  /*
+   * Keep only the latest touch/joystick direction while a movement packet is
+   * waiting for confirmation. A single slot prevents delayed extra steps.
+   */
+
+  this.__directionMovementBuffer = direction;
+  this.__movementBuffer = null;
+};
+
+Player.prototype.clearDirectionMovementBuffer = function () {
+  this.__directionMovementBuffer = null;
 };
 
 Player.prototype.extendMovementBuffer = function (key) {
@@ -376,8 +392,48 @@ Player.prototype.confirmClientWalk = function () {
     gameClient.world.pathfinder.__pathfindCache.length > 0 ||
     gameClient.world.pathfinder.__finalDestination !== null
   ) {
-    gameClient.world.pathfinder.handlePathfind();
+    return gameClient.world.pathfinder.handlePathfind();
   }
+
+  return this.consumeMovementBuffer();
+};
+
+Player.prototype.extendDirectionMovementBuffer = function (direction) {
+  const LENIENCY = 0.75;
+
+  if (this.getMovingFraction() < LENIENCY) {
+    return this.setDirectionMovementBuffer(direction);
+  }
+};
+
+Player.prototype.consumeMovementBuffer = function () {
+  /*
+   * Resume the newest deferred manual input only after both the local walking
+   * animation and the authoritative server confirmation have completed.
+   */
+
+  if (!this.__serverWalkConfirmation || this.isMoving()) {
+    return false;
+  }
+
+  let direction = this.__directionMovementBuffer;
+  let key = this.__movementBuffer;
+
+  if (direction === null && key === null) {
+    return false;
+  }
+
+  // Clear before sending so a rejected step cannot replay itself forever.
+  this.__directionMovementBuffer = null;
+  this.__movementBuffer = null;
+
+  if (direction !== null) {
+    gameClient.keyboard.handleMoveKey(direction);
+  } else {
+    gameClient.keyboard.handleCharacterMovement(key);
+  }
+
+  return true;
 };
 
 Player.prototype.isCreatureTarget = function (creature) {

@@ -111,18 +111,22 @@ Keyboard.prototype.handleInput = function () {
       return;
     }
 
-    // Must have confirmation from the server before moving to the next tile is allowed
-    if (!gameClient.player.__serverWalkConfirmation) {
-      if (window.tibiaDiagnostics) {
-        window.tibiaDiagnostics.markMovementBlocked();
-      }
-      return;
-    }
-
     key = Number(key);
 
     // WASD can be disabled independently while arrows and numpad remain active.
     if (this.__isWASDMovementKey(key) && !this.__isWASDMovementEnabled()) {
+      return;
+    }
+
+    // Keep only the newest direction while the previous step is waiting for
+    // the server. This avoids losing the held key during a latency spike.
+    if (!gameClient.player.__serverWalkConfirmation) {
+      if (!this.isShiftDown() && !this.isControlDown()) {
+        gameClient.player.setMovementBuffer(key);
+      }
+      if (window.tibiaDiagnostics) {
+        window.tibiaDiagnostics.markMovementBlocked();
+      }
       return;
     }
 
@@ -262,17 +266,25 @@ Keyboard.prototype.handleMoveKey = function (direction) {
     return;
   }
 
-  // Must have confirmation from the server before moving
+  // Manual joystick/D-pad input takes ownership from click-to-walk.
+  gameClient.world.pathfinder.setPathfindCache(null);
+  if (gameClient.mouse && typeof gameClient.mouse.cancelPendingActions === "function") {
+    gameClient.mouse.cancelPendingActions();
+  }
+
+  // Preserve the latest direction while waiting for the previous server ACK.
   if (!gameClient.player.__serverWalkConfirmation) {
+    gameClient.player.setDirectionMovementBuffer(direction);
     if (window.tibiaDiagnostics) {
       window.tibiaDiagnostics.markMovementBlocked();
     }
     return;
   }
 
-  // Block when the character is moving
+  // Near the end of the local animation, keep one direction for a smooth
+  // continuation. Releasing the joystick clears this slot.
   if (gameClient.player.isMoving()) {
-    return;
+    return gameClient.player.extendDirectionMovementBuffer(direction);
   }
 
   // Get current position
@@ -308,9 +320,6 @@ Keyboard.prototype.handleMoveKey = function (direction) {
     default:
       return;
   }
-
-  // Cancel pathfinding
-  gameClient.world.pathfinder.setPathfindCache(null);
 
   // Use the movement wrapper
   this.__handleCharacterMovementWrapper(direction, nextPosition);

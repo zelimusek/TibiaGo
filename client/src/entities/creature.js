@@ -557,11 +557,10 @@ Creature.prototype.unlockMovement = function () {
     return gameClient.world.pathfinder.handlePathfind();
   }
 
-  // If the player has a movement buffered: enact and reset the buffer
-  // This facilitates smooth walking
-  if (gameClient.player === this && this.__movementBuffer !== null) {
-    gameClient.keyboard.handleCharacterMovement(this.__movementBuffer);
-    this.__movementBuffer = null;
+  // Resume buffered manual movement only when the local animation and the
+  // authoritative server confirmation have both completed.
+  if (gameClient.player === this) {
+    this.consumeMovementBuffer();
   }
 
 }

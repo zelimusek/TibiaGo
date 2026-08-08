@@ -907,6 +907,16 @@ Touch.prototype.__startJoystickMovementLoop = function () {
 
 Touch.prototype.__stopJoystickMovementLoop = function () {
 
+    // Do not replay a direction saved during a delayed server confirmation
+    // after the user has already released the joystick.
+    if (
+        gameClient &&
+        gameClient.player &&
+        typeof gameClient.player.clearDirectionMovementBuffer === "function"
+    ) {
+        gameClient.player.clearDirectionMovementBuffer();
+    }
+
     if (this.joystick.animationFrame === null) return;
 
     window.cancelAnimationFrame(this.joystick.animationFrame);

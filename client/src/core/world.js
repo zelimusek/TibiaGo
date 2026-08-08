@@ -40,6 +40,7 @@ World.prototype.handleSelfTeleport = function () {
   // Set some state
   gameClient.player.__teleported = true;
   gameClient.player.__serverWalkConfirmation = true;
+  gameClient.player.setMovementBuffer(null);
   gameClient.world.checkEntityReferences();
   gameClient.world.checkChunks();
   gameClient.renderer.updateTileCache();
