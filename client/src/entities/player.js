@@ -351,8 +351,12 @@ Player.prototype.confirmClientWalk = function () {
    * Confirms the client-side walk-ahead. The player may only walk again after the server has confirmed its move
    */
 
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.markMovementConfirmed();
+  }
+
   if (this.__serverWalkConfirmation) {
-    gameClient.renderer.updateTileCache();
+    gameClient.renderer.updateTileCache("server-correction");
   }
 
   this.__serverWalkConfirmation = true;

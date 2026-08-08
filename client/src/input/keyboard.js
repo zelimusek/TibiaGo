@@ -113,6 +113,9 @@ Keyboard.prototype.handleInput = function () {
 
     // Must have confirmation from the server before moving to the next tile is allowed
     if (!gameClient.player.__serverWalkConfirmation) {
+      if (window.tibiaDiagnostics) {
+        window.tibiaDiagnostics.markMovementBlocked();
+      }
       return;
     }
 
@@ -239,9 +242,12 @@ Keyboard.prototype.__handleCharacterMovementWrapper = function (
   }
 
   // Update the tile cache on the client side
-  gameClient.renderer.updateTileCache();
+  gameClient.renderer.updateTileCache("client-move");
   gameClient.interface.modalManager.close();
 
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.markMovementSent(direction, position);
+  }
   gameClient.send(new MovementPacket(direction));
 };
 
@@ -258,6 +264,9 @@ Keyboard.prototype.handleMoveKey = function (direction) {
 
   // Must have confirmation from the server before moving
   if (!gameClient.player.__serverWalkConfirmation) {
+    if (window.tibiaDiagnostics) {
+      window.tibiaDiagnostics.markMovementBlocked();
+    }
     return;
   }
 

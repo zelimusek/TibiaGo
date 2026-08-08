@@ -9,6 +9,7 @@ const storage = new Map();
 const windowListeners = new Map();
 const documentListeners = new Map();
 const beacons = [];
+let diagnosticNow = 0;
 
 const localStorage = {
   getItem(key) { return storage.has(key) ? storage.get(key) : null; },
@@ -34,7 +35,14 @@ const context = vm.createContext({
     innerHeight: 720,
     devicePixelRatio: 1,
     localStorage,
-    performance: {},
+    performance: {
+      now() { return diagnosticNow; },
+      memory: {
+        usedJSHeapSize: 12000000,
+        totalJSHeapSize: 16000000,
+        jsHeapSizeLimit: 100000000
+      }
+    },
     navigator: {
       sendBeacon(url, body) {
         beacons.push({ url, body });
@@ -120,4 +128,32 @@ documentListeners.get("contextlost")({ target: { id: "screen" } });
 assert.strictEqual(context.window.tibiaDiagnostics.getEntries().length, 3);
 assert.strictEqual(beacons.length, 3);
 
-console.log("PASS: client diagnostics retain effect context and report critical failures.");
+diagnosticNow = 100;
+context.window.tibiaDiagnostics.markMovementSent(1, { x: 100, y: 200, z: 7 });
+diagnosticNow = 400;
+context.window.tibiaDiagnostics.markMovementConfirmed();
+let afterMovement = context.window.tibiaDiagnostics.getEntries();
+assert.strictEqual(afterMovement.length, 4);
+assert.strictEqual(afterMovement[3].type, "movement-confirmation-lag");
+assert.strictEqual(afterMovement[3].details.acknowledgementMs, 300);
+
+diagnosticNow = 500;
+for (let i = 0; i < 8; i++) {
+  diagnosticNow += 50;
+  context.window.tibiaDiagnostics.markRadioAmbience(600, "lobby");
+}
+let afterRadio = context.window.tibiaDiagnostics.getEntries();
+assert.strictEqual(afterRadio.length, 5);
+assert.strictEqual(afterRadio[4].type, "radio-ambience-flood");
+assert.strictEqual(afterRadio[4].details.packetsLast5s, 8);
+
+diagnosticNow = 1000;
+context.window.tibiaDiagnostics.markFrame(diagnosticNow, 16);
+diagnosticNow = 1400;
+context.window.tibiaDiagnostics.markFrame(diagnosticNow, 400);
+let afterFrame = context.window.tibiaDiagnostics.getEntries();
+assert.strictEqual(afterFrame.length, 6);
+assert.strictEqual(afterFrame[5].type, "client-frame-stall");
+assert.strictEqual(context.window.tibiaDiagnostics.getPerformanceSnapshot().frame.stalls, 1);
+
+console.log("PASS: client diagnostics distinguish rendering, movement and ambience stalls.");

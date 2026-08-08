@@ -954,7 +954,7 @@ CreatureHandler.prototype.__syncRadioAmbience = function (player, zone) {
       radioEnvironmentalMute: true
     }
     : { weather: "none", light: "none", discoCanvasEnabled: false, spotlightsEnabled: false, legacyLasersEnabled: false, discoCanvasIntensity: 60, spotlightSpeed: 100, spotlightFocus: null, laserShow: null, chairGame: null, partyFlow: null, discoCanvasRadius: 0, discoCanvasCenter: null, beatBpm: 0, radioEnvironmentalMute: false };
-  let ambienceKey = JSON.stringify(ambience);
+  let ambienceKey = this.__getRadioAmbienceKey(ambience);
 
   // Movement calls this synchronizer frequently. Only notify the browser
   // when the local ambience actually changes.
@@ -1231,6 +1231,20 @@ CreatureHandler.prototype.removeCreature = function (creature) {
   chunk.removeCreature(creature);
   tile.removeCreature(creature);
   tile.emit("exit", tile, creature);
+
+}
+
+CreatureHandler.prototype.__getRadioAmbienceKey = function (ambience) {
+
+  /*
+   * elapsedMs is a transport snapshot, not a state change. The client keeps
+   * progressing timed shows from elapsedMs + receivedAt, so including this
+   * volatile value made every movement send the full ambience packet again.
+   */
+
+  return JSON.stringify(ambience, function (key, value) {
+    return key === "elapsedMs" ? undefined : value;
+  });
 
 }
 

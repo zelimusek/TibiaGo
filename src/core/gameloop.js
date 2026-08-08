@@ -20,6 +20,12 @@ const GameLoop = function(interval, callback) {
   this.__callback = callback;
   this.__interval = interval;
   this.__drift = 0;
+  this.__lastTickStartedAt = null;
+  this.__lastSchedulingDelay = 0;
+  this.__maxSchedulingDelay = 0;
+  this.__lastExecutionTime = 0;
+  this.__maxExecutionTime = 0;
+  this.__lastStallLogAt = 0;
 
   // The logger is attached to the game loop
   this.logger = new ServerLogger();
@@ -59,6 +65,10 @@ GameLoop.prototype.getDataDetails = function() {
   return new Object({
     "drift": this.__drift,
     "tick": this.__internalTickCounter,
+    "lastSchedulingDelay": this.__lastSchedulingDelay,
+    "maxSchedulingDelay": this.__maxSchedulingDelay,
+    "lastExecutionTime": this.__lastExecutionTime,
+    "maxExecutionTime": this.__maxExecutionTime,
   });
 
 }
@@ -84,6 +94,18 @@ GameLoop.prototype.__estimateLoopDrift = function() {
   // Start of the new frame
   this.__gameLoopStart = Date.now();
 
+  if (this.__lastTickStartedAt !== null) {
+    this.__lastSchedulingDelay = Math.max(
+      0,
+      this.__gameLoopStart - this.__lastTickStartedAt - this.__interval
+    );
+    this.__maxSchedulingDelay = Math.max(
+      this.__maxSchedulingDelay,
+      this.__lastSchedulingDelay
+    );
+  }
+  this.__lastTickStartedAt = this.__gameLoopStart;
+
   // Ignore drift on the first server tick
   if(this.__gameLoopEnd === null) {
     return 0;
@@ -105,6 +127,23 @@ GameLoop.prototype.__estimateNextTimeout = function() {
 
   // Calculate the drift of the tick
   let gameLoopExecutionTime = (this.__gameLoopEnd - this.__gameLoopStart);
+  this.__lastExecutionTime = gameLoopExecutionTime;
+  this.__maxExecutionTime = Math.max(this.__maxExecutionTime, gameLoopExecutionTime);
+
+  if ((this.__lastSchedulingDelay >= 100 || gameLoopExecutionTime >= 100)
+      && this.__gameLoopEnd - this.__lastStallLogAt >= 5000) {
+    this.__lastStallLogAt = this.__gameLoopEnd;
+    let memory = process.memoryUsage();
+    console.warn("[GAME LOOP STALL] " + JSON.stringify({
+      tick: this.__internalTickCounter,
+      schedulingDelayMs: this.__lastSchedulingDelay,
+      executionMs: gameLoopExecutionTime,
+      rssMb: Math.round(memory.rss / 1024 / 1024),
+      heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024),
+      heapTotalMb: Math.round(memory.heapTotal / 1024 / 1024),
+      externalMb: Math.round(memory.external / 1024 / 1024)
+    }));
+  }
 
   // Save to average the loop execution time for logging
   this.logger.__gameLoopExecutionTime += gameLoopExecutionTime;

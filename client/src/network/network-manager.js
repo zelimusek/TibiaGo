@@ -486,6 +486,11 @@ NetworkManager.prototype.__handlePacket = function (event) {
    * Handles an incoming binary message
    */
 
+  let diagnosticStartedAt = window.performance && typeof window.performance.now === "function"
+    ? window.performance.now()
+    : 0;
+  let packetsBefore = Number(this.state.nPackets) || 0;
+
   // Wrap the buffer in a readable packet
   let packet = new PacketReader(event.data);
 
@@ -511,6 +516,15 @@ NetworkManager.prototype.__handlePacket = function (event) {
       }, true);
     }
     throw error;
+  } finally {
+    if (window.tibiaDiagnostics && diagnosticStartedAt > 0) {
+      window.tibiaDiagnostics.markNetworkBatch(
+        window.performance.now() - diagnosticStartedAt,
+        packet.buffer.length,
+        (Number(this.state.nPackets) || 0) - packetsBefore,
+        this.socket ? this.socket.bufferedAmount : 0
+      );
+    }
   }
 
 }

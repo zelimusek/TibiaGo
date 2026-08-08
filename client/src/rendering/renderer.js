@@ -82,12 +82,16 @@ Renderer.prototype.getTileCache = function () {
 
 }
 
-Renderer.prototype.updateTileCache = function () {
+Renderer.prototype.updateTileCache = function (reason) {
 
   /*
    * Function Renderer.updateTileCache
    * Request an updates to the tile cache. This is the selection of tiles to be drawn to the screen every frame
    */
+
+  let diagnosticStartedAt = window.performance && typeof window.performance.now === "function"
+    ? window.performance.now()
+    : 0;
 
   // Empty and refill the cache
   this.__tileCache = new Array();
@@ -106,6 +110,14 @@ Renderer.prototype.updateTileCache = function () {
     });
     this.numberOfTiles = this.numberOfTiles + tiles.length;
 
+  }
+
+  if (window.tibiaDiagnostics && diagnosticStartedAt > 0) {
+    window.tibiaDiagnostics.markTileCache(
+      window.performance.now() - diagnosticStartedAt,
+      this.numberOfTiles,
+      reason
+    );
   }
 
 }

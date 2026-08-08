@@ -699,6 +699,12 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
   if (packet.enabled && packet.url.startsWith(ambiencePrefix)) {
     try {
       let ambience = JSON.parse(decodeURIComponent(packet.url.slice(ambiencePrefix.length)));
+      if (window.tibiaDiagnostics) {
+        window.tibiaDiagnostics.markRadioAmbience(
+          packet.url.length,
+          ambience.partyFlow ? ambience.partyFlow.phase : null
+        );
+      }
       let weather = ambience.weather || "none";
       let lightColors = {
         none: [0, 0, 0, 0],
@@ -776,7 +782,11 @@ PacketHandler.prototype.handleLatency = function () {
    * Handles an incoming (ping) pong message
    */
 
-  gameClient.networkManager.state.latency = performance.now() - gameClient.networkManager.__latency;
+  let latency = performance.now() - gameClient.networkManager.__latency;
+  gameClient.networkManager.state.latency = latency;
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.markLatency(latency);
+  }
 
 }
 
@@ -1452,7 +1462,7 @@ PacketHandler.prototype.handleCreatureServerMove = function (packet) {
     // can remove sectors that are still referenced by the old tile cache.
     // Rebuild only in that uncommon case so normal walking stays inexpensive.
     if (chunksChanged) {
-      gameClient.renderer.updateTileCache();
+      gameClient.renderer.updateTileCache("chunk-change");
     }
   }
 

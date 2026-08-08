@@ -124,6 +124,10 @@ GameLoop.prototype.__loop = function () {
   let now = performance.now();
   let elapsed = now - this.__lastFrameTime;
 
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.markFrame(now, elapsed);
+  }
+
   // For V-Sync mode (60 FPS), use requestAnimationFrame
   if (this.__targetFPS === 60) {
     this.__frame++;
