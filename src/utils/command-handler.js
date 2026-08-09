@@ -766,6 +766,29 @@ CommandHandler.prototype.handleCommandBouncers = function (player, message) {
   return result.ok;
 };
 
+CommandHandler.prototype.handleCommandLaserRoulette = function (player, message) {
+  let action = String(message[1] || "status").toLowerCase();
+  let flow = gameServer.world.creatureHandler.partyGameFlow;
+  if (!flow) return player.sendCancelMessage("Laser Roulette is unavailable.");
+
+  if (action === "status") {
+    player.sendCancelMessage(flow.getStatus());
+    return true;
+  }
+
+  let enabled;
+  if (["on", "enable", "enabled"].includes(action)) enabled = true;
+  else if (["off", "disable", "disabled"].includes(action)) enabled = false;
+  else {
+    player.sendCancelMessage("Usage: /roulette on, off or status.");
+    return false;
+  }
+
+  let result = flow.setEnabled(enabled);
+  player.sendCancelMessage(result.message);
+  return result.ok;
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -960,6 +983,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/bouncers") {
     return this.handleCommandBouncers(player, message);
+  }
+
+  if (["/roulette", "/laserroulette", "/laser-roulette"].includes(message[0])) {
+    return this.handleCommandLaserRoulette(player, message);
   }
 
   if (message[0] === "/teleport") {

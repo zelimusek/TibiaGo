@@ -2,6 +2,7 @@
 
 const assert = require("assert");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 require("../require");
 
@@ -58,7 +59,7 @@ const bob = player(2, "Bob", 32510, 32340);
 players.set(alice.id, alice);
 players.set(bob.id, bob);
 
-const flow = new PartyGameFlow(handler, { now: () => now, random: () => 0 });
+const flow = new PartyGameFlow(handler, { now: () => now, random: () => 0, settingsPath: false });
 flow.tick();
 assert.strictEqual(flow.__state.phase, "lobby");
 assert.strictEqual(flow.__state.endsAt - flow.__state.startedAt, 45000, "two online players get a 45-second lobby");
@@ -125,6 +126,23 @@ assert.strictEqual(flow.__state.phase, "game");
 assert.strictEqual(running.chairs, true);
 assert.ok(syncs > 0);
 
+const settingsPath = path.join(os.tmpdir(), "tibiago-party-game-flow-" + process.pid + "-" + Date.now() + ".json");
+const persistentFlow = new PartyGameFlow(handler, { now: () => now, random: () => 0, settingsPath });
+assert.strictEqual(persistentFlow.isEnabled(), true, "Laser Roulette remains enabled by default");
+assert.strictEqual(persistentFlow.setEnabled(false).ok, true);
+assert.strictEqual(persistentFlow.isEnabled(), false);
+assert.strictEqual(JSON.parse(fs.readFileSync(settingsPath, "utf8")).enabled, false,
+  "the disabled state is written to disk");
+persistentFlow.tick();
+assert.strictEqual(persistentFlow.__state, null, "a disabled flow cannot begin a lobby");
+
+const restoredFlow = new PartyGameFlow(handler, { now: () => now, random: () => 0, settingsPath });
+assert.strictEqual(restoredFlow.isEnabled(), false, "the disabled state survives a server restart");
+assert.strictEqual(restoredFlow.setEnabled(true).ok, true);
+const reenabledFlow = new PartyGameFlow(handler, { now: () => now, random: () => 0, settingsPath });
+assert.strictEqual(reenabledFlow.isEnabled(), true, "the enabled state also survives a server restart");
+fs.unlinkSync(settingsPath);
+
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "client", "index.html"), "utf8");
 const launcher = fs.readFileSync(path.join(root, "client", "src", "launcher.js"), "utf8");
@@ -143,4 +161,4 @@ assert.ok(partyChoiceModal.includes("modalManager.close(true)"));
 assert.ok(modalManager.includes("this.__openedModal.blocksDismissal === true && force !== true"));
 assert.ok(packetHandler.includes("modalManager.close(true)"));
 
-console.log("PASS: capped party lobby, Laser Roulette, protected winner choice and responsive game queue work together.");
+console.log("PASS: party flow, protected choice and persistent Laser Roulette toggle work together.");

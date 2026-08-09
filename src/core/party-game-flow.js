@@ -1,5 +1,7 @@
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { RadioStreamPacket } = requireModule("network/protocol");
 
 const PARTY_FLOW_CONFIG = {
@@ -40,6 +42,12 @@ const PartyGameFlow = function (creatureHandler, options) {
   this.__armed = true;
   this.__now = options.now || Date.now;
   this.__random = options.random || Math.random;
+  this.__settingsPath = options.settingsPath === false
+    ? null
+    : (options.settingsPath || path.resolve(
+      process.cwd(), "data", CONFIG.SERVER.CLIENT_VERSION.toString(), "party-game-flow.json"
+    ));
+  this.__settings = this.__loadSettings();
 };
 
 PartyGameFlow.prototype.getConfig = function () {
@@ -48,6 +56,68 @@ PartyGameFlow.prototype.getConfig = function () {
 
 PartyGameFlow.prototype.isActive = function () {
   return this.__state !== null;
+};
+
+PartyGameFlow.prototype.__loadSettings = function () {
+  let settings = { enabled: true };
+  if (this.__settingsPath === null || !fs.existsSync(this.__settingsPath)) return settings;
+
+  try {
+    let stored = JSON.parse(fs.readFileSync(this.__settingsPath, "utf8"));
+    if (typeof stored.enabled === "boolean") settings.enabled = stored.enabled;
+  } catch (error) {
+    console.error("Could not load Laser Roulette settings:", error.message);
+  }
+  return settings;
+};
+
+PartyGameFlow.prototype.__saveSettings = function () {
+  if (this.__settingsPath === null) return true;
+  try {
+    fs.writeFileSync(this.__settingsPath, JSON.stringify(this.__settings, null, 2) + "\n", "utf8");
+    return true;
+  } catch (error) {
+    console.error("Could not save Laser Roulette settings:", error.message);
+    return false;
+  }
+};
+
+PartyGameFlow.prototype.isEnabled = function () {
+  return this.__settings.enabled === true;
+};
+
+PartyGameFlow.prototype.getStatus = function () {
+  let status = this.isEnabled() ? "enabled" : "disabled";
+  let phase = this.__state ? " Current phase: " + this.__state.phase + "." : "";
+  return "Laser Roulette mode is " + status + "." + phase;
+};
+
+PartyGameFlow.prototype.setEnabled = function (enabled) {
+  enabled = enabled === true;
+  this.__settings.enabled = enabled;
+
+  if (enabled) {
+    this.__armed = true;
+    this.__sync();
+  } else {
+    if (this.__state) {
+      this.stop("Laser Roulette mode has been disabled by a game master.");
+    } else {
+      this.__armed = false;
+      this.__sync();
+    }
+  }
+
+  if (!this.__saveSettings()) {
+    return {
+      ok: false,
+      message: "Laser Roulette mode changed in memory, but could not be saved."
+    };
+  }
+  return {
+    ok: true,
+    message: "Laser Roulette mode is now " + (enabled ? "enabled" : "disabled") + "."
+  };
 };
 
 PartyGameFlow.prototype.__getPlayerId = function (player) {
@@ -371,6 +441,10 @@ PartyGameFlow.prototype.__queueChoice = function (choice) {
 
 PartyGameFlow.prototype.handleChoice = function (player, choice) {
   choice = String(choice || "").trim().toLowerCase();
+  if (!this.isEnabled()) {
+    player.sendCancelMessage("Laser Roulette mode is disabled.");
+    return false;
+  }
   if (!this.__state || this.__state.phase !== "choice") {
     player.sendCancelMessage("There is no active party choice.");
     return false;
@@ -387,6 +461,7 @@ PartyGameFlow.prototype.handleChoice = function (player, choice) {
 };
 
 PartyGameFlow.prototype.handleGameWinner = function (winner, game) {
+  if (!this.isEnabled()) return false;
   if (!winner) return false;
   if (!this.__state) {
     this.__state = { previousGame: game || null, lowPopulationSince: null };
@@ -399,6 +474,7 @@ PartyGameFlow.prototype.handleGameWinner = function (winner, game) {
 };
 
 PartyGameFlow.prototype.handleGameStarted = function (game) {
+  if (!this.isEnabled()) return false;
   if (!GAME_KEYS.includes(game)) return false;
   if (!this.__state) {
     this.__state = { previousGame: game, lowPopulationSince: null };
@@ -490,6 +566,7 @@ PartyGameFlow.prototype.__updateLowPopulation = function (now, floorCount) {
 };
 
 PartyGameFlow.prototype.tick = function () {
+  if (!this.isEnabled()) return;
   let now = this.__now();
   let floorPlayers = this.__getFloorPlayers();
 
