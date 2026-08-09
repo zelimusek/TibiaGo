@@ -23,6 +23,7 @@ const World = function (width, height, depth) {
   // Reference to all active creatures
   this.activeCreatures = new Object();
   this.chunks = new Array();
+  this.__chunkRefreshScheduled = false;
 
   // Client side pathfinder
   this.pathfinder = new Pathfinder();
@@ -202,6 +203,75 @@ World.prototype.createCreature = function (id, creature) {
 
   gameClient.interface.windowManager.getWindow("battle-window").addCreature(creature);
   return creature;
+
+}
+
+World.prototype.rebindChunkCreatures = function (chunk) {
+
+  /*
+   * Function World.rebindChunkCreatures
+   * Reattaches cached creatures to freshly replaced tile instances.
+   */
+
+  Object.values(this.activeCreatures).forEach(function (creature) {
+    if (!creature || typeof creature.getPosition !== "function") {
+      return;
+    }
+
+    let position = creature.getPosition();
+    let chunkPosition = this.getChunkPositionFromWorldPosition(position);
+    let chunkId = this.getChunkIndex(chunkPosition);
+
+    if (chunkId !== chunk.id) {
+      return;
+    }
+
+    let tile = chunk.getTileFromWorldPosition(position);
+    if (tile !== null) {
+      tile.addCreature(creature);
+    }
+  }, this);
+
+}
+
+World.prototype.scheduleChunkRefresh = function () {
+
+  /*
+   * Function World.scheduleChunkRefresh
+   * Batches neighbouring-tile and renderer cache rebuilds when the server
+   * sends several authoritative chunks in one network frame.
+   */
+
+  if (this.__chunkRefreshScheduled) {
+    return;
+  }
+
+  this.__chunkRefreshScheduled = true;
+  let world = this;
+  let refresh = function () {
+    world.__chunkRefreshScheduled = false;
+
+    if (gameClient.world !== world) {
+      return;
+    }
+
+    world.referenceTileNeighbours();
+
+    if (gameClient.player && gameClient.player.getChunk() !== null) {
+      world.checkEntityReferences();
+    }
+
+    if (gameClient.renderer) {
+      gameClient.renderer.updateTileCache();
+      gameClient.renderer.minimap.setCenter();
+    }
+  };
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(refresh);
+  } else {
+    setTimeout(refresh, 0);
+  }
 
 }
 

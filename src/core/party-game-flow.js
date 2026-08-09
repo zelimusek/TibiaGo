@@ -18,6 +18,7 @@ const PARTY_FLOW_CONFIG = {
   rouletteCelebrationMs: 8000,
   winnerCelebrationMs: 11200,
   choiceDurationMs: 30000,
+  choiceResendMs: 1000,
   lowPopulationTimeoutMs: 60000,
   noWinnerDelayMs: 1500
 };
@@ -271,12 +272,33 @@ PartyGameFlow.prototype.__openChoice = function () {
   let now = this.__now();
   this.__state.phase = "choice";
   this.__state.choiceEndsAt = now + PARTY_FLOW_CONFIG.choiceDurationMs;
+  this.__state.lastChoicePacketAt = 0;
+  this.__resendChoice(chooser, now);
+  this.__broadcast("%s is choosing the next challenge...".format(this.__state.chooserName));
+};
+
+PartyGameFlow.prototype.__resendChoice = function (chooser, now) {
+
+  /*
+   * Function PartyGameFlow.__resendChoice
+   * Re-sends the protected chooser modal until the server receives a choice.
+   * This makes the one-shot UI recover after a teleport, reconnect or a
+   * temporarily busy browser frame without extending the choice deadline.
+   */
+
+  if (!chooser || !this.__state || this.__state.phase !== "choice") {
+    return false;
+  }
+
+  now = Number.isFinite(now) ? now : this.__now();
+  let remainingMs = Math.max(1000, this.__state.choiceEndsAt - now);
   this.__sendChoicePacket(chooser, {
     action: "open",
     chooserName: this.__state.chooserName,
-    durationMs: PARTY_FLOW_CONFIG.choiceDurationMs
+    durationMs: remainingMs
   });
-  this.__broadcast("%s is choosing the next challenge...".format(this.__state.chooserName));
+  this.__state.lastChoicePacketAt = now;
+  return true;
 };
 
 PartyGameFlow.prototype.__chooseRandomGame = function () {
@@ -522,6 +544,11 @@ PartyGameFlow.prototype.tick = function () {
     if (!chooser || !this.__creatureHandler.isInsidePartyRadioZone(chooser.position) || now >= this.__state.choiceEndsAt) {
       this.__closeChoice(chooser);
       this.__startRoulette("choice-timeout");
+      return;
+    }
+
+    if (now - (this.__state.lastChoicePacketAt || 0) >= PARTY_FLOW_CONFIG.choiceResendMs) {
+      this.__resendChoice(chooser, now);
     }
     return;
   }

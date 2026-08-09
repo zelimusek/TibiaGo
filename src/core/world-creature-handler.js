@@ -71,6 +71,7 @@ const PARTY_READABLE_POSITIONS = {
 };
 
 const {
+  ChunkPacket,
   CreatureForgetPacket,
   CreatureTeleportPacket,
   CreatureMovePacket,
@@ -1723,6 +1724,64 @@ CreatureHandler.prototype.handleChunkChange = function (creature, oldChunk, newC
 
 }
 
+CreatureHandler.prototype.resyncPlayerWorld = function (player, reason) {
+
+  /*
+   * Function CreatureHandler.resyncPlayerWorld
+   * Sends an authoritative snapshot of every visible chunk after a teleport
+   * or a dynamic arena rebuild. The client replaces matching cached chunks,
+   * which prevents invisible blockers and stale visual "ghost" items.
+   */
+
+  if (
+    !player
+    || typeof player.isPlayer !== "function"
+    || !player.isPlayer()
+    || typeof player.write !== "function"
+    || !player.position
+  ) {
+    return 0;
+  }
+
+  let centerChunk = gameServer.world.getChunkFromWorldPosition(player.position);
+
+  if (centerChunk === null) {
+    return 0;
+  }
+
+  let visibleChunks = centerChunk.neighbours && centerChunk.neighbours.length > 0
+    ? centerChunk.neighbours
+    : [centerChunk];
+  let sent = 0;
+  let seen = new Set();
+
+  visibleChunks.forEach(function (chunk) {
+    if (!chunk || seen.has(chunk.id)) {
+      return;
+    }
+
+    seen.add(chunk.id);
+    player.write(new ChunkPacket(chunk));
+    sent++;
+  });
+
+  if (reason && String(reason).startsWith("bomberman-")) {
+    console.log("[WORLD RESYNC] %s".format(JSON.stringify({
+      reason: reason,
+      playerId: typeof player.getId === "function" ? player.getId() : null,
+      chunks: sent,
+      position: {
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z
+      }
+    })));
+  }
+
+  return sent;
+
+}
+
 CreatureHandler.prototype.updateCreaturePosition = function (creature, position) {
 
   /*
@@ -1892,6 +1951,14 @@ CreatureHandler.prototype.teleportCreature = function (creature, position, optio
   this.updateCreaturePosition(creature, destination.position);
 
   destination.broadcast(new CreatureTeleportPacket(creature.getId(), destination.getPosition()));
+
+  // A teleport may remain inside the same chunk, and dynamic party-game
+  // objects may have changed while the browser was switching positions.
+  // Always follow the teleport packet with an authoritative visible-world
+  // snapshot so the client cannot keep stale walls or miss new obstacles.
+  if (creature.isPlayer() && options.resyncWorld !== false) {
+    this.resyncPlayerWorld(creature, options.resyncReason || "teleport");
+  }
 
   // Clear movement buffer for players after teleport to prevent auto-walk
   if (creature.isPlayer() && creature.movementHandler) {

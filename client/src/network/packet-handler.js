@@ -802,21 +802,30 @@ PacketHandler.prototype.handleChunk = function (chunk) {
    * Handles incoming sector tiles
    */
 
-  // Do not accept any chunks that are somehow already active
+  // A repeated chunk is an authoritative refresh, not a duplicate to ignore.
+  // Ignoring it used to leave invisible blockers or stale magic-wall sprites
+  // after teleports used by party games.
+  let replaced = false;
   for (let i = 0; i < gameClient.world.chunks.length; i++) {
     if (chunk.id === gameClient.world.chunks[i].id) {
-      return;
+      gameClient.world.chunks[i] = chunk;
+      replaced = true;
+      break;
     }
   }
 
-  // Add the chunks and sort them by the identifier
-  gameClient.world.chunks.push(chunk);
+  if (!replaced) {
+    gameClient.world.chunks.push(chunk);
+  }
 
   // Sort by the chunk identifier (low to high)
   gameClient.world.chunks.sort((a, b) => a.id - b.id);
 
-  // Reference the new tile neighbours
-  gameClient.world.referenceTileNeighbours();
+  // Replacing a chunk creates new Tile objects. Restore creature references
+  // immediately, then batch the expensive neighbour/render refresh once for
+  // the complete group of chunks in this WebSocket frame.
+  gameClient.world.rebindChunkCreatures(chunk);
+  gameClient.world.scheduleChunkRefresh();
 
 }
 

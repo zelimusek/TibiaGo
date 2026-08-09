@@ -97,6 +97,11 @@ now += 8000;
 flow.tick();
 assert.strictEqual(flow.__state.phase, "choice");
 assert.ok(winner.packets.length > 0, "only the selected player receives the choice modal packet");
+let chooserPackets = winner.packets.length;
+now += 1000;
+flow.tick();
+assert.ok(winner.packets.length > chooserPackets,
+  "the chooser modal is resent until the winner confirms a challenge");
 assert.strictEqual(flow.handleChoice(late, "lava"), false, "another player cannot spoof the winner's choice");
 assert.strictEqual(flow.handleChoice(winner, "lava"), true);
 assert.strictEqual(flow.__state.phase, "game");

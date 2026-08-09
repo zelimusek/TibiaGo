@@ -67,6 +67,7 @@ const BombermanEvent = function (creatureHandler, options) {
   this.__state = null;
   this.__now = options.now || Date.now;
   this.__random = options.random || Math.random;
+  this.__roundSequence = 0;
 
 }
 
@@ -290,6 +291,22 @@ BombermanEvent.prototype.__getConnectedPlayer = function (name) {
 
 }
 
+BombermanEvent.prototype.__tagTemporaryItem = function (thing) {
+
+  /*
+   * Function BombermanEvent.__tagTemporaryItem
+   * Marks a runtime arena item so cleanup can find it even when its original
+   * Map entry was lost or its stack index changed during the round.
+   */
+
+  if (thing && this.__state !== null) {
+    thing.__bombermanRoundTag = this.__state.roundTag;
+  }
+
+  return thing;
+
+}
+
 BombermanEvent.prototype.__addWall = function (position, collection) {
 
   let tile = gameServer.world.getTileFromWorldPosition(position);
@@ -304,6 +321,7 @@ BombermanEvent.prototype.__addWall = function (position, collection) {
     return false;
   }
 
+  this.__tagTemporaryItem(wall);
   tile.addTopThing(wall);
   collection.set(this.__positionKey(position), {
     position: position,
@@ -339,6 +357,7 @@ BombermanEvent.prototype.__buildArena = function () {
     crate.isMoveable = function () { return false; };
     crate.isPickupable = function () { return false; };
     crate.isContainer = function () { return false; };
+    this.__tagTemporaryItem(crate);
     tile.addTopThing(crate);
     this.__state.crateItems.set(this.__positionKey(position), {
       position: position,
@@ -350,11 +369,16 @@ BombermanEvent.prototype.__buildArena = function () {
 
 BombermanEvent.prototype.__deleteItemEntries = function (entries, effect) {
 
+  let removed = 0;
+
   entries.forEach(function (entry) {
     let tile = gameServer.world.getTileFromWorldPosition(entry.position);
 
     if (tile !== null && typeof tile.deleteThing === "function") {
-      tile.deleteThing(entry.thing || entry.wall);
+      let index = tile.deleteThing(entry.thing || entry.wall);
+      if (Number.isInteger(index) && index >= 0) {
+        removed++;
+      }
     }
 
     if (effect !== null) {
@@ -362,6 +386,85 @@ BombermanEvent.prototype.__deleteItemEntries = function (entries, effect) {
     }
   });
   entries.clear();
+  return removed;
+
+}
+
+BombermanEvent.prototype.__sweepTemporaryItems = function (roundTag) {
+
+  /*
+   * Function BombermanEvent.__sweepTemporaryItems
+   * Performs a second, reference-independent cleanup pass over the arena.
+   */
+
+  let positions = this.__getAreaPositions(BOMBERMAN_CONFIG.floor)
+    .concat(this.__getBorderPositions());
+  let seen = new Set();
+  let removed = 0;
+  let leftovers = 0;
+
+  positions.forEach(function (position) {
+    let key = this.__positionKey(position);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+
+    let tile = gameServer.world.getTileFromWorldPosition(position);
+    if (tile === null || typeof tile.getItems !== "function") {
+      return;
+    }
+
+    tile.getItems().slice().forEach(function (thing) {
+      if (!thing || thing.__bombermanRoundTag !== roundTag) {
+        return;
+      }
+
+      let index = tile.deleteThing(thing);
+      if (Number.isInteger(index) && index >= 0) {
+        removed++;
+      }
+    });
+
+    leftovers += tile.getItems().filter(function (thing) {
+      return thing && thing.__bombermanRoundTag === roundTag;
+    }).length;
+  }, this);
+
+  return { removed: removed, leftovers: leftovers };
+
+}
+
+BombermanEvent.prototype.__resyncArenaPlayers = function (reason) {
+
+  /*
+   * Function BombermanEvent.__resyncArenaPlayers
+   * Replaces nearby clients' cached arena chunks after a build or cleanup.
+   */
+
+  if (typeof this.__creatureHandler.resyncPlayerWorld !== "function") {
+    return 0;
+  }
+
+  let players = 0;
+  this.__creatureHandler.getConnectedPlayers().forEach(function (player) {
+    if (!player || !player.position || player.position.z !== BOMBERMAN_CONFIG.floor.from.z) {
+      return;
+    }
+
+    if (
+      typeof this.__creatureHandler.isInsidePartyRadioZone === "function"
+      && !this.__creatureHandler.isInsidePartyRadioZone(player.position)
+    ) {
+      return;
+    }
+
+    if (this.__creatureHandler.resyncPlayerWorld(player, reason) > 0) {
+      players++;
+    }
+  }, this);
+
+  return players;
 
 }
 
@@ -371,9 +474,11 @@ BombermanEvent.prototype.__cleanupArena = function () {
     return;
   }
 
-  this.__deleteItemEntries(this.__state.bombs, CONST.EFFECT.MAGIC.POFF);
-  this.__deleteItemEntries(this.__state.crateItems, CONST.EFFECT.MAGIC.POFF);
-  this.__deleteItemEntries(this.__state.borderItems, CONST.EFFECT.MAGIC.POFF);
+  let roundTag = this.__state.roundTag;
+  let trackedRemoved = 0;
+  trackedRemoved += this.__deleteItemEntries(this.__state.bombs, CONST.EFFECT.MAGIC.POFF);
+  trackedRemoved += this.__deleteItemEntries(this.__state.crateItems, CONST.EFFECT.MAGIC.POFF);
+  trackedRemoved += this.__deleteItemEntries(this.__state.borderItems, CONST.EFFECT.MAGIC.POFF);
   this.__state.powerUps.forEach(function (powerUp) {
     gameServer.world.sendMagicEffect(
       powerUp.position,
@@ -389,6 +494,17 @@ BombermanEvent.prototype.__cleanupArena = function () {
       player.removeCondition(Condition.prototype.HASTE);
     }
   }, this);
+
+  let sweep = this.__sweepTemporaryItems(roundTag);
+  let resyncedPlayers = this.__resyncArenaPlayers("bomberman-cleanup");
+
+  console.log("[BOMBERMAN CLEANUP] %s".format(JSON.stringify({
+    roundTag: roundTag,
+    trackedRemoved: trackedRemoved,
+    sweptRemoved: sweep.removed,
+    leftovers: sweep.leftovers,
+    resyncedPlayers: resyncedPlayers
+  })));
 
 }
 
@@ -467,6 +583,7 @@ BombermanEvent.prototype.start = function (mode) {
     ? BOMBERMAN_CONFIG.eliminationRoundMs
     : BOMBERMAN_CONFIG.mayhemRoundMs;
   this.__state = {
+    roundTag: "bomberman:%s:%s".format(now, ++this.__roundSequence),
     phase: "countdown",
     mode: mode,
     participants: participants,
@@ -511,6 +628,7 @@ BombermanEvent.prototype.start = function (mode) {
 
   this.__teleportParticipantsToStarts(spawnPositions);
   this.__buildArena();
+  this.__resyncArenaPlayers("bomberman-build");
   this.__planCrateDrops();
   this.__broadcast(
     "Bomberman %s starts in 5 seconds! %s players locked in. Put /bomb on a hotkey."
@@ -628,6 +746,7 @@ BombermanEvent.prototype.placeBomb = function (player) {
   thing.isBlockProjectile = function () { return true; };
   thing.isMoveable = function () { return false; };
   thing.isPickupable = function () { return false; };
+  this.__tagTemporaryItem(thing);
   tile.addTopThing(thing);
   this.__state.bombs.set(key, {
     position: position,

@@ -17,21 +17,36 @@ let deletedThings = [];
 let occupiedPositions = new Set();
 let players = new Map();
 let spotlightTargets = [];
+let tiles = new Map();
 
 const positionKey = (position) => `${position.x}:${position.y}:${position.z}`;
 
-const createTile = (position) => ({
-  id: 1,
-  position,
-  isOccupied: () => false,
-  isOccupiedCharacters: () => occupiedPositions.has(positionKey(position)),
-  addTopThing(thing) {
-    addedThings.push({ position, thing });
-  },
-  deleteThing(thing) {
-    deletedThings.push({ position, thing });
-  },
-});
+const createTile = (position) => {
+  let key = positionKey(position);
+  if (tiles.has(key)) return tiles.get(key);
+  let items = [];
+  let tile = {
+    id: 1,
+    position,
+    isOccupied: () => false,
+    isOccupiedCharacters: () => occupiedPositions.has(key),
+    getItems: () => items,
+    addTopThing(thing) {
+      items.push(thing);
+      addedThings.push({ position, thing });
+      return true;
+    },
+    deleteThing(thing) {
+      let index = items.indexOf(thing);
+      if (index === -1) return -1;
+      items.splice(index, 1);
+      deletedThings.push({ position, thing });
+      return index;
+    },
+  };
+  tiles.set(key, tile);
+  return tile;
+};
 
 const originalProcessGameServer = process.gameServer;
 const originalGlobalGameServer = global.gameServer;
@@ -232,11 +247,22 @@ try {
     "A chained pair of bombs should produce multiple explosion effects."
   );
 
+  // Cleanup must also find a tagged arena item whose tracking-map entry was
+  // lost, otherwise a solid invisible wall may survive after a teleport.
+  let orphanPosition = new Position(32513, 32343, 7);
+  let orphan = { id: 9999, __bombermanRoundTag: event.__state.roundTag };
+  createTile(orphanPosition).addTopThing(orphan);
+
   assert.strictEqual(event.stop().ok, true);
   assert.strictEqual(event.isRunning(), false);
   assert.ok(alice.removedConditions.length > 0);
   assert.strictEqual(deletedThings.filter((entry) => entry.thing.id === 1497).length, 52);
   assert.strictEqual(deletedThings.filter((entry) => entry.thing.id === 1740).length, 36);
+  assert.ok(deletedThings.some((entry) => entry.thing === orphan),
+    "the reference-independent cleanup pass removes orphaned arena items");
+  assert.ok(Array.from(tiles.values()).every((tile) =>
+    tile.getItems().every((thing) => !thing.__bombermanRoundTag)
+  ));
 
   // Elimination has no respawn: one protected survivor wins immediately.
   currentTime = 200000;
