@@ -1765,11 +1765,47 @@ CreatureHandler.prototype.resyncPlayerWorld = function (player, reason) {
     sent++;
   });
 
+  // ChunkPacket intentionally contains only tiles and items. Finish an
+  // authoritative refresh by re-anchoring every visible creature, otherwise
+  // the browser can keep their pre-teleport tile references. Send self last:
+  // handleSelfTeleport then rebuilds the camera/tile cache after every chunk
+  // in this batch has already been installed.
+  let visibleCreatures = new Map();
+  let addCreatures = function (collection) {
+    if (!collection || typeof collection.forEach !== "function") {
+      return;
+    }
+
+    collection.forEach(function (creature) {
+      if (!creature || typeof creature.getId !== "function") {
+        return;
+      }
+      visibleCreatures.set(creature.getId(), creature);
+    });
+  };
+
+  visibleChunks.forEach(function (chunk) {
+    if (!chunk) {
+      return;
+    }
+    addCreatures(chunk.players);
+    addCreatures(chunk.npcs);
+    addCreatures(chunk.monsters);
+  });
+
+  visibleCreatures.delete(player.getId());
+  visibleCreatures.forEach(function (creature) {
+    player.write(new CreatureTeleportPacket(creature.getId(), creature.getPosition()));
+  });
+  player.write(new CreatureTeleportPacket(player.getId(), player.getPosition()));
+  let anchoredCreatures = visibleCreatures.size + 1;
+
   if (reason && String(reason).startsWith("bomberman-")) {
     console.log("[WORLD RESYNC] %s".format(JSON.stringify({
       reason: reason,
       playerId: typeof player.getId === "function" ? player.getId() : null,
       chunks: sent,
+      anchoredCreatures: anchoredCreatures,
       position: {
         x: player.position.x,
         y: player.position.y,

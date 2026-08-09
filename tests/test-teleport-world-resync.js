@@ -18,6 +18,9 @@ function chunk(id, x, y) {
     position: new Position(x, y, 0),
     layers: new Array(8).fill(null),
     neighbours: [],
+    players: new Set(),
+    npcs: new Set(),
+    monsters: new Set(),
   };
 }
 
@@ -32,8 +35,17 @@ const player = {
   packets: [],
   isPlayer() { return true; },
   getId() { return this.id; },
+  getPosition() { return this.position; },
   write(packet) { this.packets.push(packet); },
 };
+const opponent = {
+  id: 88,
+  position: new Position(32521, 32352, 7),
+  getId() { return this.id; },
+  getPosition() { return this.position; },
+};
+center.players.add(player);
+north.players.add(opponent);
 
 global.gameServer = process.gameServer = {
   world: {
@@ -45,7 +57,11 @@ try {
   const handler = Object.create(CreatureHandler.prototype);
   assert.strictEqual(handler.resyncPlayerWorld(player, "teleport-test"), 3,
     "an authoritative teleport refresh sends each visible chunk once");
-  assert.strictEqual(player.packets.length, 3);
+  assert.strictEqual(player.packets.length, 5,
+    "chunk snapshots are followed by opponent and self position anchors");
+  assert.strictEqual(player.packets.at(-1).constructor.name, "CreatureTeleportPacket",
+    "self teleport is the final cache-rebuild barrier");
+  assert.strictEqual(player.packets.at(-2).constructor.name, "CreatureTeleportPacket");
 
   const root = path.resolve(__dirname, "..");
   const packetHandler = fs.readFileSync(
