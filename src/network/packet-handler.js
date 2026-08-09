@@ -6,6 +6,13 @@ const GuildExpRanking = requireModule("utils/guild-exp-ranking");
 
 const { ItemInformationPacket, CreatureInformationPacket } = requireModule("network/protocol");
 
+const PUBLIC_READABLE_ITEM_NAMES = new Set([
+  "blackboard",
+  "sign",
+  "street sign"
+]);
+const PUBLIC_READ_DISTANCE = 8;
+
 const PacketHandler = function () {
 
   /*
@@ -245,6 +252,13 @@ PacketHandler.prototype.handleItemLook = function (player, packet) {
   let hasUniqueId = thing.hasUniqueId ? thing.hasUniqueId() : false;
   let includeDetails = !hasUniqueId && (packet.which.constructor.name !== "Tile" || player.isBesidesThing(packet.which));
 
+  // Public signs and blackboards are intended to be read by a crowd. Their
+  // description contains the familiar "It reads:" text, so allow that part of
+  // Look from a modest distance without making private readable items public.
+  if (this.__canReadPublicItemFromDistance(player, thing)) {
+    includeDetails = true;
+  }
+
   const position = thing.getPosition ? thing.getPosition() : null;
   const isGuildExpNoticeboard = position &&
     position.x === 32405 && position.y === 32175 && position.z === 7 &&
@@ -259,6 +273,30 @@ PacketHandler.prototype.handleItemLook = function (player, packet) {
     isGuildExpNoticeboard ? GuildExpRanking.getDescription() : null,
     readableContent
   ));
+
+}
+
+PacketHandler.prototype.__canReadPublicItemFromDistance = function (player, thing) {
+
+  if (!player || !thing || !thing.getName || !thing.getPosition) {
+    return false;
+  }
+
+  const name = String(thing.getName() || "").trim().toLowerCase();
+  if (!PUBLIC_READABLE_ITEM_NAMES.has(name)) {
+    return false;
+  }
+
+  const playerPosition = player.position;
+  const thingPosition = thing.getPosition();
+  if (!playerPosition || !thingPosition || playerPosition.z !== thingPosition.z) {
+    return false;
+  }
+
+  return Math.max(
+    Math.abs(playerPosition.x - thingPosition.x),
+    Math.abs(playerPosition.y - thingPosition.y)
+  ) <= PUBLIC_READ_DISTANCE;
 
 }
 
