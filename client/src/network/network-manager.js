@@ -296,6 +296,12 @@ NetworkManager.prototype.send = function (packet) {
 
   // Just write the buffer over the websocket
   this.socket.send(buffer);
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.markNetworkFrameSent(
+      buffer.length,
+      this.socket ? this.socket.bufferedAmount : 0
+    );
+  }
 
 }
 
@@ -485,6 +491,12 @@ NetworkManager.prototype.__handlePacket = function (event) {
    * Function NetworkManager.__handlePacket
    * Handles an incoming binary message
    */
+
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.markNetworkFrameReceived(
+      event && event.data ? event.data.byteLength || 0 : 0
+    );
+  }
 
   let diagnosticStartedAt = window.performance && typeof window.performance.now === "function"
     ? window.performance.now()

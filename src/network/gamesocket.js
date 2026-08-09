@@ -44,6 +44,28 @@ const GameSocket = function (socket, account, connectionDetails) {
   this.__lastClientOpcode = null;
   this.__disconnectDiagnostic = null;
 
+  // Per-connection transport diagnostics. These counters intentionally live
+  // on GameSocket so two clients connected from the same browser/machine can
+  // still be compared independently.
+  this.__transportDiagnostic = {
+    sequence: 0,
+    framesSent: 0,
+    bytesSent: 0,
+    pendingSends: new Map(),
+    lastFlushAt: null,
+    lastFlushGapMs: 0,
+    maxFlushGapMs: 0,
+    lastQueueAgeMs: 0,
+    maxQueueAgeMs: 0,
+    lastCallbackMs: 0,
+    maxCallbackMs: 0,
+    lastWsBufferedAmount: 0,
+    maxWsBufferedAmount: 0,
+    lastTcpWritableLength: 0,
+    maxTcpWritableLength: 0,
+    lastLoggedAt: Object.create(null)
+  };
+
   // Buffer incoming & outgoing messages are read and send once per server tick
   this.incomingBuffer = new PacketBuffer();
   this.outgoingBuffer = new PacketBuffer();
@@ -356,6 +378,193 @@ GameSocket.prototype.getDisconnectDiagnostic = function () {
     lastPongAt: this.__lastPongAt,
     alive: this.__alive,
     initiated: this.__disconnectDiagnostic
+  };
+
+}
+
+GameSocket.prototype.__readTransportBuffers = function () {
+
+  let websocket = this.socket;
+  let tcpSocket = websocket && websocket._socket ? websocket._socket : null;
+  return {
+    wsBufferedAmount: websocket && Number.isFinite(websocket.bufferedAmount)
+      ? websocket.bufferedAmount
+      : 0,
+    tcpWritableLength: tcpSocket && Number.isFinite(tcpSocket.writableLength)
+      ? tcpSocket.writableLength
+      : 0,
+    tcpBufferSize: tcpSocket && Number.isFinite(tcpSocket.bufferSize)
+      ? tcpSocket.bufferSize
+      : 0,
+    readyState: websocket && Number.isFinite(websocket.readyState)
+      ? websocket.readyState
+      : null
+  };
+
+}
+
+GameSocket.prototype.__getTransportIdentity = function () {
+
+  let name = null;
+  try {
+    name = this.player ? this.player.getProperty(CONST.PROPERTIES.NAME) : null;
+  } catch (error) {
+    name = null;
+  }
+
+  return {
+    character: name,
+    socketId: this.id(),
+    connectedForMs: Math.max(0, Date.now() - this.__connected),
+    address: this.__address
+  };
+
+}
+
+GameSocket.prototype.__logTransportAnomaly = function (reason, details) {
+
+  let now = Date.now();
+  let lastLoggedAt = this.__transportDiagnostic.lastLoggedAt[reason] || 0;
+  if (now - lastLoggedAt < 5000) {
+    return;
+  }
+  this.__transportDiagnostic.lastLoggedAt[reason] = now;
+
+  let loop = typeof gameServer !== "undefined"
+    && gameServer.gameLoop
+    && gameServer.gameLoop.getDataDetails
+    ? gameServer.gameLoop.getDataDetails()
+    : null;
+  console.warn("[WS FLOW DIAGNOSTIC] " + JSON.stringify(Object.assign(
+    {},
+    this.__getTransportIdentity(),
+    { reason: reason, serverLoop: loop },
+    details || {}
+  )));
+
+}
+
+GameSocket.prototype.beginOutgoingFlush = function (queue) {
+
+  let diagnostic = this.__transportDiagnostic;
+  let now = Date.now();
+  let buffers = this.__readTransportBuffers();
+  let sequence = ++diagnostic.sequence;
+  let gap = diagnostic.lastFlushAt === null ? 0 : Math.max(0, now - diagnostic.lastFlushAt);
+
+  diagnostic.framesSent++;
+  diagnostic.bytesSent += Number(queue.bytes) || 0;
+  diagnostic.lastFlushAt = now;
+  diagnostic.lastFlushGapMs = gap;
+  diagnostic.maxFlushGapMs = Math.max(diagnostic.maxFlushGapMs, gap);
+  diagnostic.lastQueueAgeMs = Number(queue.ageMs) || 0;
+  diagnostic.maxQueueAgeMs = Math.max(diagnostic.maxQueueAgeMs, diagnostic.lastQueueAgeMs);
+  diagnostic.lastWsBufferedAmount = buffers.wsBufferedAmount;
+  diagnostic.maxWsBufferedAmount = Math.max(diagnostic.maxWsBufferedAmount, buffers.wsBufferedAmount);
+  diagnostic.lastTcpWritableLength = buffers.tcpWritableLength;
+  diagnostic.maxTcpWritableLength = Math.max(diagnostic.maxTcpWritableLength, buffers.tcpWritableLength);
+  diagnostic.pendingSends.set(sequence, {
+    sequence: sequence,
+    startedAt: now,
+    packets: Number(queue.packets) || 0,
+    bytes: Number(queue.bytes) || 0,
+    queueAgeMs: Number(queue.ageMs) || 0,
+    bufferedBefore: buffers
+  });
+
+  if (diagnostic.lastQueueAgeMs >= 150) {
+    this.__logTransportAnomaly("server-outgoing-queue-delay", {
+      sequence: sequence,
+      packets: Number(queue.packets) || 0,
+      bytes: Number(queue.bytes) || 0,
+      queueAgeMs: diagnostic.lastQueueAgeMs,
+      buffers: buffers
+    });
+  }
+
+  return sequence;
+
+}
+
+GameSocket.prototype.completeOutgoingFlush = function (sequence, error) {
+
+  let diagnostic = this.__transportDiagnostic;
+  let pending = diagnostic.pendingSends.get(sequence);
+  if (!pending) {
+    return;
+  }
+
+  diagnostic.pendingSends.delete(sequence);
+  let callbackMs = Math.max(0, Date.now() - pending.startedAt);
+  let buffers = this.__readTransportBuffers();
+  diagnostic.lastCallbackMs = callbackMs;
+  diagnostic.maxCallbackMs = Math.max(diagnostic.maxCallbackMs, callbackMs);
+  diagnostic.lastWsBufferedAmount = buffers.wsBufferedAmount;
+  diagnostic.maxWsBufferedAmount = Math.max(diagnostic.maxWsBufferedAmount, buffers.wsBufferedAmount);
+  diagnostic.lastTcpWritableLength = buffers.tcpWritableLength;
+  diagnostic.maxTcpWritableLength = Math.max(diagnostic.maxTcpWritableLength, buffers.tcpWritableLength);
+
+  if (error || callbackMs >= 200 || buffers.wsBufferedAmount >= 65536 || buffers.tcpWritableLength >= 65536) {
+    this.__logTransportAnomaly(error ? "server-websocket-send-error" : "server-websocket-send-delay", {
+      sequence: sequence,
+      packets: pending.packets,
+      bytes: pending.bytes,
+      queueAgeMs: pending.queueAgeMs,
+      callbackMs: callbackMs,
+      pendingSends: diagnostic.pendingSends.size,
+      bufferedBefore: pending.bufferedBefore,
+      bufferedAfter: buffers,
+      error: error && error.message ? error.message : error ? String(error) : null
+    });
+  }
+
+}
+
+GameSocket.prototype.inspectTransportHealth = function () {
+
+  let diagnostic = this.__transportDiagnostic;
+  let now = Date.now();
+  // WebSocket send callbacks are completed in order, just like the frames.
+  // Map preserves insertion order, so the first entry is the oldest without
+  // scanning a potentially growing queue on every 50 ms server tick.
+  let oldest = diagnostic.pendingSends.values().next().value || null;
+
+  if (oldest === null || now - oldest.startedAt < 300) {
+    return;
+  }
+
+  this.__logTransportAnomaly("server-websocket-send-pending", {
+    sequence: oldest.sequence,
+    pendingForMs: now - oldest.startedAt,
+    pendingSends: diagnostic.pendingSends.size,
+    packets: oldest.packets,
+    bytes: oldest.bytes,
+    queueAgeMs: oldest.queueAgeMs,
+    buffers: this.__readTransportBuffers()
+  });
+
+}
+
+GameSocket.prototype.getTransportDiagnostic = function () {
+
+  let diagnostic = this.__transportDiagnostic;
+  let now = Date.now();
+  let oldest = diagnostic.pendingSends.values().next().value || null;
+  let oldestPendingMs = oldest ? Math.max(0, now - oldest.startedAt) : 0;
+
+  return {
+    sequence: diagnostic.sequence,
+    framesSent: diagnostic.framesSent,
+    bytesSent: diagnostic.bytesSent,
+    pendingSends: diagnostic.pendingSends.size,
+    oldestPendingMs: oldestPendingMs,
+    lastFlushGapMs: diagnostic.lastFlushGapMs,
+    maxFlushGapMs: diagnostic.maxFlushGapMs,
+    lastQueueAgeMs: diagnostic.lastQueueAgeMs,
+    maxQueueAgeMs: diagnostic.maxQueueAgeMs,
+    lastCallbackMs: diagnostic.lastCallbackMs,
+    maxCallbackMs: diagnostic.maxCallbackMs,
+    buffers: this.__readTransportBuffers()
   };
 
 }

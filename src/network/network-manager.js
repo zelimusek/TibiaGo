@@ -44,9 +44,18 @@ NetworkManager.prototype.writeOutgoingBuffer = function (gameSocket) {
     return;
   }
 
+  let queue = gameSocket.outgoingBuffer.getDiagnostics();
   let message = gameSocket.outgoingBuffer.flush();
+  let sequence = gameSocket.beginOutgoingFlush(queue);
 
-  gameSocket.socket.send(message);
+  try {
+    gameSocket.socket.send(message, function (error) {
+      gameSocket.completeOutgoingFlush(sequence, error || null);
+    });
+  } catch (error) {
+    gameSocket.completeOutgoingFlush(sequence, error);
+    throw error;
+  }
 
 }
 
@@ -57,6 +66,7 @@ NetworkManager.prototype.handleIO = function (gameSocket) {
    * Handles buffered input and output for a game socket
    */
 
+  gameSocket.inspectTransportHealth();
   this.readIncomingBuffer(gameSocket);
   this.writeOutgoingBuffer(gameSocket);
 

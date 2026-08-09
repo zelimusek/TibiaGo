@@ -270,11 +270,44 @@ function rotateClientDiagnosticLogIfNeeded() {
   }
 }
 
+function getClientServerTransport(payload) {
+  try {
+    const character = payload
+      && payload.context
+      && typeof payload.context.character === "string"
+      ? payload.context.character
+      : null;
+    if (!character) {
+      return null;
+    }
+
+    const player = gameServer.world.creatureHandler.getPlayerByName(character);
+    if (!player || !player.socketHandler) {
+      return null;
+    }
+
+    const controller = player.socketHandler.getController();
+    if (!controller || typeof controller.getTransportDiagnostic !== "function") {
+      return null;
+    }
+
+    return {
+      character: character,
+      socketId: controller.id(),
+      transport: controller.getTransportDiagnostic(),
+      serverLoop: gameServer.gameLoop.getDataDetails()
+    };
+  } catch (error) {
+    return { error: String(error && error.message ? error.message : error).slice(0, 500) };
+  }
+}
+
 function writeClientDiagnostic(payload, req) {
   const record = {
     serverTimestamp: new Date().toISOString(),
     userAgent: String(req.headers["user-agent"] || "").slice(0, 500),
-    diagnostic: sanitizeClientDiagnostic(payload, 0)
+    diagnostic: sanitizeClientDiagnostic(payload, 0),
+    serverTransport: sanitizeClientDiagnostic(getClientServerTransport(payload), 0)
   };
   const serialized = JSON.stringify(record);
 

@@ -156,4 +156,23 @@ assert.strictEqual(afterFrame.length, 6);
 assert.strictEqual(afterFrame[5].type, "client-frame-stall");
 assert.strictEqual(context.window.tibiaDiagnostics.getPerformanceSnapshot().frame.stalls, 1);
 
+diagnosticNow = 2000;
+context.window.tibiaDiagnostics.markNetworkFrameReceived(40);
+diagnosticNow = 2100;
+context.window.tibiaDiagnostics.markMovementSent(2, { x: 101, y: 200, z: 7 });
+context.window.tibiaDiagnostics.markNetworkFrameSent(1, 12);
+diagnosticNow = 2600;
+context.window.tibiaDiagnostics.markNetworkFrameReceived(80);
+let afterTransportGap = context.window.tibiaDiagnostics.getEntries();
+assert.strictEqual(afterTransportGap.length, 7);
+assert.strictEqual(afterTransportGap[6].type, "client-websocket-frame-gap");
+assert.strictEqual(afterTransportGap[6].details.sequence, 2);
+assert.strictEqual(afterTransportGap[6].details.gapMs, 600);
+let transportSnapshot = context.window.tibiaDiagnostics.getPerformanceSnapshot().network;
+assert.strictEqual(transportSnapshot.receiveFrames, 2);
+assert.strictEqual(transportSnapshot.receiveBytes, 120);
+assert.strictEqual(transportSnapshot.sendFrames, 1);
+assert.strictEqual(transportSnapshot.sendBytes, 1);
+assert.strictEqual(transportSnapshot.sendBufferedAmount, 12);
+
 console.log("PASS: client diagnostics distinguish rendering, movement and ambience stalls.");

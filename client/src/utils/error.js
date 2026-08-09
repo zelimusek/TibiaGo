@@ -27,6 +27,7 @@ ServerError.prototype = Error.prototype;
   const MOVEMENT_ACK_STALL_MS = 180;
   const TILE_CACHE_STALL_MS = 40;
   const NETWORK_BATCH_STALL_MS = 50;
+  const NETWORK_FRAME_GAP_MS = 300;
   const PERFORMANCE_REPORT_COOLDOWN_MS = 10000;
   const RADIO_RATE_WINDOW_MS = 5000;
   const RADIO_RATE_WARNING_COUNT = 8;
@@ -71,7 +72,18 @@ ServerError.prototype = Error.prototype;
       recentRadioAmbienceAt: [],
       lastPartyPhase: null,
       lastLatencyMs: null,
-      maxLatencyMs: 0
+      maxLatencyMs: 0,
+      receiveSequence: 0,
+      receiveFrames: 0,
+      receiveBytes: 0,
+      lastFrameAt: null,
+      lastFrameGapMs: 0,
+      maxFrameGapMs: 0,
+      frameGapStalls: 0,
+      sendFrames: 0,
+      sendBytes: 0,
+      lastSendBufferedAmount: 0,
+      maxSendBufferedAmount: 0
     },
     memory: {
       sampledAt: null,
@@ -169,7 +181,17 @@ ServerError.prototype = Error.prototype;
         radioAmbiencePackets: performanceState.network.radioAmbiencePackets,
         radioAmbienceBytes: performanceState.network.radioAmbienceBytes,
         radioAmbiencePacketsLast5s: recentRadio.length,
-        lastPartyPhase: performanceState.network.lastPartyPhase
+        lastPartyPhase: performanceState.network.lastPartyPhase,
+        receiveSequence: performanceState.network.receiveSequence,
+        receiveFrames: performanceState.network.receiveFrames,
+        receiveBytes: performanceState.network.receiveBytes,
+        lastFrameGapMs: rounded(performanceState.network.lastFrameGapMs),
+        maxFrameGapMs: rounded(performanceState.network.maxFrameGapMs),
+        frameGapStalls: performanceState.network.frameGapStalls,
+        sendFrames: performanceState.network.sendFrames,
+        sendBytes: performanceState.network.sendBytes,
+        sendBufferedAmount: performanceState.network.lastSendBufferedAmount,
+        maxSendBufferedAmount: performanceState.network.maxSendBufferedAmount
       },
       memory: {
         usedJSHeapSize: performanceState.memory.usedJSHeapSize,
@@ -453,6 +475,43 @@ ServerError.prototype = Error.prototype;
     }
   }
 
+  function markNetworkFrameReceived(bytes) {
+    let timestamp = now();
+    let network = performanceState.network;
+    let gap = network.lastFrameAt === null ? 0 : Math.max(0, timestamp - network.lastFrameAt);
+    let sequence = ++network.receiveSequence;
+    network.receiveFrames++;
+    network.receiveBytes += Number(bytes) || 0;
+    network.lastFrameAt = timestamp;
+    network.lastFrameGapMs = gap;
+    network.maxFrameGapMs = Math.max(network.maxFrameGapMs, gap);
+
+    let pending = performanceState.movement.pending;
+    let pendingAge = pending ? Math.max(0, timestamp - pending.startedAt) : 0;
+    if (gap >= NETWORK_FRAME_GAP_MS && pendingAge >= NETWORK_FRAME_GAP_MS) {
+      network.frameGapStalls++;
+      maybeReport("client-websocket-frame-gap", {
+        sequence: sequence,
+        gapMs: rounded(gap),
+        bytes: Number(bytes) || 0,
+        pendingMovementMs: rounded(pendingAge),
+        pendingMovementSequence: pending.sequence,
+        browserVisible: isVisible()
+      });
+    }
+  }
+
+  function markNetworkFrameSent(bytes, bufferedAmount) {
+    let network = performanceState.network;
+    network.sendFrames++;
+    network.sendBytes += Number(bytes) || 0;
+    network.lastSendBufferedAmount = Number(bufferedAmount) || 0;
+    network.maxSendBufferedAmount = Math.max(
+      network.maxSendBufferedAmount,
+      network.lastSendBufferedAmount
+    );
+  }
+
   function markRadioAmbience(bytes, partyPhase) {
     let timestamp = now();
     performanceState.network.radioAmbiencePackets++;
@@ -493,6 +552,8 @@ ServerError.prototype = Error.prototype;
     markMovementBlocked: markMovementBlocked,
     markMovementConfirmed: markMovementConfirmed,
     markNetworkBatch: markNetworkBatch,
+    markNetworkFrameReceived: markNetworkFrameReceived,
+    markNetworkFrameSent: markNetworkFrameSent,
     markRadioAmbience: markRadioAmbience,
     markLatency: markLatency,
     getPerformanceSnapshot: getPerformanceSnapshot,
