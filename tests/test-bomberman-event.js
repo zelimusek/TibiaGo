@@ -18,6 +18,7 @@ let occupiedPositions = new Set();
 let players = new Map();
 let spotlightTargets = [];
 let tiles = new Map();
+let teleportOptions = [];
 
 const positionKey = (position) => `${position.x}:${position.y}:${position.z}`;
 
@@ -98,6 +99,7 @@ const handler = {
   },
   teleportCreature(player, position, options) {
     assert.strictEqual(options.ignoreBomberman, true);
+    teleportOptions.push(options);
     player.position = position;
     return true;
   },
@@ -128,6 +130,10 @@ try {
   assert.strictEqual(event.__state.mode, "mayhem");
   assert.strictEqual(event.__state.endsAt - event.__state.startsAt, 180000);
   assert.strictEqual(event.__state.participants.size, 2);
+  assert.ok(
+    teleportOptions.slice(0, 2).every((options) => options.resyncWorld === false),
+    "initial participant teleports must not send pre-build arena snapshots"
+  );
   assert.strictEqual(event.__state.borderItems.size, 52);
   assert.strictEqual(event.__state.crateItems.size, 36);
   assert.strictEqual(addedThings.filter((entry) => entry.thing.id === 1497).length, 52);
@@ -135,7 +141,13 @@ try {
   assert.ok(
     addedThings
       .filter((entry) => entry.thing.id === 1740)
-      .every((entry) => entry.thing.isBlockSolid() && !entry.thing.isMoveable())
+      .every((entry) =>
+        entry.thing.isBlockSolid()
+        && !entry.thing.isMoveable()
+        && !entry.thing.isPickupable()
+        && !entry.thing.isContainer()
+        && Boolean(entry.thing.__bombermanRoundTag)
+      )
   );
   assert.ok(
     Array.from(event.__state.crateDrops.values())

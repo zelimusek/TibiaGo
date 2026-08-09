@@ -468,6 +468,42 @@ BombermanEvent.prototype.__resyncArenaPlayers = function (reason) {
 
 }
 
+BombermanEvent.prototype.__scheduleArenaResync = function (reason, roundTag) {
+
+  /*
+   * Function BombermanEvent.__scheduleArenaResync
+   * Sends the authoritative arena chunks in a later server frame. Sending a
+   * teleport snapshot, dozens of ItemAdd packets and a replacement snapshot
+   * in one WebSocket batch can make the client render only part of the arena.
+   */
+
+  let callback = function () {
+    if (
+      roundTag !== null
+      && (this.__state === null || this.__state.roundTag !== roundTag)
+    ) {
+      return;
+    }
+
+    let players = this.__resyncArenaPlayers(reason);
+    console.log("[BOMBERMAN RESYNC] %s".format(JSON.stringify({
+      reason: reason,
+      roundTag: roundTag,
+      players: players
+    })));
+  }.bind(this);
+  let eventQueue = gameServer.world.eventQueue;
+
+  if (eventQueue && typeof eventQueue.addEventMs === "function") {
+    eventQueue.addEventMs(callback, 100);
+    return true;
+  }
+
+  callback();
+  return false;
+
+}
+
 BombermanEvent.prototype.__cleanupArena = function () {
 
   if (this.__state === null) {
@@ -496,14 +532,14 @@ BombermanEvent.prototype.__cleanupArena = function () {
   }, this);
 
   let sweep = this.__sweepTemporaryItems(roundTag);
-  let resyncedPlayers = this.__resyncArenaPlayers("bomberman-cleanup");
+  let resyncScheduled = this.__scheduleArenaResync("bomberman-cleanup", null);
 
   console.log("[BOMBERMAN CLEANUP] %s".format(JSON.stringify({
     roundTag: roundTag,
     trackedRemoved: trackedRemoved,
     sweptRemoved: sweep.removed,
     leftovers: sweep.leftovers,
-    resyncedPlayers: resyncedPlayers
+    resyncScheduled: resyncScheduled
   })));
 
 }
@@ -522,7 +558,7 @@ BombermanEvent.prototype.__teleportParticipantsToStarts = function (spawnPositio
     this.__creatureHandler.teleportCreature(
       player,
       spawnPositions[index % spawnPositions.length],
-      { ignoreBomberman: true }
+      { ignoreBomberman: true, resyncWorld: false }
     );
     index++;
   }, this);
@@ -628,7 +664,7 @@ BombermanEvent.prototype.start = function (mode) {
 
   this.__teleportParticipantsToStarts(spawnPositions);
   this.__buildArena();
-  this.__resyncArenaPlayers("bomberman-build");
+  this.__scheduleArenaResync("bomberman-build", this.__state.roundTag);
   this.__planCrateDrops();
   this.__broadcast(
     "Bomberman %s starts in 5 seconds! %s players locked in. Put /bomb on a hotkey."

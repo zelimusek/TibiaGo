@@ -139,6 +139,13 @@ PacketHandler.prototype.moveItem = function (player, packet) {
     return this.__handlePushCreature(creature, toWhere.position);
   }
 
+  // Runtime Bomberman obstacles use ordinary map sprites, some of which are
+  // normally moveable containers. The round tag is the authoritative rule:
+  // no arena wall, crate, bomb or power-up may be dragged by a player.
+  if (fromItem.__bombermanRoundTag) {
+    return player.sendCancelMessage("You cannot move this Bomberman object.");
+  }
+
   // Can the item be moved at all?
   if (!fromItem.isMoveable() || fromItem.hasUniqueId()) {
     return player.sendCancelMessage("You cannot move this item.");

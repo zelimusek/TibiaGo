@@ -148,6 +148,12 @@ UseHandler.prototype.handleItemUse = function (packet) {
     return;
   }
 
+  // Bomberman crates reuse a regular container sprite. Never let its normal
+  // use/rotate/container handlers run while it belongs to an active arena.
+  if (item.__bombermanRoundTag) {
+    return this.__player.sendCancelMessage("You cannot use this Bomberman object.");
+  }
+
   // Emitter
   item.emit("use", this.__player, packet.which, packet.index, item);
 
