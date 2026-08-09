@@ -148,8 +148,37 @@ Channel.prototype.render = function(forceScrollDown = false) {
 
   // Keep the window scrolled down when it is rendered
   if(scrollDown) {
-    chatbox.scrollTop = chatbox.scrollHeight;
+    this.__scrollToBottom(chatbox, forceScrollDown);
   }
+
+}
+
+Channel.prototype.__scrollToBottom = function(chatbox, settleMobileLayout = false) {
+
+  const scroll = function() {
+    if(!gameClient.interface.channelManager.isActive(this)) {
+      return;
+    }
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }.bind(this);
+
+  scroll();
+
+  // Closing the virtual keyboard changes the mobile chat height after the
+  // message has already rendered. Repeat the forced scroll after that layout
+  // settles, otherwise the newest line can remain just below the viewport.
+  if(!settleMobileLayout || !gameClient.touch || !gameClient.touch.isMobileMode) {
+    return;
+  }
+
+  if(typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(function() {
+      requestAnimationFrame(scroll);
+    });
+  }
+
+  setTimeout(scroll, 250);
 
 }
 
