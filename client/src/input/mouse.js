@@ -516,7 +516,14 @@ Mouse.prototype.__handleCanvasMouseUp = function (event) {
 
   // If we are using an item already
   if (this.__multiUseObject !== null) {
-    return this.__handleItemUseWith(this.__multiUseObject, this.__mouseDownObject);
+    // The camera and world can move while the button is held. Resolve the
+    // target again from the release event instead of using the tile captured
+    // on mousedown, so runes land on the SQM where the button was released.
+    let releaseObject = this.getWorldObject(event);
+    if (releaseObject === null || releaseObject.which === null) {
+      return;
+    }
+    return this.__handleItemUseWith(this.__multiUseObject, releaseObject);
   }
 
   // Get the world coordinates from the clicked canvas position
