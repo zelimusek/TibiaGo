@@ -1,5 +1,7 @@
 "use strict";
 
+const LOOT_CHANNEL_ID = 0x04;
+
 const ChannelManager = function() {
 
   /*
@@ -32,7 +34,7 @@ const ChannelManager = function() {
 
   // Always add these two channels
   this.addChannel(0x00, "Default");
-  this.addChannel(0x04, "Loot");
+  this.addChannel(LOOT_CHANNEL_ID, "Loot");
   this.addLocalChannel("Console");
 
   // Add listeners to left and right buttons for the channels
@@ -652,9 +654,16 @@ ChannelManager.prototype.handleMessageSend = function() {
   // Get the currently active channel
   let channel = this.getActiveChannel();
 
-  // No point in writing to local channels
-  if(channel.constructor === LocalChannel) {
-    return gameClient.interface.setCancelMessage("Cannot write to a local channel.");
+  // Loot and Console are output-only views. Treat chat entered there as normal
+  // speech and move the player back to Default so the sent text is visible.
+  if(channel.constructor === LocalChannel || channel.id === LOOT_CHANNEL_ID) {
+    channel = this.getChannelById(0);
+
+    if(channel === null) {
+      return;
+    }
+
+    this.setActiveChannelElement(channel);
   }
 
   // Keep an input history independent of messages echoed by the server.
