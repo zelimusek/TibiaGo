@@ -65,6 +65,20 @@ try {
     "the client replaces a stale chunk with the authoritative snapshot");
   assert.ok(packetHandler.includes("rebindChunkCreatures(chunk)"),
     "creatures are restored onto the replacement Tile instances");
+  let rebindIndex = packetHandler.indexOf("rebindChunkCreatures(chunk)");
+  let synchronousNeighboursIndex = packetHandler.indexOf(
+    "referenceTileNeighbours()",
+    rebindIndex
+  );
+  let scheduledRefreshIndex = packetHandler.indexOf(
+    "scheduleChunkRefresh()",
+    rebindIndex
+  );
+  assert.ok(
+    synchronousNeighboursIndex > rebindIndex
+      && synchronousNeighboursIndex < scheduledRefreshIndex,
+    "chunk neighbours are ready synchronously before ACCEPT_LOGIN renders the first frame"
+  );
   assert.ok(clientWorld.includes("scheduleChunkRefresh"),
     "renderer and pathfinding caches are rebuilt after the refresh batch");
   assert.ok(serverWorld.includes("this.resyncPlayerWorld(creature"),

@@ -822,9 +822,15 @@ PacketHandler.prototype.handleChunk = function (chunk) {
   gameClient.world.chunks.sort((a, b) => a.id - b.id);
 
   // Replacing a chunk creates new Tile objects. Restore creature references
-  // immediately, then batch the expensive neighbour/render refresh once for
-  // the complete group of chunks in this WebSocket frame.
+  // immediately. Neighbours must be referenced synchronously because the
+  // ACCEPT_LOGIN packet can request its first render later in this same
+  // network batch, before requestAnimationFrame has had a chance to run.
   gameClient.world.rebindChunkCreatures(chunk);
+  gameClient.world.referenceTileNeighbours();
+
+  // Run one final pass after the complete group arrives. This reconnects an
+  // early replacement chunk to neighbours that may themselves be replaced a
+  // few packets later, and rebuilds renderer/pathfinding caches only once.
   gameClient.world.scheduleChunkRefresh();
 
 }
