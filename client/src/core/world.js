@@ -95,20 +95,63 @@ World.prototype.checkEntityReferences = function () {
    * Called when the server moves the player and references to entities outside of our sector can be dropped by the player
    */
 
-  // Player moves: drop references to entities not in sector
-  Object.values(this.activeCreatures).forEach(function (activeCreature) {
+  let playerChunk = gameClient.player && typeof gameClient.player.getChunk === "function"
+    ? gameClient.player.getChunk()
+    : null;
+
+  // A teleport can install the player position one packet before its chunk.
+  // Wait for the authoritative chunk instead of breaking the movement packet.
+  if (playerChunk === null) {
+    return 0;
+  }
+
+  let removals = [];
+  let repaired = 0;
+  let discarded = 0;
+
+  // Player moves: repair recoverable chunk references and drop entities which
+  // no longer belong to any loaded neighbouring sector.
+  Object.keys(this.activeCreatures).forEach(function (id) {
+    let activeCreature = this.activeCreatures[id];
+
+    if (!activeCreature || typeof activeCreature.getChunk !== "function") {
+      delete this.activeCreatures[id];
+      discarded++;
+      return;
+    }
 
     // Never drop self
     if (gameClient.isSelf(activeCreature)) {
       return;
     }
 
-    // Remove reference to the creature
-    if (!gameClient.player.getChunk().besides(activeCreature.getChunk())) {
-      gameClient.networkManager.packetHandler.handleEntityRemove(activeCreature.id);
+    let activeChunk = activeCreature.getChunk();
+    if (activeChunk === null && typeof activeCreature.refreshChunkReference === "function") {
+      activeChunk = activeCreature.refreshChunkReference();
+      if (activeChunk !== null) {
+        this.addCreature(activeCreature);
+        repaired++;
+      }
+    }
+
+    if (activeChunk === null || !playerChunk.besides(activeChunk)) {
+      removals.push(activeCreature.id);
     }
 
   }, this);
+
+  removals.forEach(function (id) {
+    gameClient.networkManager.packetHandler.handleEntityRemove(id);
+  });
+
+  if ((repaired > 0 || removals.length > 0 || discarded > 0) && window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("stale-entity-chunk-recovered", {
+      repaired: repaired,
+      removed: removals.length + discarded
+    });
+  }
+
+  return repaired + removals.length + discarded;
 
 }
 
@@ -228,6 +271,9 @@ World.prototype.rebindChunkCreatures = function (chunk) {
 
     let tile = chunk.getTileFromWorldPosition(position);
     if (tile !== null) {
+      if (typeof creature.refreshChunkReference === "function") {
+        creature.refreshChunkReference();
+      }
       tile.addCreature(creature);
     }
   }, this);

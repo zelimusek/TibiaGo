@@ -30,7 +30,12 @@ Chunk.prototype.besides = function (chunk) {
    * Returns true if the chunk is besides another chunk
    */
 
-  return this.position.besides(chunk.position);
+  return Boolean(
+    chunk
+    && chunk.position
+    && this.position
+    && this.position.besides(chunk.position)
+  );
 
 }
 

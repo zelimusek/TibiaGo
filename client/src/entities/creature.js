@@ -576,6 +576,19 @@ Creature.prototype.getChunk = function () {
 
 }
 
+Creature.prototype.refreshChunkReference = function () {
+
+  /*
+   * Re-resolves the creature's chunk after authoritative chunk replacement.
+   * A creature may be created while its chunk is still arriving, leaving the
+   * original cached reference null even after the tiles become available.
+   */
+
+  this.__chunk = gameClient.world.getChunkFromWorldPosition(this.__position);
+  return this.__chunk;
+
+}
+
 Creature.prototype.isMoving = function () {
 
   /*
