@@ -366,7 +366,7 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
   let previousChairGame = this.__discoLights.chairGame;
   let previousPartyFlow = this.__discoLights.partyFlow;
   let validPartyFlow = partyFlow
-    && ["lobby", "roulette"].includes(partyFlow.phase)
+    && ["lobby", "roulette", "gathering"].includes(partyFlow.phase)
     && partyFlow.floor && partyFlow.floor.from && partyFlow.floor.to
     && Number.isFinite(partyFlow.durationMs) && partyFlow.durationMs > 0
     && (partyFlow.phase !== "roulette" || Array.isArray(partyFlow.candidates));
@@ -500,6 +500,10 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
       durationMs: partyFlow.durationMs,
       maximumDurationMs: Math.max(1, Number(partyFlow.maximumDurationMs) || partyFlow.durationMs),
       waitingForPlayers: partyFlow.waitingForPlayers === true,
+      gatheringStage: typeof partyFlow.gatheringStage === "string" ? partyFlow.gatheringStage : null,
+      gameLabel: typeof partyFlow.gameLabel === "string" ? partyFlow.gameLabel.slice(0, 40) : "",
+      readyCount: Math.max(0, Number(partyFlow.readyCount) || 0),
+      expectedCount: Math.max(0, Number(partyFlow.expectedCount) || 0),
       floor: partyFlow.floor,
       winnerId: Number.isInteger(partyFlow.winnerId) ? partyFlow.winnerId : null,
       candidates: Array.isArray(partyFlow.candidates)
@@ -2301,7 +2305,7 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
     return lines;
   }
 
-  if(flow.phase === "lobby") {
+  if(flow.phase === "lobby" || flow.phase === "gathering") {
     let borderProgress = Math.min(1, elapsed / 1800);
     let orbit = elapsed / 9000;
     let targets = Array.from({ length: 9 }, function(_, index) {
@@ -2331,7 +2335,7 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
       }
     }
     return {
-      phase: "lobby",
+      phase: flow.phase,
       amount: 1 - Math.pow(1 - borderProgress, 3),
       targets: targets,
       trailLines: borderLines(borderProgress),
@@ -2340,6 +2344,10 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
       centerY: centerY,
       remainingMs: remainingMs,
       waitingForPlayers: flow.waitingForPlayers,
+      gatheringStage: flow.gatheringStage,
+      gameLabel: flow.gameLabel,
+      readyCount: flow.readyCount,
+      expectedCount: flow.expectedCount,
       bonus: bonus
     };
   }
@@ -3616,16 +3624,22 @@ WeatherCanvas.prototype.__drawPartyFlowOverlay = function(context, flow, mobile)
   context.shadowBlur = mobile ? 8 : 13;
   context.shadowColor = flow.phase === "roulette" ? "#ffd34d" : "#65ddff";
 
-  if(flow.phase === "lobby") {
+  if(flow.phase === "lobby" || flow.phase === "gathering") {
     context.fillStyle = "rgba(101, 221, 255, %s)".format(0.72 + pulse * 0.20);
     context.font = "700 %spx Arial".format(mobile ? 13 : 17);
-    context.fillText("LASER ROULETTE", flow.centerX, flow.centerY - (mobile ? 26 : 34));
+    context.fillText(
+      flow.phase === "gathering" ? flow.gameLabel : "LASER ROULETTE",
+      flow.centerX,
+      flow.centerY - (mobile ? 31 : 41)
+    );
     context.fillStyle = "rgba(255, 255, 255, 0.92)";
     context.font = "700 %spx Arial".format(mobile ? 11 : 14);
     context.fillText(
-      flow.waitingForPlayers ? "WAITING FOR PLAYERS" : "STARTS IN",
+      flow.waitingForPlayers
+        ? "WAITING FOR PLAYERS"
+        : (flow.phase === "gathering" ? "RETURN TO THE DANCE FLOOR" : "STARTS IN"),
       flow.centerX,
-      flow.centerY - (mobile ? 7 : 10)
+      flow.centerY - (mobile ? 12 : 16)
     );
     context.fillStyle = seconds <= 10 ? "#ff6577" : "#ffd34d";
     context.font = "800 %spx Arial".format(seconds <= 10 ? (mobile ? 40 : 58) : (mobile ? 24 : 34));
@@ -3634,6 +3648,15 @@ WeatherCanvas.prototype.__drawPartyFlowOverlay = function(context, flow, mobile)
       flow.centerX,
       flow.centerY + (mobile ? 24 : 31)
     );
+    if(flow.phase === "gathering") {
+      context.fillStyle = "rgba(255, 255, 255, 0.90)";
+      context.font = "700 %spx Arial".format(mobile ? 10 : 13);
+      context.fillText(
+        "%s / %s PLAYERS READY".format(flow.readyCount, flow.expectedCount),
+        flow.centerX,
+        flow.centerY + (mobile ? 49 : 63)
+      );
+    }
     if(flow.bonus) {
       let fade = Math.max(0, 1 - flow.bonus.elapsedMs / 2400);
       context.globalAlpha = fade;

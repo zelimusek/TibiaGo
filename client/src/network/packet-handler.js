@@ -744,6 +744,9 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
             ambience.partyFlow.phase === "roulette"
             || (ambience.partyFlow.phase === "lobby"
               && ambience.partyFlow.durationMs - ambience.partyFlow.elapsedMs <= 5000)
+            || (ambience.partyFlow.phase === "gathering"
+              && ambience.partyFlow.waitingForPlayers !== true
+              && ambience.partyFlow.durationMs - ambience.partyFlow.elapsedMs <= 5000)
           ))
         )
       );

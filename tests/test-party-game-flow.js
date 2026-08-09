@@ -104,7 +104,15 @@ flow.tick();
 assert.ok(winner.packets.length > chooserPackets,
   "the chooser modal is resent until the winner confirms a challenge");
 assert.strictEqual(flow.handleChoice(late, "lava"), false, "another player cannot spoof the winner's choice");
+late.insideRadio = false;
 assert.strictEqual(flow.handleChoice(winner, "lava"), true);
+assert.strictEqual(flow.__state.phase, "gathering");
+assert.strictEqual(flow.getPayload().gameLabel, "FLOOR IS LAVA");
+assert.strictEqual(flow.getPayload().readyCount, 7);
+flow.tick();
+assert.strictEqual(flow.__state.gatheringStage, "all-ready", "a complete floor starts the short final countdown");
+now += 3000;
+flow.tick();
 assert.strictEqual(flow.__state.phase, "game");
 assert.strictEqual(running.lava, true);
 
@@ -119,8 +127,14 @@ Array.from(players.values()).forEach(function (entry) {
   if (entry !== winner) entry.position = new Position(32507, 32340, 7);
 });
 assert.strictEqual(flow.handleChoice(winner, "chairs"), true);
-assert.strictEqual(flow.__state.phase, "waiting-game", "a chosen game waits while only the winner remains on the floor");
+assert.strictEqual(flow.__state.phase, "gathering", "every chosen game opens a regrouping window");
+now += 10000;
+flow.tick();
+assert.strictEqual(flow.__state.gatheringStage, "waiting", "the regrouping phase waits when fewer than two return");
 (winner === alice ? bob : alice).position = new Position(32510, 32340, 7);
+flow.tick();
+assert.strictEqual(flow.__state.gatheringStage, "last-call", "the second player starts a five-second last call");
+now += 5000;
 flow.tick();
 assert.strictEqual(flow.__state.phase, "game");
 assert.strictEqual(running.chairs, true);

@@ -21,6 +21,9 @@ const PARTY_FLOW_CONFIG = {
   winnerCelebrationMs: 11200,
   choiceDurationMs: 30000,
   choiceResendMs: 1000,
+  gatheringDurationMs: 10000,
+  gatheringAllReadyMs: 3000,
+  gatheringLastCallMs: 5000,
   lowPopulationTimeoutMs: 60000,
   noWinnerDelayMs: 1500
 };
@@ -319,7 +322,7 @@ PartyGameFlow.prototype.__startRoulette = function (reason) {
 };
 
 PartyGameFlow.prototype.__prepareChooser = function (player, source) {
-  if (!player) return this.__startRoulette("missing-winner");
+  if (!player) return this.__startGathering("laser-roulette");
   let now = this.__now();
   this.__state.phase = "choice-pending";
   this.__state.chooserId = this.__getPlayerId(player);
@@ -337,7 +340,7 @@ PartyGameFlow.prototype.__prepareChooser = function (player, source) {
 PartyGameFlow.prototype.__openChoice = function () {
   let chooser = this.__getPlayerById(this.__state.chooserId);
   if (!chooser || !this.__creatureHandler.isInsidePartyRadioZone(chooser.position)) {
-    return this.__startRoulette("chooser-left");
+    return this.__startGathering("laser-roulette");
   }
   let now = this.__now();
   this.__state.phase = "choice";
@@ -379,6 +382,87 @@ PartyGameFlow.prototype.__chooseRandomGame = function () {
   return available[Math.floor(this.__random() * available.length)];
 };
 
+PartyGameFlow.prototype.__startGathering = function (choice) {
+  let randomChoice = choice === "random-game";
+  let selectedGame = randomChoice ? this.__chooseRandomGame() : choice;
+  let now = this.__now();
+  let expectedPlayerIds = new Set(this.__getRadioPlayers().map(this.__getPlayerId.bind(this)));
+  let label = selectedGame === "laser-roulette"
+    ? "Laser Roulette"
+    : GAME_LABELS[selectedGame];
+
+  this.__state.phase = "gathering";
+  this.__state.selectedGame = selectedGame;
+  this.__state.randomChoice = randomChoice;
+  this.__state.gatheringStage = "initial";
+  this.__state.gatheringStartedAt = now;
+  this.__state.countdownStartedAt = now;
+  this.__state.endsAt = now + PARTY_FLOW_CONFIG.gatheringDurationMs;
+  this.__state.expectedPlayerIds = expectedPlayerIds;
+  this.__state.lowPopulationSince = null;
+  this.__broadcast(label + " is next! Everyone, return to the dance floor!");
+  this.__sync();
+  return true;
+};
+
+PartyGameFlow.prototype.__startGatheringSelection = function () {
+  if (this.__state.selectedGame === "laser-roulette") {
+    return this.__startRoulette("gathering");
+  }
+  return this.__startGame(this.__state.selectedGame, this.__state.randomChoice);
+};
+
+PartyGameFlow.prototype.__getGatheringReadiness = function (floorPlayers) {
+  let floorIds = new Set(floorPlayers.map(this.__getPlayerId.bind(this)));
+  let expectedIds = this.__state.expectedPlayerIds || new Set();
+  let expectedReady = 0;
+  expectedIds.forEach(function (id) {
+    if (floorIds.has(id)) expectedReady++;
+  });
+  return {
+    readyCount: floorPlayers.length,
+    expectedCount: Math.max(expectedIds.size, floorPlayers.length),
+    allExpectedReady: floorPlayers.length >= 2
+      && expectedIds.size > 0
+      && expectedReady === expectedIds.size
+  };
+};
+
+PartyGameFlow.prototype.__tickGathering = function (now, floorPlayers) {
+  let readiness = this.__getGatheringReadiness(floorPlayers);
+  let stage = this.__state.gatheringStage;
+
+  if (stage === "initial" && readiness.allExpectedReady) {
+    this.__state.gatheringStage = "all-ready";
+    this.__state.countdownStartedAt = now;
+    this.__state.endsAt = Math.min(
+      this.__state.endsAt,
+      now + PARTY_FLOW_CONFIG.gatheringAllReadyMs
+    );
+    this.__broadcast("Everyone is ready! The next challenge starts in 3 seconds!");
+    this.__sync();
+    stage = "all-ready";
+  }
+
+  if (stage === "waiting" && floorPlayers.length >= 2) {
+    this.__state.gatheringStage = "last-call";
+    this.__state.countdownStartedAt = now;
+    this.__state.endsAt = now + PARTY_FLOW_CONFIG.gatheringLastCallMs;
+    this.__broadcast("Last call! The next challenge starts in 5 seconds!");
+    this.__sync();
+    return;
+  }
+
+  if (stage === "waiting" || now < this.__state.endsAt) return;
+  if (floorPlayers.length >= 2) return this.__startGatheringSelection();
+
+  this.__state.gatheringStage = "waiting";
+  this.__state.countdownStartedAt = now;
+  this.__state.endsAt = null;
+  this.__broadcast("The next challenge is waiting for at least two players on the dance floor.");
+  this.__sync();
+};
+
 PartyGameFlow.prototype.__startGame = function (key, randomChoice) {
   let result;
   if (key === "lava") result = this.__creatureHandler.floorLava.start();
@@ -391,7 +475,7 @@ PartyGameFlow.prototype.__startGame = function (key, randomChoice) {
     let startAttempts = (this.__state.startAttempts || 0) + 1;
     if (startAttempts >= 3) {
       this.__broadcast("That challenge could not be prepared. Laser Roulette will choose again!");
-      return this.__startRoulette("game-start-failed");
+      return this.__startGathering("laser-roulette");
     }
     this.__state.phase = "waiting-game";
     this.__state.selectedGame = key;
@@ -421,22 +505,7 @@ PartyGameFlow.prototype.__startGame = function (key, randomChoice) {
 PartyGameFlow.prototype.__queueChoice = function (choice) {
   let chooser = this.__getPlayerById(this.__state.chooserId);
   this.__closeChoice(chooser);
-  if (choice === "laser-roulette") return this.__startRoulette("chosen");
-
-  let randomChoice = choice === "random-game";
-  let game = randomChoice ? this.__chooseRandomGame() : choice;
-  if (this.__getFloorPlayers().length < 2) {
-    this.__state.phase = "waiting-game";
-    this.__state.selectedGame = game;
-    this.__state.randomChoice = randomChoice;
-    this.__state.startAttempts = 0;
-    this.__state.nextStartAttemptAt = this.__now();
-    this.__state.lowPopulationSince = this.__now();
-    this.__broadcast("%s is next. Waiting for players to return to the dance floor!".format(GAME_LABELS[game]));
-    this.__sync();
-    return true;
-  }
-  return this.__startGame(game, randomChoice);
+  return this.__startGathering(choice);
 };
 
 PartyGameFlow.prototype.handleChoice = function (player, choice) {
@@ -517,12 +586,18 @@ PartyGameFlow.prototype.handleDestination = function (player, position) {
 };
 
 PartyGameFlow.prototype.getPayload = function () {
-  if (!this.__state || !["lobby", "roulette"].includes(this.__state.phase)) return null;
+  if (!this.__state || !["lobby", "roulette", "gathering"].includes(this.__state.phase)) return null;
   let now = this.__now();
+  let gatheringWaiting = this.__state.phase === "gathering"
+    && this.__state.gatheringStage === "waiting";
+  let countdownStartedAt = this.__state.phase === "gathering"
+    ? this.__state.countdownStartedAt
+    : this.__state.startedAt;
+  let countdownEndsAt = gatheringWaiting ? now + 1 : this.__state.endsAt;
   let payload = {
     phase: this.__state.phase,
-    elapsedMs: Math.max(0, now - this.__state.startedAt),
-    durationMs: Math.max(1, this.__state.endsAt - this.__state.startedAt),
+    elapsedMs: gatheringWaiting ? 1 : Math.max(0, now - countdownStartedAt),
+    durationMs: Math.max(1, countdownEndsAt - countdownStartedAt),
     floor: PARTY_FLOW_CONFIG.floor
   };
   if (this.__state.phase === "lobby") {
@@ -537,6 +612,15 @@ PartyGameFlow.prototype.getPayload = function () {
         elapsedMs: now - this.__state.lastBonus.startedAt
       };
     }
+  } else if (this.__state.phase === "gathering") {
+    let readiness = this.__getGatheringReadiness(this.__getFloorPlayers());
+    payload.waitingForPlayers = gatheringWaiting;
+    payload.gatheringStage = this.__state.gatheringStage;
+    payload.gameLabel = this.__state.selectedGame === "laser-roulette"
+      ? "LASER ROULETTE"
+      : String(GAME_LABELS[this.__state.selectedGame] || "NEXT CHALLENGE").toUpperCase();
+    payload.readyCount = readiness.readyCount;
+    payload.expectedCount = readiness.expectedCount;
   } else {
     payload.winnerId = this.__state.winnerId;
     payload.candidates = this.__state.candidates.map(function (candidate) {
@@ -573,6 +657,11 @@ PartyGameFlow.prototype.tick = function () {
   if (!this.__state) {
     if (floorPlayers.length === 0) this.__armed = true;
     if (this.__armed && floorPlayers.length >= 2 && !this.__hasRunningGame()) this.__startLobby(now);
+    return;
+  }
+
+  if (this.__state.phase === "gathering") {
+    this.__tickGathering(now, floorPlayers);
     return;
   }
 
@@ -620,7 +709,7 @@ PartyGameFlow.prototype.tick = function () {
     let chooser = this.__getPlayerById(this.__state.chooserId);
     if (!chooser || !this.__creatureHandler.isInsidePartyRadioZone(chooser.position) || now >= this.__state.choiceEndsAt) {
       this.__closeChoice(chooser);
-      this.__startRoulette("choice-timeout");
+      this.__startGathering("laser-roulette");
       return;
     }
 
@@ -645,7 +734,7 @@ PartyGameFlow.prototype.tick = function () {
     if (this.__state.finishedDetectedAt === null) this.__state.finishedDetectedAt = now;
     if (now - this.__state.finishedDetectedAt >= PARTY_FLOW_CONFIG.noWinnerDelayMs) {
       this.__broadcast("Nobody won that round. Laser Roulette will choose the next party leader!");
-      this.__startRoulette("no-winner");
+      this.__startGathering("laser-roulette");
     }
   }
 };
