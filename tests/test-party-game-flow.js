@@ -179,6 +179,8 @@ assert.ok(packetHandler.includes('let partyChoicePrefix = "party-choice:"'));
 assert.ok(weather.includes("__getPartyFlowFrame"));
 assert.ok(weather.includes("openBorderSegments(gateHalfWidth)"),
   "the gathering frame opens a centered gate on all four floor edges");
+assert.ok(weather.includes("maximumGateHalfWidth = 80"),
+  "each gathering gate spans five SQMs at full width");
 assert.ok(weather.includes("pointOnSegmentPath"),
   "party lasers travel continuously along the four open corner paths");
 assert.ok(weather.includes('flow.gatheringStage === "last-call" || flow.gatheringStage === "all-ready"'),

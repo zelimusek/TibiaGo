@@ -2272,6 +2272,7 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
   let centerX = border.x + border.width * 0.5;
   let centerY = border.y + border.height * 0.5;
   let perimeter = border.width * 2 + border.height * 2;
+  let maximumGateHalfWidth = 80;
 
   function perimeterPoint(progress) {
     let distance = ((progress % 1) + 1) % 1 * perimeter;
@@ -2370,7 +2371,7 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
       }
     });
 
-    let guideAlpha = Math.max(0, Math.min(1, gateHalfWidth / 48)) * 0.86 * progress;
+    let guideAlpha = Math.max(0, Math.min(1, gateHalfWidth / maximumGateHalfWidth)) * 0.86 * progress;
     if(guideAlpha > 0.01) {
       let guides = [
         [{ x: centerX - 9, y: border.y + 14 }, { x: centerX, y: border.y + 24 }, { x: centerX + 9, y: border.y + 14 }],
@@ -2392,7 +2393,7 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
     let remainingMs = Math.max(0, flow.durationMs - elapsed);
     let gateHalfWidth = 0;
     if(flow.phase === "gathering") {
-      gateHalfWidth = 48;
+      gateHalfWidth = maximumGateHalfWidth;
       if(flow.gatheringStage === "last-call" || flow.gatheringStage === "all-ready") {
         gateHalfWidth *= Math.max(0, Math.min(1, remainingMs / flow.durationMs));
       }
