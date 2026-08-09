@@ -11,9 +11,10 @@ const css = fs.readFileSync(
 
 const selectedRule = css.match(/\.chat-title\.selected\s*\{([\s\S]*?)\}/);
 assert.ok(selectedRule, "the active chat channel needs a selected style");
-assert.match(selectedRule[1], /color:\s*#ffe36b/i, "the active channel label should be highlighted");
-assert.match(selectedRule[1], /inset\s+0\s+3px\s+0\s+#ffd84a/i, "the active channel needs a bright top marker");
-assert.match(selectedRule[1], /text-shadow:/i, "the active label should remain legible on the dark texture");
-assert.match(selectedRule[1], /linear-gradient/i, "the active channel background should differ visibly");
+assert.match(selectedRule[1], /color:\s*#fff/i, "the active channel label should stay white");
+assert.match(selectedRule[1], /border-color:\s*#9b7a19/i, "the active channel needs a thin gold outline");
+assert.match(selectedRule[1], /border-bottom:\s*0/i, "the active tab should open into the chat body");
+assert.match(selectedRule[1], /box-shadow:\s*none/i, "the active tab should not use a bright glow");
+assert.doesNotMatch(selectedRule[1], /linear-gradient/i, "the active tab should keep its dark texture");
 
-console.log("PASS: active chat channels have a high-contrast visual marker.");
+console.log("PASS: active chat channels use the restrained outlined style.");
