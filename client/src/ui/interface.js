@@ -1089,6 +1089,18 @@ Interface.prototype.__closeClientConfirm = function (event) {
   return;
 };
 
+Interface.prototype.openPartyAchievements = function () {
+
+  // Request a fresh overview from the server. The response opens the same
+  // modal as /achievements, without putting the command in the chat input.
+  gameClient.send(new ChannelMessagePacket(
+    CONST.CHANNEL.DEFAULT,
+    1,
+    "/achievements"
+  ));
+
+};
+
 Interface.prototype.__enableListeners = function () {
   /*
    * Function Interface.__enableListeners
@@ -1103,8 +1115,8 @@ Interface.prototype.__enableListeners = function () {
     .getElementById("openBattle")
     .addEventListener("click", this.toggleWindow.bind(this, "battle-window"));
   document
-    .getElementById("openQuests")
-    .addEventListener("click", this.modalManager.open.bind(this.modalManager, "quest-log-modal"));
+    .getElementById("openParty")
+    .addEventListener("click", this.openPartyAchievements.bind(this));
   document
     .getElementById("openFriends")
     .addEventListener("click", this.toggleWindow.bind(this, "friend-window"));
