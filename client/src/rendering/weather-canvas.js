@@ -497,6 +497,12 @@ WeatherCanvas.prototype.setDiscoLights = function(spotlightsEnabled, legacyLaser
     partyFlow: validPartyFlow ? {
       phase: partyFlow.phase,
       elapsedMs: Math.max(0, Number(partyFlow.elapsedMs) || 0),
+      animationElapsedMs: Math.max(
+        0,
+        Number.isFinite(partyFlow.animationElapsedMs)
+          ? partyFlow.animationElapsedMs
+          : (Number(partyFlow.elapsedMs) || 0)
+      ),
       durationMs: partyFlow.durationMs,
       maximumDurationMs: Math.max(1, Number(partyFlow.maximumDurationMs) || partyFlow.durationMs),
       waitingForPlayers: partyFlow.waitingForPlayers === true,
@@ -2249,6 +2255,7 @@ WeatherCanvas.prototype.__getLaserChairsFrame = function(game, now) {
 WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
 
   let elapsed = flow.elapsedMs + Math.max(0, now - flow.receivedAt);
+  let animationElapsed = flow.animationElapsedMs + Math.max(0, now - flow.receivedAt);
   let floor = flow.floor;
   let fromScreen = gameClient.renderer.getStaticScreenPosition(
     new Position(floor.from.x, floor.from.y, floor.from.z)
@@ -2306,8 +2313,8 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
   }
 
   if(flow.phase === "lobby" || flow.phase === "gathering") {
-    let borderProgress = Math.min(1, elapsed / 1800);
-    let orbit = elapsed / 9000;
+    let borderProgress = Math.min(1, animationElapsed / 1800);
+    let orbit = animationElapsed / 9000;
     let targets = Array.from({ length: 9 }, function(_, index) {
       return perimeterPoint(orbit + index / 9);
     });

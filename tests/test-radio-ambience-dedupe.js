@@ -18,6 +18,7 @@ const first = {
   partyFlow: {
     phase: "lobby",
     elapsedMs: 200,
+    animationElapsedMs: 200,
     durationMs: 15000
   }
 };
@@ -25,11 +26,12 @@ const first = {
 const later = JSON.parse(JSON.stringify(first));
 later.spotlightFocus.elapsedMs = 900;
 later.partyFlow.elapsedMs = 1000;
+later.partyFlow.animationElapsedMs = 1000;
 
 assert.strictEqual(
   getKey(first),
   getKey(later),
-  "elapsed time alone must not defeat radio ambience deduplication"
+  "countdown and animation elapsed time must not defeat radio ambience deduplication"
 );
 
 later.partyFlow.phase = "roulette";

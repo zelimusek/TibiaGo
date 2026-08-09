@@ -1244,13 +1244,13 @@ CreatureHandler.prototype.removeCreature = function (creature) {
 CreatureHandler.prototype.__getRadioAmbienceKey = function (ambience) {
 
   /*
-   * elapsedMs is a transport snapshot, not a state change. The client keeps
-   * progressing timed shows from elapsedMs + receivedAt, so including this
-   * volatile value made every movement send the full ambience packet again.
+   * Elapsed values are transport snapshots, not state changes. The client
+   * keeps progressing timed shows from each snapshot plus receivedAt, so
+   * including them made movement resend the full ambience packet.
    */
 
   return JSON.stringify(ambience, function (key, value) {
-    return key === "elapsedMs" ? undefined : value;
+    return key === "elapsedMs" || key === "animationElapsedMs" ? undefined : value;
   });
 
 }

@@ -131,6 +131,13 @@ assert.strictEqual(flow.__state.phase, "gathering", "every chosen game opens a r
 now += 10000;
 flow.tick();
 assert.strictEqual(flow.__state.gatheringStage, "waiting", "the regrouping phase waits when fewer than two return");
+let firstWaitingPayload = flow.getPayload();
+now += 2000;
+let laterWaitingPayload = flow.getPayload();
+assert.strictEqual(laterWaitingPayload.durationMs, firstWaitingPayload.durationMs,
+  "the indefinite 2+ state keeps a stable duration across movement resyncs");
+assert.ok(laterWaitingPayload.animationElapsedMs > firstWaitingPayload.animationElapsedMs,
+  "laser animation time continues while the countdown is waiting");
 (winner === alice ? bob : alice).position = new Position(32510, 32340, 7);
 flow.tick();
 assert.strictEqual(flow.__state.gatheringStage, "last-call", "the second player starts a five-second last call");

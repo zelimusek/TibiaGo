@@ -24,6 +24,7 @@ const PARTY_FLOW_CONFIG = {
   gatheringDurationMs: 10000,
   gatheringAllReadyMs: 3000,
   gatheringLastCallMs: 5000,
+  waitingAnimationDurationMs: 2147483647,
   lowPopulationTimeoutMs: 60000,
   noWinnerDelayMs: 1500
 };
@@ -593,11 +594,16 @@ PartyGameFlow.prototype.getPayload = function () {
   let countdownStartedAt = this.__state.phase === "gathering"
     ? this.__state.countdownStartedAt
     : this.__state.startedAt;
-  let countdownEndsAt = gatheringWaiting ? now + 1 : this.__state.endsAt;
+  let animationStartedAt = this.__state.phase === "gathering"
+    ? this.__state.gatheringStartedAt
+    : this.__state.startedAt;
   let payload = {
     phase: this.__state.phase,
-    elapsedMs: gatheringWaiting ? 1 : Math.max(0, now - countdownStartedAt),
-    durationMs: Math.max(1, countdownEndsAt - countdownStartedAt),
+    elapsedMs: gatheringWaiting ? 0 : Math.max(0, now - countdownStartedAt),
+    animationElapsedMs: Math.max(0, now - animationStartedAt),
+    durationMs: gatheringWaiting
+      ? PARTY_FLOW_CONFIG.waitingAnimationDurationMs
+      : Math.max(1, this.__state.endsAt - countdownStartedAt),
     floor: PARTY_FLOW_CONFIG.floor
   };
   if (this.__state.phase === "lobby") {
