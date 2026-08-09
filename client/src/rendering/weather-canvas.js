@@ -2312,20 +2312,107 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
     return lines;
   }
 
+  function openBorderSegments(gateHalfWidth) {
+    return [
+      [
+        { x: centerX + gateHalfWidth, y: border.y },
+        { x: border.x + border.width, y: border.y },
+        { x: border.x + border.width, y: centerY - gateHalfWidth }
+      ],
+      [
+        { x: border.x + border.width, y: centerY + gateHalfWidth },
+        { x: border.x + border.width, y: border.y + border.height },
+        { x: centerX + gateHalfWidth, y: border.y + border.height }
+      ],
+      [
+        { x: centerX - gateHalfWidth, y: border.y + border.height },
+        { x: border.x, y: border.y + border.height },
+        { x: border.x, y: centerY + gateHalfWidth }
+      ],
+      [
+        { x: border.x, y: centerY - gateHalfWidth },
+        { x: border.x, y: border.y },
+        { x: centerX - gateHalfWidth, y: border.y }
+      ]
+    ];
+  }
+
+  function pointOnSegmentPath(points, progress) {
+    let firstLength = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
+    let secondLength = Math.hypot(points[2].x - points[1].x, points[2].y - points[1].y);
+    let pathLength = firstLength + secondLength;
+    let pingPong = ((progress % 2) + 2) % 2;
+    if(pingPong > 1) pingPong = 2 - pingPong;
+    let distance = pingPong * pathLength;
+    let from = distance <= firstLength ? points[0] : points[1];
+    let to = distance <= firstLength ? points[1] : points[2];
+    let sectionLength = distance <= firstLength ? firstLength : secondLength;
+    let sectionDistance = distance <= firstLength ? distance : distance - firstLength;
+    let amount = sectionLength > 0 ? sectionDistance / sectionLength : 0;
+    return {
+      x: from.x + (to.x - from.x) * amount,
+      y: from.y + (to.y - from.y) * amount
+    };
+  }
+
+  function openGateLines(segments, gateHalfWidth, progress) {
+    let lines = [];
+    segments.forEach(function(points, segmentIndex) {
+      for(let section = 0; section < 2; section++) {
+        lines.push({
+          x1: points[section].x,
+          y1: points[section].y,
+          x2: points[section + 1].x,
+          y2: points[section + 1].y,
+          alpha: 0.94 * progress,
+          colorIndex: segmentIndex % 3
+        });
+      }
+    });
+
+    let guideAlpha = Math.max(0, Math.min(1, gateHalfWidth / 48)) * 0.86 * progress;
+    if(guideAlpha > 0.01) {
+      let guides = [
+        [{ x: centerX - 9, y: border.y + 14 }, { x: centerX, y: border.y + 24 }, { x: centerX + 9, y: border.y + 14 }],
+        [{ x: centerX - 9, y: border.y + border.height - 14 }, { x: centerX, y: border.y + border.height - 24 }, { x: centerX + 9, y: border.y + border.height - 14 }],
+        [{ x: border.x + 14, y: centerY - 9 }, { x: border.x + 24, y: centerY }, { x: border.x + 14, y: centerY + 9 }],
+        [{ x: border.x + border.width - 14, y: centerY - 9 }, { x: border.x + border.width - 24, y: centerY }, { x: border.x + border.width - 14, y: centerY + 9 }]
+      ];
+      guides.forEach(function(points) {
+        lines.push({ x1: points[0].x, y1: points[0].y, x2: points[1].x, y2: points[1].y, alpha: guideAlpha, colorIndex: 2 });
+        lines.push({ x1: points[2].x, y1: points[2].y, x2: points[1].x, y2: points[1].y, alpha: guideAlpha, colorIndex: 2 });
+      });
+    }
+    return lines;
+  }
+
   if(flow.phase === "lobby" || flow.phase === "gathering") {
     let borderProgress = Math.min(1, animationElapsed / 1800);
     let orbit = animationElapsed / 9000;
+    let remainingMs = Math.max(0, flow.durationMs - elapsed);
+    let gateHalfWidth = 0;
+    if(flow.phase === "gathering") {
+      gateHalfWidth = 48;
+      if(flow.gatheringStage === "last-call" || flow.gatheringStage === "all-ready") {
+        gateHalfWidth *= Math.max(0, Math.min(1, remainingMs / flow.durationMs));
+      }
+    }
+    let openSegments = gateHalfWidth > 0.5 ? openBorderSegments(gateHalfWidth) : null;
     let targets = Array.from({ length: 9 }, function(_, index) {
-      return perimeterPoint(orbit + index / 9);
+      if(!openSegments) return perimeterPoint(orbit + index / 9);
+      let segment = openSegments[index % 4];
+      let lane = Math.floor(index / 4);
+      return pointOnSegmentPath(segment, orbit * 2.8 + lane * 0.43 + index * 0.07);
     });
     let spotlightTargets = Array.from({ length: 4 }, function(_, index) {
-      let point = perimeterPoint(orbit * 0.72 + index / 4);
+      let point = openSegments
+        ? pointOnSegmentPath(openSegments[index], orbit * 2.0 + index * 0.19)
+        : perimeterPoint(orbit * 0.72 + index / 4);
       return {
         x: point.x + (centerX - point.x) * 0.16,
         y: point.y + (centerY - point.y) * 0.16
       };
     });
-    let remainingMs = Math.max(0, flow.durationMs - elapsed);
     let bonus = null;
     if(flow.lastBonus) {
       let bonusElapsed = flow.lastBonus.elapsedMs + Math.max(0, now - flow.receivedAt);
@@ -2345,7 +2432,9 @@ WeatherCanvas.prototype.__getPartyFlowFrame = function(flow, now) {
       phase: flow.phase,
       amount: 1 - Math.pow(1 - borderProgress, 3),
       targets: targets,
-      trailLines: borderLines(borderProgress),
+      trailLines: openSegments
+        ? openGateLines(openSegments, gateHalfWidth, borderProgress)
+        : borderLines(borderProgress),
       spotlightTargets: spotlightTargets,
       centerX: centerX,
       centerY: centerY,

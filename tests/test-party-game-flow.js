@@ -177,6 +177,12 @@ assert.ok(html.includes("Leave It to Chance"));
 assert.ok(launcher.includes("modal-party-choice.js"));
 assert.ok(packetHandler.includes('let partyChoicePrefix = "party-choice:"'));
 assert.ok(weather.includes("__getPartyFlowFrame"));
+assert.ok(weather.includes("openBorderSegments(gateHalfWidth)"),
+  "the gathering frame opens a centered gate on all four floor edges");
+assert.ok(weather.includes("pointOnSegmentPath"),
+  "party lasers travel continuously along the four open corner paths");
+assert.ok(weather.includes('flow.gatheringStage === "last-call" || flow.gatheringStage === "all-ready"'),
+  "all four gates close progressively during the final countdown");
 assert.ok(partyChoiceModal.includes("this.blocksDismissal = true"));
 assert.ok(partyChoiceModal.includes("modalManager.close(true)"));
 assert.ok(modalManager.includes("this.__openedModal.blocksDismissal === true && force !== true"));
