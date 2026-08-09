@@ -160,13 +160,13 @@
   cursor: pointer;
   font-weight: bold;
   border: 1px solid black;
-  transition: color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: color 120ms ease;
 }
 
 .chat-title.selected {
   color: #fff;
   background-image: url("/png/bg3.png");
-  border-color: #9b7a19;
+  border-color: #b18d25;
   border-bottom: 0;
   box-shadow: none;
   text-shadow: 1px 1px 2px #000;
