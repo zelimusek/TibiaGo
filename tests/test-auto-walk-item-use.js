@@ -64,6 +64,12 @@ function ItemUsePacket(object) {
   this.object = object;
 }
 
+function ItemMovePacket(fromObject, toObject, count) {
+  this.fromObject = fromObject;
+  this.toObject = toObject;
+  this.count = count;
+}
+
 const documentMock = {
   body: {
     style: {},
@@ -77,6 +83,7 @@ const context = vm.createContext({
   Tile,
   Container: function Container() {},
   ItemUsePacket,
+  ItemMovePacket,
 });
 
 const mouseFile = path.join(
@@ -199,6 +206,41 @@ assert.strictEqual(mouse.__pendingItemUse, null);
 assert.strictEqual(sentPackets.length, 1);
 assert.strictEqual(sentPackets[0].object, ladderObject);
 
+// Dragging a distant ground item onto a backpack slot must retain the exact
+// inventory destination, walk beside the source and complete the move.
+const groundItem = {
+  count: 1,
+  isMoveable() { return true; },
+  isStackable() { return false; },
+};
+const groundTile = new Tile(ladderPosition, groundItem);
+const groundObject = { which: groundTile, index: 0xff };
+const backpack = {};
+const backpackObject = { which: backpack, index: 4 };
+
+playerPosition = new Position(100, 100, 7);
+pathRequest = null;
+mouse.__mouseDownObject = groundObject;
+mouse.__getSlotObject = () => backpackObject;
+mouse.__handleSlotMouseUp({});
+
+assert.strictEqual(mouse.__pendingItemMove.fromObject, groundObject);
+assert.strictEqual(mouse.__pendingItemMove.toObject, backpackObject);
+assert.strictEqual(mouse.__pendingItemMove.count, 1);
+assert.strictEqual(sentPackets.length, 1, "The move must wait until the player approaches.");
+assert.deepStrictEqual(
+  { x: pathRequest.to.x, y: pathRequest.to.y, z: pathRequest.to.z },
+  { x: 110, y: 109, z: 7 }
+);
+
+playerPosition = approachTile.position;
+assert.strictEqual(mouse.handlePendingActions(), true);
+assert.strictEqual(mouse.__pendingItemMove, null);
+assert.strictEqual(sentPackets.length, 2);
+assert.strictEqual(sentPackets[1].fromObject, groundObject);
+assert.strictEqual(sentPackets[1].toObject, backpackObject);
+assert.strictEqual(sentPackets[1].count, 1);
+
 // A new ordinary movement/click can safely discard a deferred action.
 mouse.__pendingItemUse = ladderObject;
 mouse.cancelPendingActions();
@@ -206,5 +248,5 @@ assert.strictEqual(mouse.__pendingItemUse, null);
 assert.strictEqual(mouse.__pendingItemMove, null);
 
 console.log(
-  "PASS: distant simple-use items are used automatically after walking beside them."
+  "PASS: distant uses and ground-to-backpack moves complete automatically after autowalk."
 );

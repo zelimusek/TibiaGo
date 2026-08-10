@@ -61,6 +61,16 @@ Mouse.prototype.sendItemMove = function (fromObject, toObject, count) {
     return;
   }
 
+  // A drop onto inventory/container UI has no world position of its own, but
+  // taking the source item from the ground still requires adjacency. Defer the
+  // complete original move until autowalk reaches the source SQM.
+  if (
+    fromObject.which.constructor.name === "Tile" &&
+    !fromObject.which.getPosition().besides(gameClient.player.getPosition())
+  ) {
+    return this.__moveItemWhenClose(fromObject, toObject, count);
+  }
+
   gameClient.send(new ItemMovePacket(fromObject, toObject, count));
 
 }
@@ -90,19 +100,6 @@ Mouse.prototype.moveItem = function (fromObject, toObject) {
 
   if (item === null || !item.isMoveable()) {
     return false;
-  }
-
-  let count = item.count || 1;
-
-  // Ground items can only be moved while the player is close enough. Preserve
-  // the normal client behaviour by walking beside the item and completing the
-  // original drop automatically after the final step.
-  if (
-    fromObject.which.constructor.name === "Tile" &&
-    !fromObject.which.getPosition().besides(gameClient.player.getPosition())
-  ) {
-    this.__moveItemWhenClose(fromObject, toObject, count);
-    return true;
   }
 
   this.__bindMoveCallback(fromObject, toObject);
@@ -535,18 +532,6 @@ Mouse.prototype.__handleCanvasMouseUp = function (event) {
     // The down & up are the same: this is a click.
     if (this.__mouseDownObject.which === toObject.which) {
       return this.__handleMouseClick();
-    }
-
-    // The position where the item is used must be besides the player. If it is
-    // farther away, walk there first and perform the move once close enough.
-    if (!this.__mouseDownObject.which.getPosition().besides(gameClient.player.getPosition())) {
-      let item = this.__mouseDownObject.which.peekItem(this.__mouseDownObject.index);
-
-      if (item !== null && item.isMoveable()) {
-        return this.__moveItemWhenClose(this.__mouseDownObject, toObject, item.count || 1);
-      }
-
-      return gameClient.interface.setCancelMessage("You have to move closer.");
     }
 
   }
@@ -1003,16 +988,6 @@ Mouse.prototype.__handleSlotMouseUp = function (event) {
   }
 
   let toObject = this.__getSlotObject(event);
-
-  // Moving from the world: check player adjacency
-  if (this.__mouseDownObject.which.constructor.name === "Tile") {
-
-    // The position where the item is used must be besides the player
-    if (!this.__mouseDownObject.which.getPosition().besides(gameClient.player.getPosition())) {
-      return;
-    }
-
-  }
 
   // Move from container: check if it the same slot? Then it is a click not a move!
   if (this.__mouseDownObject.which instanceof Container) {
