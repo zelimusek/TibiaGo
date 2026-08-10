@@ -169,6 +169,13 @@ CharacterElement.prototype.setTextPosition = function () {
   // Use scale.y for vertical offset to match height scaling
   offset.top -= isMobile ? (scale.y * 0.7) : (scale.y / 4);
 
+  // A title adds another row to the centered DOM element. Without a small
+  // correction this changes the apparent HP-bar height relative to the
+  // creature. Keep the chosen mobile composition (title as its anchor) while
+  // adapting the correction to the actual on-screen SQM size. This remains
+  // consistent across phone resolutions instead of relying on fixed pixels.
+  offset.top += scale.y * this.__getPlateVerticalAdjustment(isMobile);
+
   // Character sprites are rendered immediately on the canvas every frame.
   // A CSS transition here makes the DOM nameplate trail behind moving wolves
   // (and behind camera movement) by several frames. Keep both layers on the
@@ -177,6 +184,32 @@ CharacterElement.prototype.setTextPosition = function () {
 
   // Delegate to the generic move function
   this.__updateTextPosition(offset, false);
+};
+
+CharacterElement.prototype.__getPlateVerticalAdjustment = function (isMobile) {
+
+  let title = this.element.querySelector(".party-title");
+  let hasTitle = Boolean(
+    title &&
+    title.style.display !== "none" &&
+    title.innerText
+  );
+
+  if (!isMobile) {
+    // Raise titled desktop plates so their bars share the untitled baseline.
+    return hasTitle ? -0.25 : 0;
+  }
+
+  if (hasTitle) {
+    return 0;
+  }
+
+  // On mobile, bring untitled plates down to the titled baseline. Portrait
+  // needs a slightly stronger correction because its canvas is taller and
+  // the visual gap is more noticeable.
+  let isPortrait = window.innerHeight > window.innerWidth;
+  return isPortrait ? 0.18 : 0.14;
+
 };
 
 CharacterElement.prototype.setSkull = function (skull) {

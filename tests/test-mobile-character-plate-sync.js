@@ -33,6 +33,21 @@ assert.match(
   "Creature nameplates must not be clamped onto a screen edge."
 );
 assert.match(
+  source,
+  /offset\.top\s*\+=\s*scale\.y\s*\*\s*this\.__getPlateVerticalAdjustment\(isMobile\)/,
+  "Character plate alignment must scale with the rendered SQM height."
+);
+assert.match(
+  source,
+  /return\s+isPortrait\s*\?\s*0\.18\s*:\s*0\.14/,
+  "Untitled mobile plates must use orientation-aware vertical alignment."
+);
+assert.match(
+  source,
+  /return\s+hasTitle\s*\?\s*-0\.25\s*:\s*0/,
+  "Titled desktop plates must be raised without moving untitled plates."
+);
+assert.match(
   baseSource,
   /this\.hide\(\)/,
   "A cloned screen element must remain hidden until it has a valid position."
