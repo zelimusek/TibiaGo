@@ -14,6 +14,11 @@ const CharacterElement = function (creature) {
 
   // Show NPC icon if this creature is an NPC
   this.__setupNpcIcon();
+
+  // The protocol keeps mana data for every creature, but only the local
+  // player's overhead nameplate should expose it. A Player instance is already
+  // identifiable while its Creature base constructor creates this nameplate.
+  this.setManaVisible(typeof Player !== "undefined" && creature instanceof Player);
 };
 
 CharacterElement.prototype = Object.create(ScreenElement.prototype);
@@ -51,14 +56,7 @@ CharacterElement.prototype.setHealthFraction = function (fraction) {
    */
 
   // Set the color of the health bar too
-  let color =
-    fraction > 0.5
-      ? Interface.prototype.COLORS.LIGHTGREEN
-      : fraction > 0.25
-        ? Interface.prototype.COLORS.ORANGE
-        : fraction > 0.1
-          ? Interface.prototype.COLORS.RED
-          : Interface.prototype.COLORS.DARKRED;
+  let color = this.__creature.getHealthColor(fraction);
 
   // Fetch the healthbar from the element
   let healthBar = this.element.querySelector(".value-health");
@@ -113,6 +111,12 @@ CharacterElement.prototype.setName = function (name) {
    */
 
   this.element.querySelector("span").innerHTML = name;
+};
+
+CharacterElement.prototype.setManaVisible = function (visible) {
+  let mana = this.element.querySelector(".value-mana");
+  if (!mana || !mana.parentElement) return;
+  mana.parentElement.style.display = visible ? "block" : "none";
 };
 
 CharacterElement.prototype.setTitle = function (title, rarity) {

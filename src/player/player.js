@@ -722,12 +722,7 @@ Player.prototype.syncProperties = function () {
 
   // Update capacity based on current items
   if (this.containerManager) {
-    let totalWeight = this.containerManager.equipment.getTotalWeight();
-    let maxCapacity = this.getProperty(CONST.PROPERTIES.CAPACITY_MAX);
-    this.setProperty(
-      CONST.PROPERTIES.CAPACITY,
-      Math.max(0, maxCapacity - totalWeight)
-    );
+    this.__updateCurrentCapacity();
   }
 
   // Log final values after sync

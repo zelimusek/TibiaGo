@@ -179,6 +179,21 @@ BattleWindow.prototype.__activateCreature = function (element) {
   gameClient.world.toggleCreatureTarget(creature);
 }
 
+BattleWindow.prototype.__lookCreature = function (element) {
+  let creature = gameClient.world.getCreature(Number(element.id));
+  if (creature === null) {
+    return false;
+  }
+
+  let tile = gameClient.world.getTileFromWorldPosition(creature.getPosition());
+  if (tile === null) {
+    return false;
+  }
+
+  gameClient.send(new ItemLookPacket({ which: tile, index: 0 }));
+  return true;
+}
+
 BattleWindow.prototype.updateCreature = function (creature) {
 
   /*
@@ -248,7 +263,10 @@ BattleWindow.prototype.updateCreature = function (creature) {
   nodeList[0].querySelector('.bar-text').textContent = this.__isMobile()
     ? Math.round(hpPercent) + "%"
     : "%s / %s".format(...hpParams);
+  let hpColor = Interface.prototype.getHexColor(creature.getHealthColor(hpPercent / 100));
   nodeList[0].querySelector('.health').style.width = hpPercent + "%";
+  nodeList[0].querySelector('.health').style.background = hpColor;
+  nodeList[0].querySelector('.bar-holder').style.borderColor = hpColor;
 
   // Mana Bar
   if (!creature.maxMana || creature.maxMana <= 0) {
@@ -332,6 +350,13 @@ BattleWindow.prototype.addCreature = function (creature) {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+      return;
+    }
+
+    if (event.shiftKey || gameClient.keyboard.isShiftDown()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.__battleWindow.__lookCreature(this);
       return;
     }
 

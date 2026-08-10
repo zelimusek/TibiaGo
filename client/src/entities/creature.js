@@ -311,6 +311,20 @@ Creature.prototype.getHealthPercentage = function () {
 
 }
 
+Creature.prototype.getHealthColor = function (fraction) {
+
+  fraction = Number.isFinite(fraction) ? fraction : this.getHealthFraction();
+
+  return fraction > 0.5
+    ? Interface.prototype.COLORS.LIGHTGREEN
+    : fraction > 0.25
+      ? Interface.prototype.COLORS.ORANGE
+      : fraction > 0.1
+        ? Interface.prototype.COLORS.RED
+        : Interface.prototype.COLORS.DARKRED;
+
+}
+
 Creature.prototype.getHealthFraction = function () {
 
   /*

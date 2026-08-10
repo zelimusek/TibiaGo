@@ -22,6 +22,14 @@ const indexHtml = fs.readFileSync(
   path.join(root, "client", "index.html"),
   "utf8"
 );
+const creatureSource = fs.readFileSync(
+  path.join(root, "client", "src", "entities", "creature.js"),
+  "utf8"
+);
+const characterElementSource = fs.readFileSync(
+  path.join(root, "client", "src", "ui", "screen-element-character.js"),
+  "utf8"
+);
 
 function InteractiveWindow() {}
 InteractiveWindow.prototype = {};
@@ -36,7 +44,10 @@ const context = vm.createContext({
   gameClient: {
     touch: { isMobileMode: true },
   },
+  Interface: function Interface() {},
 });
+context.Interface.prototype.COLORS = { LIGHTGREEN: 30, ORANGE: 198, RED: 180, DARKRED: 108 };
+context.Interface.prototype.getHexColor = () => "#00FF00";
 
 vm.runInContext(
   "String.prototype.format = function () { " +
@@ -75,10 +86,17 @@ assert.deepStrictEqual(
 const sentPackets = [];
 let cursor = "crosshair";
 let toggledCreature = null;
-const creature = { id: 77, type: 1 };
+const creature = {
+  id: 77,
+  type: 1,
+  getPosition: () => ({ x: 100, y: 200, z: 7 })
+};
 context.ItemUseOnCreaturePacket = function ItemUseOnCreaturePacket(item, id) {
   this.item = item;
   this.id = id;
+};
+context.ItemLookPacket = function ItemLookPacket(object) {
+  this.object = object;
 };
 context.gameClient.mouse = {
   __multiUseObject: { id: 2281 },
@@ -87,6 +105,7 @@ context.gameClient.mouse = {
 context.gameClient.send = (packet) => sentPackets.push(packet);
 context.gameClient.world = {
   getCreature: () => creature,
+  getTileFromWorldPosition: () => ({ id: "look-tile" }),
   toggleCreatureTarget(value) { toggledCreature = value; },
 };
 
@@ -100,12 +119,18 @@ assert.strictEqual(toggledCreature, null);
 battle.__activateCreature({ id: "77" });
 assert.strictEqual(toggledCreature, creature);
 
+assert.strictEqual(battle.__lookCreature({ id: "77" }), true);
+assert.strictEqual(sentPackets.length, 2);
+assert.strictEqual(sentPackets[1].object.which.id, "look-tile");
+
 const hpText = { textContent: "" };
 const hpFill = { style: {} };
 const hpWrapper = {
   style: {},
   querySelector(selector) {
-    return selector === ".bar-text" ? hpText : hpFill;
+    if (selector === ".bar-text") return hpText;
+    if (selector === ".bar-holder") return { style: {} };
+    return hpFill;
   },
 };
 const manaWrapper = { style: {}, querySelector() { return null; } };
@@ -126,6 +151,7 @@ const loginCreature = {
   maxHealth: 100,
   maxMana: 0,
   outfit: { serialize: () => "login-outfit" },
+  getHealthColor: () => 30,
 };
 
 context.gameClient.player = null;
@@ -141,6 +167,10 @@ assert.strictEqual(loginEntry.style.display, "flex");
 assert.strictEqual(hpText.textContent, "75%");
 
 assert.match(source, /__multiUseObject[\s\S]*?ItemUseOnCreaturePacket/);
+assert.match(source, /event\.shiftKey[\s\S]*?__lookCreature/);
+assert.match(source, /getHealthColor\(hpPercent \/ 100\)/);
+assert.match(creatureSource, /getHealthColor[\s\S]*?LIGHTGREEN[\s\S]*?ORANGE[\s\S]*?RED[\s\S]*?DARKRED/);
+assert.match(characterElementSource, /creature instanceof Player/);
 assert.match(source, /touchMoved[\s\S]*?touchmove[\s\S]*?touchend/);
 assert.match(source, /Math\.max\(dx, dy\)/);
 assert.match(mobileCss, /#battle-window > \.body\s*\{[\s\S]*?display: flex !important/);
