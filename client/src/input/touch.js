@@ -15,6 +15,7 @@ const Touch = function () {
     // Joystick state
     this.joystick = {
         active: false,
+        touchIdentifier: null,
         startX: 0,
         startY: 0,
         currentX: 0,
@@ -390,6 +391,7 @@ Touch.prototype.__cleanup = function () {
      */
 
     this.joystick.active = false;
+    this.joystick.touchIdentifier = null;
     this.joystick.direction = null;
     this.__stopJoystickMovementLoop();
     this.__resetJoystickVisual();
@@ -748,13 +750,20 @@ Touch.prototype.__handleJoystickStart = function (event) {
      * Handle joystick touch start
      */
 
+    // The joystick owns only the finger which started it. Other fingers must
+    // remain free to press hotkeys, action buttons and the rest of the UI.
+    if (this.joystick.active || !event.changedTouches || event.changedTouches.length === 0) {
+        return;
+    }
+
     event.preventDefault();
     this.__cancelPendingCanvasWalk();
 
-    let touch = event.touches[0];
+    let touch = event.changedTouches[0];
     let rect = this.joystickZone.getBoundingClientRect();
 
     this.joystick.active = true;
+    this.joystick.touchIdentifier = touch.identifier;
     this.joystick.startX = rect.left + rect.width / 2;
     this.joystick.startY = rect.top + rect.height / 2;
     this.joystick.currentX = touch.clientX;
@@ -774,9 +783,13 @@ Touch.prototype.__handleJoystickMove = function (event) {
 
     if (!this.joystick.active) return;
 
-    event.preventDefault();
+    let touch = this.__findTouchByIdentifier(
+        event.touches,
+        this.joystick.touchIdentifier
+    );
+    if (touch === null) return;
 
-    let touch = event.touches[0];
+    event.preventDefault();
     this.joystick.currentX = touch.clientX;
     this.joystick.currentY = touch.clientY;
 
@@ -792,9 +805,18 @@ Touch.prototype.__handleJoystickEnd = function (event) {
      * Handle joystick touch end
      */
 
+    if (!this.joystick.active) return;
+
+    let touch = this.__findTouchByIdentifier(
+        event.changedTouches,
+        this.joystick.touchIdentifier
+    );
+    if (touch === null) return;
+
     event.preventDefault();
 
     this.joystick.active = false;
+    this.joystick.touchIdentifier = null;
     this.joystick.direction = null;
 
     this.__stopJoystickMovementLoop();
@@ -866,6 +888,20 @@ Touch.prototype.__processJoystickInput = function () {
     }
 
     this.__startJoystickMovementLoop();
+
+}
+
+Touch.prototype.__findTouchByIdentifier = function (touches, identifier) {
+
+    if (!touches) return null;
+
+    for (let index = 0; index < touches.length; index++) {
+        if (touches[index].identifier === identifier) {
+            return touches[index];
+        }
+    }
+
+    return null;
 
 }
 

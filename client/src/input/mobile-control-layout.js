@@ -79,7 +79,9 @@ MobileControlLayout.prototype.reset = function () {
 
 MobileControlLayout.prototype.__handleStart = function (control, event) {
 
-  if (event.touches.length !== 1 || this.__active !== null) {
+  // Count only the touches which started on this control. A joystick finger
+  // may already be held elsewhere on the screen and must not disable it.
+  if (!event.changedTouches || event.changedTouches.length !== 1 || this.__active !== null) {
     return;
   }
 

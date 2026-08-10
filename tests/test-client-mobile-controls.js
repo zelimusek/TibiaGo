@@ -190,4 +190,57 @@ function createButton() {
   assert.deepStrictEqual(opened[1], { id: "hotbar-config-modal", index: 2 });
 })();
 
+(function testJoystickTracksOnlyItsOwnFinger() {
+  const context = {
+    console,
+    navigator: { maxTouchPoints: 0, vibrate() {} },
+    window: {
+      innerWidth: 1200,
+      innerHeight: 800,
+      addEventListener() {}
+    },
+    document: { querySelector: () => null },
+    MobileControlLayout: function () {
+      this.register = function () {};
+      this.reset = function () {};
+    }
+  };
+
+  const Touch = loadConstructor("client/src/input/touch.js", "Touch", context);
+  const controls = new Touch();
+  controls.joystickZone = {
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 })
+  };
+  controls.__processJoystickInput = function () {};
+  controls.__updateJoystickVisual = function () {};
+  controls.__stopJoystickMovementLoop = function () {};
+  controls.__resetJoystickVisual = function () {};
+
+  const finger = (identifier, clientX, clientY) => ({ identifier, clientX, clientY });
+  const event = (touches, changedTouches) => ({
+    touches,
+    changedTouches,
+    preventDefault() {}
+  });
+
+  const joystickFinger = finger(11, 60, 50);
+  controls.__handleJoystickStart(event([joystickFinger], [joystickFinger]));
+  assert.strictEqual(controls.joystick.touchIdentifier, 11);
+
+  const buttonFinger = finger(22, 500, 200);
+  const movedJoystickFinger = finger(11, 72, 50);
+  controls.__handleJoystickMove(event(
+    [buttonFinger, movedJoystickFinger],
+    [movedJoystickFinger]
+  ));
+  assert.strictEqual(controls.joystick.currentX, 72, "A second finger must not steer the joystick");
+
+  controls.__handleJoystickEnd(event([movedJoystickFinger], [buttonFinger]));
+  assert.strictEqual(controls.joystick.active, true, "Releasing another finger must not stop movement");
+
+  controls.__handleJoystickEnd(event([], [movedJoystickFinger]));
+  assert.strictEqual(controls.joystick.active, false);
+  assert.strictEqual(controls.joystick.touchIdentifier, null);
+})();
+
 console.log("Client mobile controls tests passed.");

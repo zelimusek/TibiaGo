@@ -102,10 +102,20 @@ button.listeners.get("touchstart")(event([touch(1, 824, 444)], [touch(1, 824, 44
 button.listeners.get("touchend")(event([], [touch(1, 824, 444)], button));
 assert.strictEqual(taps, 1, "A short tap should execute the control action");
 
+// A finger held on the joystick must not make the second touch disappear.
+const joystickTouch = touch(99, 80, 420);
+button.listeners.get("touchstart")(
+  event([joystickTouch, touch(4, 824, 444)], [touch(4, 824, 444)], button)
+);
+button.listeners.get("touchend")(
+  event([joystickTouch], [touch(4, 824, 444)], button)
+);
+assert.strictEqual(taps, 2, "A control should work while another finger holds the joystick");
+
 button.listeners.get("touchstart")(event([touch(2, 824, 444)], [touch(2, 824, 444)], button));
 layout.__beginLongPress(layout.__active);
 button.listeners.get("touchend")(event([], [touch(2, 824, 444)], button));
-assert.strictEqual(taps, 1, "A long press must not execute the tap action");
+assert.strictEqual(taps, 2, "A long press must not execute the tap action");
 assert.strictEqual(holds, 1, "A stationary long press should call onLongPress");
 
 button.listeners.get("touchstart")(event([touch(3, 824, 444)], [touch(3, 824, 444)], button));
