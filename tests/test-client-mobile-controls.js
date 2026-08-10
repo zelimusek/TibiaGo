@@ -243,4 +243,52 @@ function createButton() {
   assert.strictEqual(controls.joystick.touchIdentifier, null);
 })();
 
+(function testBattleCanReopenWithSelectedTarget() {
+  let battleHidden = true;
+  let toggles = 0;
+  const sent = [];
+  const target = { getId: () => 77 };
+  const context = {
+    console,
+    navigator: { maxTouchPoints: 0, vibrate() {} },
+    window: {
+      innerWidth: 1200,
+      innerHeight: 800,
+      addEventListener() {}
+    },
+    document: { querySelector: () => null },
+    MobileControlLayout: function () {
+      this.register = function () {};
+      this.reset = function () {};
+    },
+    TargetPacket: function TargetPacket(id) { this.id = id; },
+    gameClient: {
+      player: { getTarget: () => target },
+      send: (packet) => sent.push(packet),
+      interface: {
+        windowManager: {
+          getWindow: () => ({ isHidden: () => battleHidden })
+        },
+        toggleWindow() {
+          toggles += 1;
+          battleHidden = false;
+        }
+      }
+    }
+  };
+
+  const Touch = loadConstructor("client/src/input/touch.js", "Touch", context);
+  const controls = new Touch();
+  const event = { preventDefault() {} };
+
+  controls.__handleAttackButton(event);
+  assert.strictEqual(toggles, 1, "A closed Battle List must reopen despite an active target");
+  assert.strictEqual(sent.length, 0, "Reopening Battle must not resend the target packet");
+
+  controls.__handleAttackButton(event);
+  assert.strictEqual(toggles, 1);
+  assert.strictEqual(sent.length, 1, "The existing attack action must remain available while Battle is open");
+  assert.strictEqual(sent[0].id, 77);
+})();
+
 console.log("Client mobile controls tests passed.");

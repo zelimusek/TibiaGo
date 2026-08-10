@@ -1018,8 +1018,15 @@ Touch.prototype.__handleAttackButton = function (event) {
     if (!gameClient || !gameClient.player) return;
 
     let target = gameClient.player.getTarget();
+    let battleWindow = gameClient.interface && gameClient.interface.windowManager
+        ? gameClient.interface.windowManager.getWindow("battle-window")
+        : null;
 
-    if (target) {
+    // The mobile swords button doubles as the Battle List opener. A selected
+    // target must never make a manually closed list impossible to reopen.
+    if (battleWindow && battleWindow.isHidden()) {
+        gameClient.interface.toggleWindow("battle-window");
+    } else if (target) {
         // Already have a target - attack it
         gameClient.send(new TargetPacket(target.getId()));
     } else {
