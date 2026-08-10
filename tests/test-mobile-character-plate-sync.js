@@ -48,6 +48,11 @@ assert.match(
   "Titled desktop plates must be raised without moving untitled plates."
 );
 assert.match(
+  source,
+  /if\s*\(!isMobile\s*&&\s*hasVisiblePartyTitle\)\s*\{\s*offset\.top\s*\+=\s*1/,
+  "The final desktop title adjustment must be exactly one CSS pixel."
+);
+assert.match(
   baseSource,
   /this\.hide\(\)/,
   "A cloned screen element must remain hidden until it has a valid position."

@@ -176,6 +176,18 @@ CharacterElement.prototype.setTextPosition = function () {
   // consistent across phone resolutions instead of relying on fixed pixels.
   offset.top += scale.y * this.__getPlateVerticalAdjustment(isMobile);
 
+  // Final desktop optical correction requested in physical CSS pixels. Keep
+  // it separate from the scale-aware alignment so it remains exactly 1 px.
+  let partyTitle = this.element.querySelector(".party-title");
+  let hasVisiblePartyTitle = Boolean(
+    partyTitle &&
+    partyTitle.style.display !== "none" &&
+    partyTitle.innerText
+  );
+  if (!isMobile && hasVisiblePartyTitle) {
+    offset.top += 1;
+  }
+
   // Character sprites are rendered immediately on the canvas every frame.
   // A CSS transition here makes the DOM nameplate trail behind moving wolves
   // (and behind camera movement) by several frames. Keep both layers on the
