@@ -1,9 +1,12 @@
-const CACHE_NAME = "tibiago-static-v36";
-const CLIENT_BUILD = "20260810.2";
+const CACHE_NAME = "tibiago-static-v37";
+const CLIENT_BUILD = "20260811.2";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
-  "/png/pwa-icon-512.png"
+  "/png/pwa-icon-512.png",
+  "/png/pwa-icon-maskable-192.png",
+  "/png/pwa-icon-maskable-512.png",
+  "/png/apple-touch-icon.png"
 ];
 
 self.addEventListener("install", (event) => {
