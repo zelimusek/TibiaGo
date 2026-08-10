@@ -11,6 +11,7 @@
     "db:studio": "drizzle-kit studio",
     "build:client": "node scripts/build-client.js",
     "test:client-ui": "node tests/test-client-mobile-controls.js && node tests/test-mobile-control-layout.js && node tests/test-movement-latency-buffer.js && node tests/test-stack-move-controls.js",
+    "test:partyzone-accounts": "node tests/test-partyzone-account-import.js",
     "test:radio": "node tests/test-radio-rhythm.js && node tests/test-disco-spotlights.js && node tests/test-party-radio-queue.js",
     "test:combat": "node tests/test-equipment-combat.js",
     "test:pvp": "node tests/test-pvp-policy.js && node tests/test-pvp-system.js && node tests/test-combat-feedback.js && node tests/test-death-cleanup.js"

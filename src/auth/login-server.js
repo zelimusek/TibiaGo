@@ -1,12 +1,12 @@
 "use strict";
 
-const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const http = require("http");
 const fs = require("fs");
 const url = require("url");
 
 const AccountDatabase = requireModule("auth/account-database");
+const { verifyPassword } = requireModule("auth/password-verifier");
 
 const LoginServer = function (host, port) {
 
@@ -205,14 +205,10 @@ LoginServer.prototype.__getAccount = function (queryObject, response) {
       return response.end();
     }
 
-    // Compare the submitted password with the hashed + salted password
-    bcrypt.compare(queryObject.password, result.hash, function (error, isPasswordCorrect) {
-
-      if (error) {
-        response.statusCode = 500;
-        return response.end();
-      }
-
+    // PartyZone supports both its original bcrypt accounts and securely
+    // copied scrypt hashes from the guild portal. Plaintext passwords are
+    // never read, logged, or transferred during the import.
+    verifyPassword(queryObject.password, result.hash).then(function (isPasswordCorrect) {
       if (!isPasswordCorrect) {
         response.statusCode = 401;
         return response.end();
@@ -227,7 +223,10 @@ LoginServer.prototype.__getAccount = function (queryObject, response) {
         "host": process.env.EXTERNAL_HOST || CONFIG.SERVER.EXTERNAL_HOST
       }));
 
-    }.bind(this));
+    }.bind(this)).catch(function () {
+      response.statusCode = 500;
+      response.end();
+    });
 
   }.bind(this));
 

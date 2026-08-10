@@ -11,7 +11,9 @@ const accounts = pgTable(
     {
         id: serial("id").primaryKey(),
         account: varchar("account", { length: 32 }).notNull(),
-        hash: varchar("hash", { length: 60 }).notNull(),
+        // bcrypt hashes fit in 60 characters, while the portal's scrypt
+        // hashes carry their parameters and salt as well.
+        hash: text("hash").notNull(),
         name: varchar("name", { length: 32 }).notNull(),
         character: text("character").notNull(), // JSON stored as text
         createdAt: timestamp("created_at").defaultNow(),

@@ -94,6 +94,7 @@ ALLOWED_FILES = {
     "package-lock.json",
     "client-server.py",
     "scripts/tibiago-watchdog.sh",
+    "scripts/import-partyzone-guild-accounts.js",
 }
 
 

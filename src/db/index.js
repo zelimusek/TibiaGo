@@ -25,13 +25,14 @@ async function ensureTablesExist() {
         CREATE TABLE IF NOT EXISTS "accounts" (
             "id" serial PRIMARY KEY NOT NULL,
             "account" varchar(32) NOT NULL,
-            "hash" varchar(60) NOT NULL,
+            "hash" text NOT NULL,
             "name" varchar(32) NOT NULL,
             "character" text NOT NULL,
             "created_at" timestamp DEFAULT now(),
             "updated_at" timestamp DEFAULT now()
         );
         CREATE UNIQUE INDEX IF NOT EXISTS "account_name_unique" ON "accounts" ("account", "name");
+        ALTER TABLE "accounts" ALTER COLUMN "hash" TYPE text;
         CREATE TABLE IF NOT EXISTS "pvp_relations" (
             "id" serial PRIMARY KEY NOT NULL,
             "attacker_id" integer NOT NULL,

@@ -28,6 +28,18 @@ Skill.prototype.__getVocationConstant = function (vocation) {
    * See https://tibia.fandom.com/wiki/Formulae#Skills
    */
 
+  // Promotions train at the same rate as their base vocation. Without this
+  // normalization promoted characters resolve every trainable skill to NaN.
+  if (vocation === CONST.VOCATION.ELITE_KNIGHT) {
+    vocation = CONST.VOCATION.KNIGHT;
+  } else if (vocation === CONST.VOCATION.ROYAL_PALADIN) {
+    vocation = CONST.VOCATION.PALADIN;
+  } else if (vocation === CONST.VOCATION.MASTER_SORCERER) {
+    vocation = CONST.VOCATION.SORCERER;
+  } else if (vocation === CONST.VOCATION.ELDER_DRUID) {
+    vocation = CONST.VOCATION.DRUID;
+  }
+
   if (vocation === CONST.VOCATION.NONE) {
     switch (this.__type) {
       case CONST.PROPERTIES.MAGIC:
