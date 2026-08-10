@@ -8,6 +8,7 @@ const CharacterElement = function (creature) {
   ScreenElement.call(this, "character-element-prototype");
 
   this.__creature = creature;
+  this.__npcPlateVerticalAdjustment = null;
 
   // Update settings
   this.setName(creature.name);
@@ -188,6 +189,12 @@ CharacterElement.prototype.setTextPosition = function () {
     offset.top += 1;
   }
 
+  // The trade icon lives below an NPC's bars. Since the complete DOM plate is
+  // centered around the creature anchor, that extra row would pull the NPC
+  // name and HP upwards. Compensate half of its rendered outer height so the
+  // name/bar baseline matches an untitled player on desktop and mobile.
+  offset.top += this.__getNpcPlateVerticalAdjustment();
+
   // Character sprites are rendered immediately on the canvas every frame.
   // A CSS transition here makes the DOM nameplate trail behind moving wolves
   // (and behind camera movement) by several frames. Keep both layers on the
@@ -196,6 +203,31 @@ CharacterElement.prototype.setTextPosition = function () {
 
   // Delegate to the generic move function
   this.__updateTextPosition(offset, false);
+};
+
+CharacterElement.prototype.__getNpcPlateVerticalAdjustment = function () {
+
+  if (this.__creature.type !== CONST.TYPES.NPC) {
+    return 0;
+  }
+
+  if (this.__npcPlateVerticalAdjustment !== null) {
+    return this.__npcPlateVerticalAdjustment;
+  }
+
+  let icon = this.element.querySelector(".npc-icon");
+  if (!icon || icon.style.display === "none") {
+    return 0;
+  }
+
+  let style = window.getComputedStyle(icon);
+  let height = Number.parseFloat(style.height) || icon.offsetHeight || 0;
+  let marginTop = Number.parseFloat(style.marginTop) || 0;
+  let marginBottom = Number.parseFloat(style.marginBottom) || 0;
+
+  this.__npcPlateVerticalAdjustment = (height + marginTop + marginBottom) / 2;
+  return this.__npcPlateVerticalAdjustment;
+
 };
 
 CharacterElement.prototype.__getPlateVerticalAdjustment = function (isMobile) {

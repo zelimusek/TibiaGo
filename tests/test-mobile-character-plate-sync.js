@@ -53,6 +53,16 @@ assert.match(
   "The final desktop title adjustment must be exactly one CSS pixel."
 );
 assert.match(
+  source,
+  /offset\.top\s*\+=\s*this\.__getNpcPlateVerticalAdjustment\(\)/,
+  "NPC plates must compensate for the trade icon below their HP bar."
+);
+assert.match(
+  source,
+  /\(height\s*\+\s*marginTop\s*\+\s*marginBottom\)\s*\/\s*2/,
+  "NPC alignment must use half of the icon's actual outer height."
+);
+assert.match(
   baseSource,
   /this\.hide\(\)/,
   "A cloned screen element must remain hidden until it has a valid position."
