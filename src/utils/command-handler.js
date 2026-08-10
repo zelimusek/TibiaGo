@@ -340,6 +340,47 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
     return player.sendCancelMessage("Only GMs can configure radio zones.");
   }
 
+  if (message[1] === "queue") {
+    let action = (message[2] || "status").toLowerCase();
+    let result;
+    let payload = null;
+    if (action === "start") {
+      try {
+        payload = JSON.parse(decodeURIComponent(message[3] || ""));
+      } catch (error) {
+        return player.sendCancelMessage("The party queue request was invalid.");
+      }
+    }
+
+    let requestedZoneId = action === "start" ? payload.zoneId : message[3];
+    let zone = requestedZoneId
+      ? gameServer.world.creatureHandler.getRadioZoneById(String(requestedZoneId))
+      : gameServer.world.creatureHandler.getRadioZoneAt(player.position);
+    if (!zone) {
+      return player.sendCancelMessage("Open /radio while standing inside an existing radio zone first.");
+    }
+
+    if (action === "start") {
+      result = gameServer.world.creatureHandler.partyRadioQueue.start(
+        zone.id,
+        payload.tracks,
+        payload.after
+      );
+    } else if (action === "stop" || action === "live") {
+      result = gameServer.world.creatureHandler.partyRadioQueue.stop(zone.id);
+    } else if (action === "status") {
+      let status = gameServer.world.creatureHandler.partyRadioQueue.getStatus(zone.id);
+      return player.sendCancelMessage(status
+        ? "Party queue: track " + (status.currentIndex + 1) + " of " + status.tracks.length + "."
+        : "The internet radio is currently playing.");
+    } else {
+      return player.sendCancelMessage("Use the Music Library controls in /radio.");
+    }
+
+    if (!result.ok) return player.sendCancelMessage(result.message);
+    return player.write(new ServerMessagePacket(result.message));
+  }
+
   if (message[1] !== "set") {
     let config = gameServer.world.creatureHandler.getRadioZoneEditorConfig(player.position);
     let editorPayload = encodeURIComponent(JSON.stringify(config));

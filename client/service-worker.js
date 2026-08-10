@@ -1,5 +1,5 @@
-const CACHE_NAME = "tibiago-static-v33";
-const CLIENT_BUILD = "20260802.4";
+const CACHE_NAME = "tibiago-static-v35";
+const CLIENT_BUILD = "20260810.1";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/png/pwa-icon-192.png",
@@ -40,6 +40,7 @@ self.addEventListener("fetch", (event) => {
   if (
     request.mode === "navigate" ||
     requestUrl.pathname.startsWith("/data/") ||
+    requestUrl.pathname.startsWith("/party-music/") ||
     /\.(?:js|css|html|webmanifest)$/i.test(requestUrl.pathname)
   ) {
     event.respondWith(fetch(request));

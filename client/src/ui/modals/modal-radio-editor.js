@@ -7,6 +7,13 @@ const RadioEditorModal = function (element) {
   Modal.call(this, element);
 
   this.__url = document.getElementById("radio-editor-url");
+  this.__musicLibraryElement = document.getElementById("radio-editor-library");
+  this.__musicQueueElement = document.getElementById("radio-editor-queue");
+  this.__musicQueueStatus = document.getElementById("radio-editor-queue-status");
+  this.__afterQueue = document.getElementById("radio-editor-after-queue");
+  this.__musicLibrary = [];
+  this.__musicQueue = [];
+  this.__musicZoneId = null;
   this.__radius = document.getElementById("radio-editor-radius");
   this.__fadeRadius = document.getElementById("radio-editor-fade-radius");
   this.__effects = document.getElementById("radio-editor-effects");
@@ -31,6 +38,10 @@ const RadioEditorModal = function (element) {
   this.__beatBpm.oninput = this.__updateRhythmStatus.bind(this, true);
   this.__bassSensitivity.oninput = this.__updateRhythmControls.bind(this);
   this.__lastRhythmStatusAt = 0;
+
+  document.getElementById("radio-editor-library-refresh").onclick = this.__refreshMusicLibrary.bind(this);
+  document.getElementById("radio-editor-play-queue").onclick = this.__playMusicQueue.bind(this);
+  document.getElementById("radio-editor-return-live").onclick = this.__returnToLiveRadio.bind(this);
 
 }
 
@@ -83,6 +94,26 @@ RadioEditorModal.prototype.handleOpen = function (config) {
 
   config = config || {};
   this.__url.value = config.url || "";
+  this.__musicZoneId = config.musicZoneId || null;
+  this.__musicLibrary = Array.isArray(config.musicLibrary) ? config.musicLibrary : [];
+  this.__musicQueue = config.musicQueue && Array.isArray(config.musicQueue.tracks)
+    ? config.musicQueue.tracks.map(function (queuedTrack) {
+      let libraryTrack = this.__musicLibrary.find(function (track) { return track.id === queuedTrack.id; });
+      return {
+        id: queuedTrack.id,
+        name: queuedTrack.name,
+        url: libraryTrack ? libraryTrack.url : "",
+        durationMs: queuedTrack.durationMs,
+        loading: false
+      };
+    }, this)
+    : [];
+  this.__afterQueue.value = config.musicQueue && config.musicQueue.after === "repeat" ? "repeat" : "radio";
+  this.__renderMusicLibrary();
+  this.__renderMusicQueue();
+  this.__musicQueueStatus.innerText = config.musicQueue
+    ? "Playing " + (config.musicQueue.currentIndex + 1) + " / " + config.musicQueue.tracks.length
+    : "Internet radio is live";
   this.__radius.value = Number.isInteger(config.radius) ? config.radius : 4;
   this.__fadeRadius.value = Number.isInteger(config.fadeRadius) ? config.fadeRadius : 5;
   this.__effects.checked = config.effectsEnabled !== false;
@@ -110,6 +141,160 @@ RadioEditorModal.prototype.handleOpen = function (config) {
     this.__url.focus();
   }.bind(this), 0);
 
+}
+
+RadioEditorModal.prototype.__sendRadioCommand = function (message) {
+  gameClient.send(new ChannelMessagePacket(CONST.CHANNEL.DEFAULT, 1, message));
+}
+
+RadioEditorModal.prototype.__formatTrackDuration = function (durationMs) {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return "--:--";
+  let seconds = Math.max(0, Math.round(durationMs / 1000));
+  let minutes = Math.floor(seconds / 60);
+  return minutes + ":" + String(seconds % 60).padStart(2, "0");
+}
+
+RadioEditorModal.prototype.__loadTrackDuration = function (queuedTrack) {
+  if (Number.isFinite(queuedTrack.durationMs) && queuedTrack.durationMs > 0) return;
+  queuedTrack.loading = true;
+  let audio = new Audio();
+  audio.preload = "metadata";
+  audio.src = queuedTrack.url;
+  let finished = false;
+  let finish = function (durationMs) {
+    if (finished) return;
+    finished = true;
+    queuedTrack.loading = false;
+    queuedTrack.durationMs = durationMs;
+    audio.removeAttribute("src");
+    audio.load();
+    this.__renderMusicQueue();
+  }.bind(this);
+  audio.addEventListener("loadedmetadata", function () {
+    finish(Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : 0);
+  }, { once: true });
+  audio.addEventListener("error", function () { finish(0); }, { once: true });
+  audio.load();
+}
+
+RadioEditorModal.prototype.__renderMusicLibrary = function () {
+  this.__musicLibraryElement.innerHTML = "";
+  if (this.__musicLibrary.length === 0) {
+    let empty = document.createElement("div");
+    empty.className = "radio-editor-empty";
+    empty.innerText = "No MP3 files found in client/party-music.";
+    this.__musicLibraryElement.appendChild(empty);
+    return;
+  }
+
+  this.__musicLibrary.forEach(function (track) {
+    let row = document.createElement("div");
+    row.className = "radio-editor-track";
+    let name = document.createElement("span");
+    name.innerText = track.name;
+    name.title = track.filename || track.name;
+    let add = document.createElement("button");
+    add.type = "button";
+    add.innerText = "+ Add";
+    add.onclick = function () {
+      let queuedTrack = {
+        id: track.id,
+        name: track.name,
+        url: track.url,
+        durationMs: 0,
+        loading: true
+      };
+      this.__musicQueue.push(queuedTrack);
+      this.__renderMusicQueue();
+      this.__loadTrackDuration(queuedTrack);
+    }.bind(this);
+    row.appendChild(name);
+    row.appendChild(add);
+    this.__musicLibraryElement.appendChild(row);
+  }, this);
+}
+
+RadioEditorModal.prototype.__renderMusicQueue = function () {
+  this.__musicQueueElement.innerHTML = "";
+  if (this.__musicQueue.length === 0) {
+    let empty = document.createElement("div");
+    empty.className = "radio-editor-empty";
+    empty.innerText = "Queue is empty.";
+    this.__musicQueueElement.appendChild(empty);
+    return;
+  }
+
+  this.__musicQueue.forEach(function (track, index) {
+    let row = document.createElement("div");
+    row.className = "radio-editor-track radio-editor-queued-track";
+    let position = document.createElement("b");
+    position.innerText = String(index + 1);
+    let name = document.createElement("span");
+    name.innerText = track.name;
+    let duration = document.createElement("small");
+    duration.innerText = track.loading ? "Loading..." : this.__formatTrackDuration(track.durationMs);
+    let controls = document.createElement("span");
+    controls.className = "radio-editor-track-controls";
+    [
+      { label: "↑", disabled: index === 0, move: -1 },
+      { label: "↓", disabled: index === this.__musicQueue.length - 1, move: 1 },
+      { label: "×", remove: true }
+    ].forEach(function (action) {
+      let button = document.createElement("button");
+      button.type = "button";
+      button.innerText = action.label;
+      button.disabled = action.disabled === true;
+      button.onclick = function () {
+        if (action.remove) {
+          this.__musicQueue.splice(index, 1);
+        } else {
+          let target = index + action.move;
+          let moved = this.__musicQueue.splice(index, 1)[0];
+          this.__musicQueue.splice(target, 0, moved);
+        }
+        this.__renderMusicQueue();
+      }.bind(this);
+      controls.appendChild(button);
+    }, this);
+    row.appendChild(position);
+    row.appendChild(name);
+    row.appendChild(duration);
+    row.appendChild(controls);
+    this.__musicQueueElement.appendChild(row);
+  }, this);
+}
+
+RadioEditorModal.prototype.__refreshMusicLibrary = function () {
+  this.__musicQueueStatus.innerText = "Refreshing library...";
+  this.__sendRadioCommand("/radio");
+}
+
+RadioEditorModal.prototype.__playMusicQueue = function () {
+  if (this.__musicQueue.length === 0) {
+    gameClient.interface.setCancelMessage("Add at least one MP3 to the queue.");
+    return;
+  }
+  if (this.__musicQueue.some(function (track) {
+    return track.loading || !Number.isFinite(track.durationMs) || track.durationMs <= 0;
+  })) {
+    gameClient.interface.setCancelMessage("Wait until every selected MP3 duration is loaded.");
+    return;
+  }
+
+  let payload = {
+    zoneId: this.__musicZoneId,
+    after: this.__afterQueue.value,
+    tracks: this.__musicQueue.map(function (track) {
+      return { id: track.id, durationMs: track.durationMs };
+    })
+  };
+  this.__sendRadioCommand("/radio queue start " + encodeURIComponent(JSON.stringify(payload)));
+  this.__musicQueueStatus.innerText = "Queue starts in 2 seconds...";
+}
+
+RadioEditorModal.prototype.__returnToLiveRadio = function () {
+  this.__sendRadioCommand("/radio queue live" + (this.__musicZoneId ? " " + this.__musicZoneId : ""));
+  this.__musicQueueStatus.innerText = "Returning to internet radio...";
 }
 
 RadioEditorModal.prototype.handleConfirm = function () {

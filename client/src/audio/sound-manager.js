@@ -28,6 +28,8 @@ const SoundManager = function(enabled) {
   this.__currentAmbientTrace = null;
   this.__radioStream = null;
   this.__radioUrl = "";
+  this.__partyRadioRevision = "";
+  this.__partyRadioStartTimer = null;
   this.__radioZoneVolume = 1;
   this.__radioGameVolume = 1;
   this.__radioGameVolumeTarget = 1;
@@ -503,6 +505,8 @@ SoundManager.prototype.setRadioStream = function(url, volume) {
     return;
   }
 
+  this.__partyRadioRevision = "";
+
   if(this.__radioUrl === url && this.__radioStream !== null) {
     this.__radioZoneVolume = Math.max(0, Math.min(1, volume === undefined ? 1 : volume));
     this.__applyRadioVolume();
@@ -553,7 +557,116 @@ SoundManager.prototype.setRadioStream = function(url, volume) {
 
 }
 
+SoundManager.prototype.setPartyRadioTrack = function(track, volume) {
+
+  /*
+   * Plays a server-authoritative local MP3. The server sends the current
+   * position (or a short lead-in), allowing stationary and late-joining
+   * players to hear the same part of the track.
+   */
+
+  if(!track || !track.url || !track.revision) return;
+
+  let revision = String(track.revision);
+  this.__radioZoneVolume = Math.max(0, Math.min(1, volume === undefined ? 1 : volume));
+
+  if(this.__partyRadioRevision === revision && this.__radioStream !== null) {
+    this.__applyRadioVolume();
+    if(Number(track.startsInMs) <= 0 && !this.__radioStream.paused) {
+      let latency = gameClient && gameClient.networkManager
+        ? Number(gameClient.networkManager.state.latency) || 0
+        : 0;
+      let expected = (Math.max(0, Number(track.positionMs) || 0)
+        + Math.max(0, Math.min(500, latency / 2))) / 1000;
+      if(Math.abs(this.__radioStream.currentTime - expected) > 1.25) {
+        try { this.__radioStream.currentTime = expected; } catch(error) {}
+      }
+    }
+    return;
+  }
+
+  this.stopRadioStream();
+  this.__partyRadioRevision = revision;
+  this.__radioUrl = track.url;
+  this.__radioStream = new Audio();
+  this.__radioStream.crossOrigin = "anonymous";
+  this.__radioStream.loop = false;
+  this.__radioStream.preload = "auto";
+  this.__radioStream.src = track.url;
+  this.__applyRadioVolume();
+
+  let stream = this.__radioStream;
+  let self = this;
+  let receivedAt = performance.now();
+  let initialPositionMs = Math.max(0, Number(track.positionMs) || 0);
+  let startsInMs = Math.max(0, Number(track.startsInMs) || 0);
+
+  let expectedPositionMs = function () {
+    let latency = gameClient && gameClient.networkManager
+      ? Number(gameClient.networkManager.state.latency) || 0
+      : 0;
+    let oneWayMs = Math.max(0, Math.min(500, latency / 2));
+    let elapsedMs = performance.now() - receivedAt + oneWayMs;
+    if(startsInMs > 0) return Math.max(0, elapsedMs - startsInMs);
+    return initialPositionMs + elapsedMs;
+  };
+
+  let beginPlayback = function () {
+    if(stream !== self.__radioStream || self.__partyRadioRevision !== revision) return;
+    self.__partyRadioStartTimer = null;
+    let position = expectedPositionMs() / 1000;
+    if(Number.isFinite(stream.duration) && stream.duration > 0) {
+      position = Math.min(position, Math.max(0, stream.duration - 0.05));
+    }
+    try { stream.currentTime = position; } catch(error) {}
+    let promise = stream.play();
+    if(promise && typeof promise.then === "function") {
+      promise.then(function () {
+        if(stream === self.__radioStream) self.__startRadioAnalyser(stream);
+      }).catch(function(error) {
+        if(stream === self.__radioStream) {
+          console.warn("Party track could not be played:", error);
+          gameClient.interface.setCancelMessage("Tap or click the game once to enable party music.");
+        }
+      });
+    } else {
+      self.__startRadioAnalyser(stream);
+    }
+  };
+
+  let schedulePlayback = function () {
+    if(stream !== self.__radioStream || self.__partyRadioRevision !== revision) return;
+    let latency = gameClient && gameClient.networkManager
+      ? Number(gameClient.networkManager.state.latency) || 0
+      : 0;
+    let oneWayMs = Math.max(0, Math.min(500, latency / 2));
+    let remainingMs = startsInMs > 0
+      ? startsInMs - (performance.now() - receivedAt) - oneWayMs
+      : 0;
+    if(remainingMs > 10) {
+      self.__partyRadioStartTimer = setTimeout(beginPlayback, remainingMs);
+    } else {
+      beginPlayback();
+    }
+  };
+
+  stream.addEventListener("loadedmetadata", schedulePlayback, { once: true });
+  stream.addEventListener("error", function () {
+    if(stream === self.__radioStream) {
+      console.warn("Party MP3 could not be loaded:", track.url);
+    }
+  }, { once: true });
+  stream.load();
+
+}
+
 SoundManager.prototype.stopRadioStream = function() {
+
+  if(this.__partyRadioStartTimer !== null) {
+    clearTimeout(this.__partyRadioStartTimer);
+    this.__partyRadioStartTimer = null;
+  }
+  this.__partyRadioRevision = "";
 
   if(this.__radioStream === null) {
     this.__radioUrl = "";

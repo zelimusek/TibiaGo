@@ -665,6 +665,30 @@
                 <label for="radio-editor-url">Radio URL</label>
                 <input id="radio-editor-url" type="url" autocomplete="off" placeholder="https://example.com/stream">
 
+                <section class="radio-editor-music">
+                  <div class="radio-editor-section-title">
+                    <strong>Music Library</strong>
+                    <button id="radio-editor-library-refresh" type="button">Refresh library</button>
+                  </div>
+                  <p class="radio-editor-help">Add MP3 files to client/party-music, then refresh. Local tracks temporarily replace the live radio.</p>
+                  <div id="radio-editor-library" class="radio-editor-track-list"></div>
+                  <div class="radio-editor-section-title radio-editor-queue-title">
+                    <strong>DJ Queue</strong>
+                    <span id="radio-editor-queue-status">Internet radio is live</span>
+                  </div>
+                  <div id="radio-editor-queue" class="radio-editor-track-list radio-editor-queue"></div>
+                  <div class="radio-editor-queue-controls">
+                    <label for="radio-editor-after-queue">After queue
+                      <select id="radio-editor-after-queue">
+                        <option value="radio">Return to internet radio</option>
+                        <option value="repeat">Repeat queue</option>
+                      </select>
+                    </label>
+                    <button id="radio-editor-play-queue" type="button">Play queue</button>
+                    <button id="radio-editor-return-live" type="button">Return live</button>
+                  </div>
+                </section>
+
                 <div class="radio-editor-row">
                   <label for="radio-editor-radius">Radius
                     <input id="radio-editor-radius" type="number" min="0" max="50" step="1">

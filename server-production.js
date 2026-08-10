@@ -420,17 +420,25 @@ setInterval(writeMemoryTelemetry, MEMORY_LOG_INTERVAL_MS).unref();
 function serveStaticFile(req, res) {
   let filePath = url.parse(req.url).pathname;
 
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch (error) {
+    res.writeHead(400);
+    res.end("Bad Request");
+    return;
+  }
+
   // Default to index.html
   if (filePath === "/" || filePath === "") {
     filePath = "/index.html";
   }
 
   // Security: prevent directory traversal
-  const safePath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, "");
-  const fullPath = path.join(CLIENT_DIR, safePath);
+  const safePath = path.normalize(filePath).replace(/^[/\\]+/, "");
+  const fullPath = path.resolve(CLIENT_DIR, safePath);
 
   // Must be within CLIENT_DIR
-  if (!fullPath.startsWith(CLIENT_DIR)) {
+  if (fullPath !== CLIENT_DIR && !fullPath.startsWith(CLIENT_DIR + path.sep)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
@@ -439,21 +447,26 @@ function serveStaticFile(req, res) {
   // Check if file exists
   fs.stat(fullPath, (err, stats) => {
     if (err || !stats.isFile()) {
+      if (filePath.startsWith("/party-music/")) {
+        res.writeHead(404);
+        res.end("Not Found");
+        return;
+      }
       // If not found, serve index.html (SPA fallback)
       const indexPath = path.join(CLIENT_DIR, "index.html");
       if (fs.existsSync(indexPath) && filePath !== "/index.html") {
-        serveFile(indexPath, res);
+        serveFile(indexPath, res, req);
       } else {
         res.writeHead(404);
         res.end("Not Found");
       }
       return;
     }
-    serveFile(fullPath, res);
+    serveFile(fullPath, res, req, stats);
   });
 }
 
-function serveFile(fullPath, res) {
+function serveFile(fullPath, res, req, knownStats) {
   const ext = path.extname(fullPath).toLowerCase();
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
   const headers = { "Content-Type": contentType };
@@ -463,10 +476,46 @@ function serveFile(fullPath, res) {
   // otherwise leave the game on a black screen after a server update.
   if ([".html", ".js", ".css", ".webmanifest"].includes(ext)) {
     headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+  } else if (ext === ".mp3") {
+    headers["Cache-Control"] = "public, max-age=31536000, immutable";
   }
 
-  const stream = fs.createReadStream(fullPath);
-  res.writeHead(200, headers);
+  let stats = knownStats || fs.statSync(fullPath);
+  let range = req && req.headers ? req.headers.range : null;
+  let streamOptions = {};
+  let status = 200;
+
+  headers["Accept-Ranges"] = "bytes";
+  headers["Content-Length"] = stats.size;
+  if (range) {
+    let match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    let suffixLength = match && !match[1] && match[2] ? Number(match[2]) : null;
+    let start = suffixLength !== null
+      ? Math.max(0, stats.size - suffixLength)
+      : match && match[1] ? Number(match[1]) : 0;
+    let end = suffixLength !== null
+      ? stats.size - 1
+      : match && match[2] ? Number(match[2]) : stats.size - 1;
+    if (!match || !Number.isInteger(start) || !Number.isInteger(end)
+      || (suffixLength !== null && suffixLength <= 0)
+      || start < 0 || end < start || start >= stats.size) {
+      res.writeHead(416, { "Content-Range": "bytes */" + stats.size });
+      res.end();
+      return;
+    }
+    end = Math.min(end, stats.size - 1);
+    status = 206;
+    streamOptions = { start: start, end: end };
+    headers["Content-Range"] = "bytes " + start + "-" + end + "/" + stats.size;
+    headers["Content-Length"] = end - start + 1;
+  }
+
+  res.writeHead(status, headers);
+  if (req && req.method === "HEAD") {
+    res.end();
+    return;
+  }
+  const stream = fs.createReadStream(fullPath, streamOptions);
   stream.pipe(res);
   stream.on("error", () => {
     res.writeHead(500);

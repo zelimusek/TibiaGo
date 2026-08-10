@@ -665,6 +665,18 @@ PacketHandler.prototype.handleRadioStream = function (packet) {
   let ambiencePrefix = "radio-ambience:";
   let clubMenuPrefix = "club-menu:";
   let partyChoicePrefix = "party-choice:";
+  let partyTrackPrefix = "party-track:";
+
+  if (packet.enabled && packet.url.startsWith(partyTrackPrefix)) {
+    try {
+      let track = JSON.parse(decodeURIComponent(packet.url.slice(partyTrackPrefix.length)));
+      gameClient.interface.soundManager.setPartyRadioTrack(track, packet.volume);
+    } catch (error) {
+      console.warn("Could not start synchronized party track:", error);
+      gameClient.interface.setCancelMessage("The selected party track could not be played.");
+    }
+    return;
+  }
 
   if (packet.enabled && packet.url.startsWith(partyChoicePrefix)) {
     try {

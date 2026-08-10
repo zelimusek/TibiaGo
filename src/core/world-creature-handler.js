@@ -11,6 +11,7 @@ const LaserChairsEvent = requireModule("core/laser-chairs-event");
 const PartyGameFlow = requireModule("core/party-game-flow");
 const PartyBouncerEvent = requireModule("core/party-bouncer-event");
 const PartyAchievementSystem = requireModule("core/party-achievement-system");
+const PartyRadioQueue = requireModule("core/party-radio-queue");
 const fs = require("fs");
 const path = require("path");
 
@@ -112,6 +113,7 @@ const CreatureHandler = function () {
 
   // Browser radio zones
   this.__radioZones = this.__loadRadioZones();
+  this.partyRadioQueue = new PartyRadioQueue(this);
   this.__radioEffectTicks = 0;
   this.__spotlightFocus = null;
   this.__laserShow = null;
@@ -282,8 +284,12 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
   let zone = this.__radioZones.find(function (entry) {
     return entry.id === this.__getRadioZoneId(position);
   }, this);
+  let activeState = this.__getRadioZoneState(position);
+  let musicZone = zone || (activeState ? activeState.zone : null);
 
   return {
+    zoneId: zone ? zone.id : this.__getRadioZoneId(position),
+    musicZoneId: musicZone ? musicZone.id : null,
     url: zone ? zone.url : "",
     radius: zone && Number.isInteger(zone.radius) ? zone.radius : 4,
     fadeRadius: zone && Number.isInteger(zone.fadeRadius) ? zone.fadeRadius : 5,
@@ -305,7 +311,9 @@ CreatureHandler.prototype.getRadioZoneEditorConfig = function (position) {
       ? zone.legacyLasersEnabled === true
       : zone && zone.discoCanvasEnabled === true,
     discoCanvasIntensity: zone && Number.isInteger(zone.discoCanvasIntensity) ? zone.discoCanvasIntensity : 60,
-    spotlightSpeed: zone && Number.isInteger(zone.spotlightSpeed) && zone.spotlightSpeed >= 0 && zone.spotlightSpeed <= 250 ? zone.spotlightSpeed : 100
+    spotlightSpeed: zone && Number.isInteger(zone.spotlightSpeed) && zone.spotlightSpeed >= 0 && zone.spotlightSpeed <= 250 ? zone.spotlightSpeed : 100,
+    musicLibrary: this.partyRadioQueue.getLibrary(),
+    musicQueue: musicZone ? this.partyRadioQueue.getStatus(musicZone.id) : null
   };
 
 }
@@ -391,6 +399,24 @@ CreatureHandler.prototype.__isInsideRadioCore = function (zone, position) {
     && position.y >= Math.min(zone.from.y, zone.to.y)
     && position.y <= Math.max(zone.from.y, zone.to.y);
 
+}
+
+CreatureHandler.prototype.getRadioZoneAt = function (position) {
+  let id = this.__getRadioZoneId(position);
+  return this.__radioZones.find(function (zone) { return zone.id === id; }) || null;
+}
+
+CreatureHandler.prototype.getRadioZoneById = function (zoneId) {
+  return this.__radioZones.find(function (zone) { return zone.id === zoneId; }) || null;
+}
+
+CreatureHandler.prototype.resyncRadioZonePlayers = function (zoneId) {
+  this.__playerMap.forEach(function (player) {
+    let state = this.__getRadioZoneState(player.position);
+    if (state && state.zone && state.zone.id === zoneId) {
+      this.__syncRadioZone(player, null);
+    }
+  }, this);
 }
 
 CreatureHandler.prototype.getPartyRadioPlayerCount = function () {
@@ -1104,8 +1130,14 @@ CreatureHandler.prototype.__syncRadioZone = function (player, oldPosition) {
     return;
   }
 
-  if (newZone && newZone.enabled && newZone.url) {
-    return player.write(new RadioStreamPacket(true, newZone.url, newState.volume));
+  if (newZone && newZone.enabled) {
+    let queuedTrack = this.partyRadioQueue.encodePlayback(newZone.id, Date.now());
+    if (queuedTrack) {
+      return player.write(new RadioStreamPacket(true, queuedTrack, newState.volume));
+    }
+    if (newZone.url) {
+      return player.write(new RadioStreamPacket(true, newZone.url, newState.volume));
+    }
   }
 
   return player.write(new RadioStreamPacket(false, "", 0));
@@ -1415,6 +1447,7 @@ CreatureHandler.prototype.tick = function () {
     this.__refreshCrowdShowParticipants();
   }
 
+  this.partyRadioQueue.tick(Date.now());
   this.__tickClubDance();
   if (this.__spotlightFocus && this.__spotlightFocus.endsAt !== null && this.__spotlightFocus.endsAt <= Date.now()) {
     this.__spotlightFocus = null;
