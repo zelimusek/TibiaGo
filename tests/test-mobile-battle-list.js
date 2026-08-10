@@ -30,6 +30,13 @@ const context = vm.createContext({
   },
 });
 
+vm.runInContext(
+  "String.prototype.format = function () { " +
+    "var args = arguments; var index = 0; " +
+    "return this.replace(/%s/g, function () { return args[index++]; }); };",
+  context
+);
+
 vm.runInContext(source + "\nthis.BattleWindow = BattleWindow;", context, {
   filename: "window-battle.js",
 });
@@ -67,6 +74,46 @@ assert.strictEqual(toggledCreature, null);
 
 battle.__activateCreature({ id: "77" });
 assert.strictEqual(toggledCreature, creature);
+
+const hpText = { textContent: "" };
+const hpFill = { style: {} };
+const hpWrapper = {
+  style: {},
+  querySelector(selector) {
+    return selector === ".bar-text" ? hpText : hpFill;
+  },
+};
+const manaWrapper = { style: {}, querySelector() { return null; } };
+const nameNode = { textContent: "" };
+const loginEntry = {
+  style: {},
+  dataset: { outfitSignature: JSON.stringify("login-outfit") },
+  firstElementChild: { firstElementChild: nameNode },
+  classList: { toggle() {} },
+  setAttribute() {},
+  querySelectorAll() { return [hpWrapper, manaWrapper]; },
+};
+const loginCreature = {
+  id: 88,
+  type: 1,
+  name: "Login Demon",
+  state: { health: 75, mana: 0 },
+  maxHealth: 100,
+  maxMana: 0,
+  outfit: { serialize: () => "login-outfit" },
+};
+
+context.gameClient.player = null;
+context.gameClient.isSelf = () => false;
+battle.getBody = () => ({ querySelector: () => loginEntry });
+battle.__scheduleLayout = () => {};
+
+assert.doesNotThrow(
+  () => battle.updateCreature(loginCreature),
+  "creature packets may reach the Battle List before the local player is created"
+);
+assert.strictEqual(loginEntry.style.display, "flex");
+assert.strictEqual(hpText.textContent, "75%");
 
 assert.match(source, /__multiUseObject[\s\S]*?ItemUseOnCreaturePacket/);
 assert.match(source, /touchMoved[\s\S]*?touchmove[\s\S]*?touchend/);

@@ -206,7 +206,11 @@ BattleWindow.prototype.updateCreature = function (creature) {
   element.dataset.creatureName = creature.name.toLocaleLowerCase();
   element.classList.toggle(
     "battle-window-targeted",
-    typeof player.isCreatureTarget === "function" && player.isCreatureTarget(creature)
+    Boolean(
+      player &&
+      typeof player.isCreatureTarget === "function" &&
+      player.isCreatureTarget(creature)
+    )
   );
 
   let nameSpan = element.firstElementChild.firstElementChild;
