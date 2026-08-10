@@ -48,6 +48,13 @@ try {
   assert.strictEqual(queue.getPlayback("radio-test"), null, "the queue should return to live radio after its final track");
   assert.strictEqual(broadcasts.length, 3, "returning to live radio should be pushed to listeners");
 
+  queue.clearDraft("radio-draft");
+  assert.strictEqual(queue.addDraftTrack("radio-draft", library[0].id, 5000).ok, true);
+  assert.strictEqual(queue.addDraftTrack("radio-draft", library[1].id, 7000).ok, true);
+  let drafted = queue.startDraft("radio-draft", "radio");
+  assert.strictEqual(drafted.ok, true, "a multi-command draft should start successfully");
+  assert.strictEqual(queue.getStatus("radio-draft").tracks.length, 2);
+
   console.log("Party radio queue tests passed.");
 } finally {
   fs.rmSync(temporaryRoot, { recursive: true, force: true });

@@ -281,14 +281,23 @@ RadioEditorModal.prototype.__playMusicQueue = function () {
     return;
   }
 
-  let payload = {
-    zoneId: this.__musicZoneId,
-    after: this.__afterQueue.value,
-    tracks: this.__musicQueue.map(function (track) {
-      return { id: track.id, durationMs: track.durationMs };
-    })
-  };
-  this.__sendRadioCommand("/radio queue start " + encodeURIComponent(JSON.stringify(payload)));
+  if (!this.__musicZoneId) {
+    gameClient.interface.setCancelMessage("Open /radio while standing inside an existing radio zone.");
+    return;
+  }
+
+  // Client chat strings use an 8-bit length and are capped at 255 bytes.
+  // Build the queue through short ordered commands so even 50 tracks arrive
+  // intact instead of silently truncating one large JSON payload.
+  this.__sendRadioCommand("/radio queue clear " + this.__musicZoneId);
+  this.__musicQueue.forEach(function (track) {
+    this.__sendRadioCommand(
+      "/radio queue add " + this.__musicZoneId + " " + track.id + " " + Math.round(track.durationMs)
+    );
+  }, this);
+  this.__sendRadioCommand(
+    "/radio queue play " + this.__musicZoneId + " " + this.__afterQueue.value
+  );
   this.__musicQueueStatus.innerText = "Queue starts in 2 seconds...";
 }
 

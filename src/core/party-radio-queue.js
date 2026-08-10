@@ -21,6 +21,7 @@ const PartyRadioQueue = function (creatureHandler, options) {
     || path.resolve(process.cwd(), "client", "party-music");
   this.__publicBase = options.publicBase || "/party-music/";
   this.__states = new Map();
+  this.__drafts = new Map();
   this.__revision = 0;
 };
 
@@ -134,6 +135,39 @@ PartyRadioQueue.prototype.start = function (zoneId, requestedTracks, after) {
     ok: true,
     message: "Party queue scheduled with " + tracks.length + " track" + (tracks.length === 1 ? "" : "s") + "."
   };
+};
+
+PartyRadioQueue.prototype.clearDraft = function (zoneId) {
+  this.__drafts.set(zoneId, []);
+  return { ok: true };
+};
+
+PartyRadioQueue.prototype.addDraftTrack = function (zoneId, trackId, durationMs) {
+  let draft = this.__drafts.get(zoneId);
+  if (!Array.isArray(draft)) {
+    return { ok: false, message: "Start a new DJ queue before adding tracks." };
+  }
+  if (draft.length >= MAX_QUEUE_TRACKS) {
+    return { ok: false, message: "A party queue can contain at most " + MAX_QUEUE_TRACKS + " tracks." };
+  }
+
+  durationMs = Math.round(Number(durationMs));
+  if (!trackId || !Number.isFinite(durationMs)
+    || durationMs < MIN_TRACK_DURATION_MS
+    || durationMs > MAX_TRACK_DURATION_MS) {
+    return { ok: false, message: "One of the queued tracks has invalid metadata." };
+  }
+  draft.push({ id: String(trackId), durationMs: durationMs });
+  return { ok: true };
+};
+
+PartyRadioQueue.prototype.startDraft = function (zoneId, after) {
+  let draft = this.__drafts.get(zoneId);
+  if (!Array.isArray(draft)) {
+    return { ok: false, message: "The DJ queue expired. Open /radio and try again." };
+  }
+  this.__drafts.delete(zoneId);
+  return this.start(zoneId, draft, after);
 };
 
 PartyRadioQueue.prototype.stop = function (zoneId) {

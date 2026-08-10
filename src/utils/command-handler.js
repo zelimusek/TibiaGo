@@ -360,7 +360,19 @@ CommandHandler.prototype.handleCommandRadio = function (player, message) {
       return player.sendCancelMessage("Open /radio while standing inside an existing radio zone first.");
     }
 
-    if (action === "start") {
+    if (action === "clear") {
+      result = gameServer.world.creatureHandler.partyRadioQueue.clearDraft(zone.id);
+      return result.ok ? true : player.sendCancelMessage(result.message);
+    } else if (action === "add") {
+      result = gameServer.world.creatureHandler.partyRadioQueue.addDraftTrack(
+        zone.id,
+        message[4],
+        message[5]
+      );
+      return result.ok ? true : player.sendCancelMessage(result.message);
+    } else if (action === "play") {
+      result = gameServer.world.creatureHandler.partyRadioQueue.startDraft(zone.id, message[4]);
+    } else if (action === "start") {
       result = gameServer.world.creatureHandler.partyRadioQueue.start(
         zone.id,
         payload.tracks,
