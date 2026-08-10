@@ -10,6 +10,21 @@
 
 .move-item-wrapper-inner-row {
   display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#item-amount {
+  min-width: 120px;
+}
+
+#item-amount-input {
+  box-sizing: border-box;
+  width: 58px;
+  height: 24px;
+  padding: 3px 4px;
+  color: white;
+  text-align: center;
 }
 
 .move-item-wrapper-inner-row button {

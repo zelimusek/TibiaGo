@@ -484,7 +484,7 @@ Mouse.prototype.__bindMoveCallback = function (fromObject, toObject) {
     return this.sendItemMove(fromObject, toObject, 1);
   }
 
-  if (item.isStackable() && gameClient.keyboard.isControlDown() && item.count > 1) {
+  if (item.isStackable() && !gameClient.keyboard.isControlDown() && item.count > 1) {
 
     // Open the move stackable item 
     let properties = new Object({

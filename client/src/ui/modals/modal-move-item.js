@@ -22,10 +22,13 @@ const MoveItemModal = function(element) {
 
   // Specific HTML elements
   this.__slider = document.getElementById("item-amount");
+  this.__numberInput = document.getElementById("item-amount-input");
   this.__output = document.getElementById("item-count");
 
-  // Bind the new slide function
-  this.__slider.addEventListener("input", this.__changeSelectedCount.bind(this));
+  // Keep mouse/touch slider input and direct keyboard input synchronized.
+  this.__slider.addEventListener("input", this.__changeSelectedCount.bind(this, this.__slider));
+  this.__numberInput.addEventListener("input", this.__changeSelectedCount.bind(this, this.__numberInput));
+  this.__numberInput.addEventListener("keydown", this.__handleNumberKeyDown.bind(this));
   
   // State properties of the modal
   this.__properties = null;
@@ -43,9 +46,6 @@ MoveItemModal.prototype.handleOpen = function(properties) {
    * Callback fired when the slider is slid and the selected count changes
    */
 
-  // Focus on the amount selection
-  document.getElementById("item-amount").focus();
-
   this.__properties = properties;
   
 
@@ -53,8 +53,14 @@ MoveItemModal.prototype.handleOpen = function(properties) {
 
   // Set the current count and maximum
   this.__slider.value = this.__slider.max = this.__count;
+  this.__numberInput.value = this.__count;
+  this.__numberInput.max = this.__count;
 
-  this.__changeSelectedCount();
+  this.__changeSelectedCount(this.__slider);
+
+  // Selecting the value makes typing a replacement number immediate.
+  this.__numberInput.focus();
+  this.__numberInput.select();
 
 }
 
@@ -95,15 +101,21 @@ MoveItemModal.prototype.__redrawModal = function() {
 
 }
 
-MoveItemModal.prototype.__changeSelectedCount = function() {
+MoveItemModal.prototype.__changeSelectedCount = function(source) {
 
   /*
    * Function MoveItemModal
    * Callback fired when the slider is slid and the selected count changes
    */
 
-  let amount = Number(this.__slider.value);
+  let amount = Number(source.value);
   let max = Number(this.__slider.max);
+
+  if (!Number.isFinite(amount)) {
+    amount = 1;
+  }
+
+  amount = Math.trunc(amount);
 
   // When shift is pressed do in steps of 10 gold
   if(gameClient.keyboard.isShiftDown()) {
@@ -112,9 +124,23 @@ MoveItemModal.prototype.__changeSelectedCount = function() {
     }
   }
 
-  this.__count = amount.clamp(1, max);
+  this.__count = Math.min(max, Math.max(1, amount));
+  this.__slider.value = this.__count;
+  this.__numberInput.value = this.__count;
 
   // Redraw the DOM elements in the modal
   this.__redrawModal();
+
+}
+
+MoveItemModal.prototype.__handleNumberKeyDown = function(event) {
+
+  if (event.key !== "Enter" && event.keyCode !== 13) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  gameClient.interface.modalManager.handleConfirm();
 
 }

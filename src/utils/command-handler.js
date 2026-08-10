@@ -889,6 +889,122 @@ CommandHandler.prototype.findCreatureByName = function (name) {
   return { target, targetName };
 };
 
+CommandHandler.prototype.handleCommandBringAll = function (player) {
+  /*
+   * Bring every other connected player to separate nearby SQMs. Stacking a
+   * crowd on the GM's exact tile is legal in parts of the old protocol but
+   * produces ambiguous occupancy and unnecessary client resync edge cases.
+   */
+
+  let creatureHandler = gameServer.world.creatureHandler;
+  let targets = new Array();
+
+  creatureHandler.getConnectedPlayers().forEach(function (target) {
+    if (target !== player) {
+      targets.push(target);
+    }
+  });
+
+  if (targets.length === 0) {
+    return player.sendCancelMessage("There are no other players online.");
+  }
+
+  let center = player.getPosition();
+  let radius = Math.min(
+    10,
+    Math.max(2, Math.ceil((Math.sqrt(targets.length * 2 + 1) - 1) / 2))
+  );
+  let candidates = center.getSquare(radius).filter(function (position) {
+    return !position.equals(center);
+  });
+
+  // Closest rings first, with cardinal positions preferred over diagonals.
+  candidates.sort(function (left, right) {
+    let leftDx = Math.abs(left.x - center.x);
+    let leftDy = Math.abs(left.y - center.y);
+    let rightDx = Math.abs(right.x - center.x);
+    let rightDy = Math.abs(right.y - center.y);
+    let ringDifference = Math.max(leftDx, leftDy) - Math.max(rightDx, rightDy);
+
+    if (ringDifference !== 0) return ringDifference;
+    return (leftDx + leftDy) - (rightDx + rightDy);
+  });
+
+  let brought = 0;
+
+  targets.forEach(function (target) {
+    while (candidates.length > 0) {
+      let destination = candidates.shift();
+      let tile = gameServer.world.getTileFromWorldPosition(destination);
+
+      if (tile === null || target.isTileOccupied(tile)) {
+        continue;
+      }
+
+      let teleported = creatureHandler.teleportCreature(target, destination, {
+        ignoreFloorLava: true,
+        ignoreBomberman: true,
+        ignoreLaserChairs: true,
+        ignorePartyGameFlow: true,
+        ignorePvpLock: true,
+        resyncReason: "bring-all"
+      });
+
+      if (teleported) {
+        brought++;
+        break;
+      }
+    }
+  });
+
+  return player.sendCancelMessage(
+    "Brought " + brought + " of " + targets.length + " players to you."
+  );
+};
+
+CommandHandler.prototype.handleCommandBringAllStacked = function (player) {
+  /*
+   * Explicit party/debug variant: put every other connected player on the
+   * GM's exact SQM. Keep it separate from /bring all so the safer distributed
+   * behaviour remains the default for crowds.
+   */
+
+  let creatureHandler = gameServer.world.creatureHandler;
+  let destination = player.getPosition();
+  let targets = new Array();
+
+  creatureHandler.getConnectedPlayers().forEach(function (target) {
+    if (target !== player) {
+      targets.push(target);
+    }
+  });
+
+  if (targets.length === 0) {
+    return player.sendCancelMessage("There are no other players online.");
+  }
+
+  let brought = 0;
+
+  targets.forEach(function (target) {
+    let teleported = creatureHandler.teleportCreature(target, destination, {
+      ignoreFloorLava: true,
+      ignoreBomberman: true,
+      ignoreLaserChairs: true,
+      ignorePartyGameFlow: true,
+      ignorePvpLock: true,
+      resyncReason: "bring-all-stacked"
+    });
+
+    if (teleported) {
+      brought++;
+    }
+  });
+
+  return player.sendCancelMessage(
+    "Brought " + brought + " of " + targets.length + " players onto your SQM."
+  );
+};
+
 CommandHandler.prototype.handleCommandDj = function (player, message) {
   /*
    * Makes DJ Thomas yell a custom announcement to the local Party Zone,
@@ -1122,6 +1238,15 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (message[0] === "/bring") {
     let name = message.slice(1).join(" ").toLowerCase();
+
+    if (name === "all2") {
+      return this.handleCommandBringAllStacked(player);
+    }
+
+    if (name === "all") {
+      return this.handleCommandBringAll(player);
+    }
+
     let result = this.findCreatureByName(name);
 
     if (result.target) {
