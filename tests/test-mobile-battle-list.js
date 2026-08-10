@@ -14,6 +14,14 @@ const mobileCss = fs.readFileSync(
   path.join(root, "client", "css", "mobile.css"),
   "utf8"
 );
+const desktopCss = fs.readFileSync(
+  path.join(root, "client", "css", "new.css"),
+  "utf8"
+);
+const indexHtml = fs.readFileSync(
+  path.join(root, "client", "index.html"),
+  "utf8"
+);
 
 function InteractiveWindow() {}
 InteractiveWindow.prototype = {};
@@ -138,5 +146,9 @@ assert.match(source, /Math\.max\(dx, dy\)/);
 assert.match(mobileCss, /#battle-window > \.body\s*\{[\s\S]*?display: flex !important/);
 assert.match(mobileCss, /battle-window-bar-wrapper \+ \.battle-window-bar-wrapper[\s\S]*?display: none !important/);
 assert.match(mobileCss, /width: clamp\(126px, 34vw, 142px\)/);
+assert.match(desktopCss, /battle-window-target-canvas[\s\S]*?align-items: flex-end/);
+assert.match(mobileCss, /battle-window-target-canvas[\s\S]*?align-items: flex-end/);
+assert.match(indexHtml, /battle-window-bar-wrapper battle-window-health-bar/);
+assert.match(desktopCss, /battle-window-health-bar \.bar-holder[\s\S]*?border-color: #00C000/);
 
 console.log("PASS: mobile Battle List stays compact, sortable and touch-safe.");

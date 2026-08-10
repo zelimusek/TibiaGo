@@ -359,7 +359,7 @@ screen and (max-width: 768px) {
         flex: 0 0 36px;
         width: 36px;
         height: 42px;
-        align-items: center;
+        align-items: flex-end;
         justify-content: center;
         order: 0;
     }

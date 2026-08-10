@@ -94,7 +94,7 @@
   <div id="battle-window-target" class="battle-window-target-wrapper">
     <div class="battle-window-target-stats">
       <div class="battle-window-target-title"></div>
-      <div class="battle-window-bar-wrapper">
+      <div class="battle-window-bar-wrapper battle-window-health-bar">
         <div class="bar-holder">
           <div class="battle-window-target-stats-bar health"></div>
           <span class="bar-text">???</span>
@@ -1610,11 +1610,11 @@
 
           reloading = true;
           let target = new URL(window.location.href);
-          target.searchParams.set("build", "20260802.1");
+          target.searchParams.set("build", "20260804.1");
           window.location.replace(target.href);
         });
 
-        navigator.serviceWorker.register("/service-worker.js?v=30", {
+        navigator.serviceWorker.register("/service-worker.js?v=31", {
           updateViaCache: "none"
         }).then(function (registration) {
           return registration.update().catch(function () {

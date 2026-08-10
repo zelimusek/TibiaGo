@@ -142,7 +142,11 @@ body {
 }
 
 .battle-window-target-canvas {
-  flex: 0 1;
+  display: flex;
+  flex: 0 0 32px;
+  height: 100%;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .battle-window-target-canvas>canvas {
@@ -157,6 +161,10 @@ body {
   justify-content: center;
   align-items: stretch;
   padding-left: 4px;
+}
+
+#battle-window .battle-window-health-bar .bar-holder {
+  border-color: #00C000;
 }
 
 .visible {
