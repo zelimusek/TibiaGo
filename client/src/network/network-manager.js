@@ -17,6 +17,14 @@ const NetworkManager = function () {
   this.__lastServerOpcode = null;
   this.__diagnosticConnectionId = null;
   this.__connectedAt = null;
+  this.__recoverAfterClose = false;
+  this.__transportWatchdog = {
+    lastFrameAt: null,
+    recentGapAt: [],
+    recoveryScheduled: false,
+    recoveryInProgress: false,
+    lastRecoveryAt: -Infinity
+  };
 
   // The handler for all incoming packets
   this.packetHandler = new PacketHandler();
@@ -498,6 +506,8 @@ NetworkManager.prototype.__handlePacket = function (event) {
     );
   }
 
+  this.__observeTransportHealth();
+
   let diagnosticStartedAt = window.performance && typeof window.performance.now === "function"
     ? window.performance.now()
     : 0;
@@ -541,6 +551,109 @@ NetworkManager.prototype.__handlePacket = function (event) {
 
 }
 
+NetworkManager.prototype.__observeTransportHealth = function () {
+
+  const GAP_MS = 600;
+  const GAP_WINDOW_MS = 15000;
+  const REQUIRED_GAPS = 5;
+  const CONNECTION_GRACE_MS = 20000;
+  const RECOVERY_COOLDOWN_MS = 120000;
+
+  let watchdog = this.__transportWatchdog;
+  let timestamp = window.performance && typeof window.performance.now === "function"
+    ? window.performance.now()
+    : Date.now();
+  let gap = watchdog.lastFrameAt === null ? 0 : Math.max(0, timestamp - watchdog.lastFrameAt);
+  watchdog.lastFrameAt = timestamp;
+
+  if (gap < GAP_MS
+      || watchdog.recoveryScheduled
+      || watchdog.recoveryInProgress
+      || !this.state.connected
+      || !this.socket
+      || this.socket.readyState !== 1
+      || !gameClient.player
+      || !gameClient.renderer
+      || document.visibilityState === "hidden"
+      || this.__connectedAt === null
+      || Date.now() - this.__connectedAt < CONNECTION_GRACE_MS
+      || timestamp - watchdog.lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
+    return false;
+  }
+
+  let snapshot = window.tibiaDiagnostics
+    && typeof window.tibiaDiagnostics.getPerformanceSnapshot === "function"
+    ? window.tibiaDiagnostics.getPerformanceSnapshot()
+    : null;
+  let frame = snapshot && snapshot.frame ? snapshot.frame : null;
+  let pending = snapshot && snapshot.movement ? snapshot.movement.pending : null;
+
+  // A hidden/throttled tab, a busy renderer or an idle connection can all have
+  // legitimate frame gaps. Recover only the failure mode observed in production:
+  // smooth rendering while a movement acknowledgement waits behind bursty WS data.
+  if (!frame
+      || !Number.isFinite(frame.lastGapMs)
+      || frame.lastGapMs >= 120
+      || !pending
+      || !Number.isFinite(pending.ageMs)
+      || pending.ageMs < 300) {
+    return false;
+  }
+
+  watchdog.recentGapAt = watchdog.recentGapAt.filter(function (entry) {
+    return timestamp - entry <= GAP_WINDOW_MS;
+  });
+  watchdog.recentGapAt.push(timestamp);
+
+  if (watchdog.recentGapAt.length < REQUIRED_GAPS) {
+    return false;
+  }
+
+  watchdog.recentGapAt = [];
+  watchdog.recoveryScheduled = true;
+  let affectedSocket = this.socket;
+  window.setTimeout(function () {
+    this.__recoverStalledTransport(affectedSocket, gap);
+  }.bind(this), 0);
+  return true;
+
+}
+
+NetworkManager.prototype.__recoverStalledTransport = function (affectedSocket, lastGapMs) {
+
+  let watchdog = this.__transportWatchdog;
+  watchdog.recoveryScheduled = false;
+
+  if (this.socket !== affectedSocket
+      || !this.state.connected
+      || !affectedSocket
+      || affectedSocket.readyState !== 1) {
+    return false;
+  }
+
+  watchdog.recoveryInProgress = true;
+  watchdog.lastRecoveryAt = window.performance && typeof window.performance.now === "function"
+    ? window.performance.now()
+    : Date.now();
+  this.__recoverAfterClose = true;
+
+  if (window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("websocket-automatic-recovery", {
+      lastFrameGapMs: Math.round(Number(lastGapMs) || 0),
+      connectionId: this.__diagnosticConnectionId
+    }, true);
+  }
+
+  gameClient.keyboard.setInactive();
+  gameClient.interface.modalManager.open(
+    "floater-connecting",
+    "The connection became unstable. Reconnecting..."
+  );
+  affectedSocket.close(4000, "client-transport-recovery");
+  return true;
+
+}
+
 NetworkManager.prototype.__handleError = function (event) {
 
   /*
@@ -581,6 +694,8 @@ NetworkManager.prototype.__handleClose = function (event) {
   console.log("Disconnected");
 
   let wasConnected = this.state.connected;
+  let recoverAfterClose = this.__recoverAfterClose;
+  this.__recoverAfterClose = false;
   if (window.tibiaDiagnostics) {
     window.tibiaDiagnostics.record("websocket-close", {
       code: event.code,
@@ -599,6 +714,18 @@ NetworkManager.prototype.__handleClose = function (event) {
     gameClient.reset();
   }
 
+  if (recoverAfterClose) {
+    gameClient.interface.modalManager.open(
+      "floater-connecting",
+      "The connection became unstable. Reconnecting..."
+    );
+    window.setTimeout(function () {
+      if (!this.state.connected) {
+        gameClient.connect();
+      }
+    }.bind(this), 350);
+  }
+
 }
 
 NetworkManager.prototype.__handleConnection = function (event) {
@@ -610,6 +737,12 @@ NetworkManager.prototype.__handleConnection = function (event) {
 
   this.state.connected = true;
   this.__connectedAt = Date.now();
+  this.__transportWatchdog.lastFrameAt = window.performance && typeof window.performance.now === "function"
+    ? window.performance.now()
+    : Date.now();
+  this.__transportWatchdog.recentGapAt = [];
+  this.__transportWatchdog.recoveryScheduled = false;
+  this.__transportWatchdog.recoveryInProgress = false;
 
   if (window.tibiaDiagnostics) {
     window.tibiaDiagnostics.record("websocket-open", {
