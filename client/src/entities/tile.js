@@ -289,9 +289,14 @@ Tile.prototype.isOccupied = function() {
     return true;
   }
 
-  // Can not walk through entities
-  if(Array.from(this.monsters).filter(x => x.type !== 0).length > 0) {
-    return true;
+  // The player's own creature occupies the starting tile and must not block
+  // its search. Every other creature does: players included. Ignoring remote
+  // players made click-to-walk choose a route straight through them and fail
+  // only when the server rejected the step instead of finding a way around.
+  for(let creature of this.monsters) {
+    if(creature !== gameClient.player) {
+      return true;
+    }
   }
 
   // Available

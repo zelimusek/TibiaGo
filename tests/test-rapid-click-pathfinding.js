@@ -243,6 +243,60 @@ assert.doesNotThrow(
 assert.strictEqual(clickedFrom, startPosition);
 assert.strictEqual(clickedTo, southPosition);
 
+// Client-side A* must route around other players. Only the local player may
+// occupy the search's starting tile without making it unavailable.
+const localPlayer = { type: 0, name: "God" };
+const tileContext = vm.createContext({
+  console,
+  gameClient: { player: localPlayer },
+  Thing: function Thing() {},
+  PropBitFlag: function PropBitFlag() {},
+  Position: function Position() {},
+});
+tileContext.PropBitFlag.prototype.flags = {
+  DatFlagGround: 0,
+  DatFlagNotWalkable: 1,
+  DatFlagTranslucent: 2,
+};
+const tileFile = path.join(
+  __dirname,
+  "..",
+  "client",
+  "src",
+  "entities",
+  "tile.js"
+);
+vm.runInContext(
+  fs.readFileSync(tileFile, "utf8") + "\nthis.ClientTile = Tile;",
+  tileContext,
+  { filename: tileFile }
+);
+
+function makePathfindingTile(creatures) {
+  const tile = Object.create(tileContext.ClientTile.prototype);
+  tile.id = 100;
+  tile.monsters = new Set(creatures);
+  tile.isWalkable = () => true;
+  tile.isItemBlocked = () => false;
+  return tile;
+}
+
+assert.strictEqual(
+  makePathfindingTile([localPlayer]).isOccupied(),
+  false,
+  "The local player must not block its own starting tile."
+);
+assert.strictEqual(
+  makePathfindingTile([localPlayer, { type: 0, name: "Zell" }]).isOccupied(),
+  true,
+  "Another player must be treated as an A* obstacle."
+);
+assert.strictEqual(
+  makePathfindingTile([{ type: 2, name: "NPC" }]).isOccupied(),
+  true,
+  "NPCs must remain A* obstacles."
+);
+
 console.log(
-  "PASS: rapid clicks replace old routes and stale continuations cannot backtrack or crash."
+  "PASS: rapid clicks stay current and client paths route around other creatures."
 );
