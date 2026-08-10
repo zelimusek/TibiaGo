@@ -501,10 +501,10 @@
           <div class="modal-body">
             <form>
               <p>Username:
-                <br><input class="password-input" name='username' id="user-username" value="111111" type="text"
+                <br><input class="password-input" name='username' id="user-username" value="" type="text"
                   placeholder="Account Name">
               <p>Password:
-                <br><input class="password-input" name='password' id="user-password" value="tibia" type="password"
+                <br><input class="password-input" name='password' id="user-password" value="" type="password"
                   placeholder="Account Password">
             </form>
             <hr>
@@ -565,7 +565,7 @@
       <!-- The Setting buttons at the bottom -->
       <div class="login-settings">
         <button id="login-info">Enter Game</button>
-        <button id="create-account">Create Account</button>
+        <button id="create-account" disabled>Checking Registration...</button>
         <button id="party-maniacs">Party Maniacs</button>
         <button id="settings">Options</button>
         <button id="information">Party Guide</button>
@@ -841,7 +841,7 @@
                     <input type="checkbox" id="show-performance" autocomplete="off"> Show Performance
                   </label>
                   <label class="checkbox-label" for="anti-aliasing">
-                    <input type="checkbox" id="anti-aliasing" autocomplete="off"> Anti-Aliasing
+                    <input type="checkbox" id="anti-aliasing" autocomplete="off" checked> Anti-Aliasing
                   </label>
                   <label class="checkbox-label" for="enable-wasd-movement">
                     <input type="checkbox" id="enable-wasd-movement" autocomplete="off" checked> WASD Movement
