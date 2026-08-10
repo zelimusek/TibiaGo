@@ -169,9 +169,10 @@ LightCanvas.prototype.renderLightBubble = function(x, y, size, colorByte) {
    * Renders a particular light bubble
    */
 
-  // Scale to the gamescreen
-  x = 32 * x + 32;
-  y = 32 * y + 32;
+  // The renderer passes the top-left corner of a 32x32 world tile. Anchor
+  // classic DAT lights in the tile centre instead of its bottom-right corner.
+  x = 32 * x + 16;
+  y = 32 * y + 16;
   size *= 32;
 
   let color = this.getGradient(x, y, size, colorByte);

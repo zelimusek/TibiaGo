@@ -392,11 +392,15 @@ Renderer.prototype.__renderWorld = function () {
   // Finally draw the lightscreen to the canvas and reset it
   if (lightingEnabled) {
 
+    // Keep the player's personal light attached to the same elevated world
+    // anchor as their sprite instead of assuming a permanently flat tile.
+    let playerLightPosition = this.getCreatureScreenPosition(gameClient.player);
+
     // Has lighting
     if (gameClient.player.hasCondition(ConditionManager.prototype.LIGHT)) {
-      this.lightscreen.renderLightBubble(7, 5, 5, 23, true);
+      this.lightscreen.renderLightBubble(playerLightPosition.x, playerLightPosition.y, 5, 23, true);
     } else {
-      this.lightscreen.renderLightBubble(7, 5, 2, 23, true);
+      this.lightscreen.renderLightBubble(playerLightPosition.x, playerLightPosition.y, 2, 23, true);
     }
 
     // Disco spotlights participate in the real world light mask. Their
