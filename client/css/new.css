@@ -123,6 +123,11 @@ body {
   cursor: pointer;
 }
 
+.battle-window-target-wrapper.battle-window-targeted {
+  border-color: #d92222;
+  box-shadow: inset 0 0 0 1px rgba(255, 72, 42, 0.42);
+}
+
 .battle-window-target-wrapper {
   display: flex;
   width: 100%;

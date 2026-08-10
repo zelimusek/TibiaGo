@@ -117,10 +117,15 @@ assert.match(
   /getOtherCreatures\(tileObject\.which\)[\s\S]*?targetMonster\(otherCreatures\)/,
   "A regular mobile tap on an occupied tile must target its creature."
 );
+assert.match(
+  battleSource,
+  /__activateCreature[\s\S]*?toggleCreatureTarget\(creature\)/,
+  "Desktop and mobile Battle List taps must share target toggling."
+);
 assert.strictEqual(
-  (battleSource.match(/toggleCreatureTarget\(creature\)/g) || []).length,
+  (battleSource.match(/__activateCreature\(this\)/g) || []).length,
   2,
-  "Desktop and mobile Battle List taps must both use target toggling."
+  "Both click and touch must use the shared Battle List action."
 );
 
 console.log("PASS: player/monster targeting toggles while NPC targeting stays blocked.");

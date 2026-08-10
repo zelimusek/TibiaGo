@@ -1,0 +1,78 @@
+"use strict";
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+const root = path.join(__dirname, "..");
+const source = fs.readFileSync(
+  path.join(root, "client", "src", "ui", "window-battle.js"),
+  "utf8"
+);
+const mobileCss = fs.readFileSync(
+  path.join(root, "client", "css", "mobile.css"),
+  "utf8"
+);
+
+function InteractiveWindow() {}
+InteractiveWindow.prototype = {};
+
+const context = vm.createContext({
+  console,
+  InteractiveWindow,
+  setTimeout,
+  CONST: {
+    TYPES: { PLAYER: 0, MONSTER: 1, NPC: 2 },
+  },
+  gameClient: {
+    touch: { isMobileMode: true },
+  },
+});
+
+vm.runInContext(source + "\nthis.BattleWindow = BattleWindow;", context, {
+  filename: "window-battle.js",
+});
+
+const battle = Object.create(context.BattleWindow.prototype);
+assert.strictEqual(battle.__isBattleCreature({ type: 0 }), true);
+assert.strictEqual(battle.__isBattleCreature({ type: 1 }), true);
+assert.strictEqual(battle.__isBattleCreature({ type: 2 }), false);
+assert.strictEqual(battle.__isBattleCreature(null), false);
+
+const sentPackets = [];
+let cursor = "crosshair";
+let toggledCreature = null;
+const creature = { id: 77, type: 1 };
+context.ItemUseOnCreaturePacket = function ItemUseOnCreaturePacket(item, id) {
+  this.item = item;
+  this.id = id;
+};
+context.gameClient.mouse = {
+  __multiUseObject: { id: 2281 },
+  setCursor(value) { cursor = value; },
+};
+context.gameClient.send = (packet) => sentPackets.push(packet);
+context.gameClient.world = {
+  getCreature: () => creature,
+  toggleCreatureTarget(value) { toggledCreature = value; },
+};
+
+battle.__activateCreature({ id: "77" });
+assert.strictEqual(sentPackets.length, 1);
+assert.strictEqual(sentPackets[0].id, 77);
+assert.strictEqual(context.gameClient.mouse.__multiUseObject, null);
+assert.strictEqual(cursor, "auto");
+assert.strictEqual(toggledCreature, null);
+
+battle.__activateCreature({ id: "77" });
+assert.strictEqual(toggledCreature, creature);
+
+assert.match(source, /__multiUseObject[\s\S]*?ItemUseOnCreaturePacket/);
+assert.match(source, /touchMoved[\s\S]*?touchmove[\s\S]*?touchend/);
+assert.match(source, /Math\.max\(dx, dy\)/);
+assert.match(mobileCss, /#battle-window > \.body\s*\{[\s\S]*?display: flex !important/);
+assert.match(mobileCss, /battle-window-bar-wrapper \+ \.battle-window-bar-wrapper[\s\S]*?display: none !important/);
+assert.match(mobileCss, /width: clamp\(126px, 34vw, 142px\)/);
+
+console.log("PASS: mobile Battle List stays compact, sortable and touch-safe.");

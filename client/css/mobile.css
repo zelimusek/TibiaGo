@@ -247,6 +247,202 @@ screen and (max-width: 768px) {
         top: 170px !important;
         right: 5px !important;
         left: auto !important;
+        width: clamp(126px, 34vw, 142px) !important;
+        max-width: calc(100vw - 10px) !important;
+        max-height: calc(100dvh - 180px) !important;
+        transform: none !important;
+        transform-origin: top right;
+        overflow: hidden !important;
+        border: 1px solid rgba(102, 102, 102, 0.9);
+        border-radius: 5px;
+        background: rgba(18, 18, 20, 0.96);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.68);
+    }
+
+    #battle-window > .header {
+        box-sizing: border-box;
+        height: 28px !important;
+        min-height: 28px;
+        padding: 2px 3px !important;
+        cursor: default;
+    }
+
+    #battle-window > .header > .title {
+        min-width: 0;
+        padding-left: 5px;
+        color: #f1f1f1;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    #battle-window > .header > .symbol-button {
+        width: 24px !important;
+        min-width: 24px !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+        line-height: 20px !important;
+        font-size: 13px !important;
+    }
+
+    #battle-window > .body {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        grid-template-columns: none !important;
+        grid-auto-rows: unset !important;
+        gap: 2px !important;
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 44px !important;
+        max-height: calc(100dvh - 212px) !important;
+        padding: 3px !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        align-content: unset !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+        scrollbar-width: thin;
+    }
+
+    #battle-window > .footer {
+        display: none !important;
+    }
+
+    #battle-window .battle-window-target-wrapper {
+        position: relative;
+        display: flex;
+        flex: 0 0 44px;
+        box-sizing: border-box;
+        width: 100%;
+        height: 44px;
+        min-height: 44px;
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid #151515;
+        border-left: 3px solid #d3b45d;
+        border-radius: 3px;
+        background:
+            linear-gradient(90deg, rgba(44, 44, 48, 0.98), rgba(25, 25, 28, 0.98)),
+            url("/png/bg2.png");
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #battle-window .battle-window-player {
+        border-left-color: #62bfe8;
+    }
+
+    #battle-window .battle-window-targeted {
+        border-color: #ff4938;
+        border-left-color: #ffcf4c;
+        background: linear-gradient(90deg, rgba(91, 38, 28, 0.98), rgba(38, 24, 25, 0.98));
+        box-shadow:
+            inset 0 0 0 1px rgba(255, 205, 69, 0.65),
+            0 0 7px rgba(255, 63, 44, 0.75);
+        animation: mobile-battle-target-pulse 1.15s ease-in-out infinite;
+    }
+
+    #battle-window .battle-window-targeted::after {
+        content: "◆";
+        position: absolute;
+        top: 1px;
+        right: 3px;
+        color: #ffd85a;
+        font-size: 8px;
+        text-shadow: 0 0 4px #ff3a24;
+    }
+
+    #battle-window .battle-window-target-canvas {
+        display: flex;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 42px;
+        align-items: center;
+        justify-content: center;
+        order: 0;
+    }
+
+    #battle-window .battle-window-target-canvas > canvas {
+        width: 32px;
+        height: 32px;
+        image-rendering: pixelated;
+    }
+
+    #battle-window .battle-window-target-stats {
+        order: 1;
+        min-width: 0;
+        padding: 3px 4px 3px 1px;
+        justify-content: center;
+    }
+
+    #battle-window .battle-window-target-title {
+        overflow: hidden;
+        margin-bottom: 3px;
+        color: #f0cf72;
+        font-size: 10px;
+        line-height: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #battle-window .battle-window-player .battle-window-target-title {
+        color: #8edbff;
+    }
+
+    #battle-window .battle-window-targeted .battle-window-target-title {
+        color: #fff2bb;
+    }
+
+    #battle-window .battle-window-bar-wrapper {
+        display: block;
+    }
+
+    #battle-window .battle-window-target-stats > .battle-window-bar-wrapper + .battle-window-bar-wrapper {
+        display: none !important;
+    }
+
+    #battle-window .bar-holder {
+        box-sizing: border-box;
+        height: 10px;
+        margin: 0;
+        overflow: hidden;
+        border-color: #090909;
+        border-radius: 3px;
+        background: #161616;
+    }
+
+    #battle-window .battle-window-target-stats-bar.health {
+        background: linear-gradient(180deg, #29d147, #0b8f27);
+        transition: width 120ms linear;
+    }
+
+    #battle-window .bar-text {
+        font-size: 8px;
+        line-height: 8px;
+    }
+
+    #battle-window .battle-window-empty {
+        display: none;
+        min-height: 42px;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 7px;
+        color: #aaa;
+        font-size: 9px;
+        font-style: italic;
+        text-align: center;
+    }
+
+    @keyframes mobile-battle-target-pulse {
+        0%, 100% {
+            box-shadow: inset 0 0 0 1px rgba(255, 205, 69, 0.5), 0 0 4px rgba(255, 63, 44, 0.45);
+        }
+        50% {
+            box-shadow: inset 0 0 0 1px rgba(255, 223, 117, 0.82), 0 0 9px rgba(255, 63, 44, 0.88);
+        }
     }
 
     /* Container windows (backpack, loot, corpse) open on the LEFT side */

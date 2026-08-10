@@ -264,6 +264,10 @@ Creature.prototype.serverSetOutfit = function (outfit) {
     this.spriteBufferMount = new SpriteBuffer(this.outfit.getSpriteBufferSize(this.outfit.getDataObjectMount()));
   }
 
+  if (gameClient.interface && gameClient.interface.windowManager) {
+    gameClient.interface.windowManager.getWindow("battle-window").updateCreature(this);
+  }
+
 }
 
 Creature.prototype.setPosition = function (position) {

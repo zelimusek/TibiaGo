@@ -10,11 +10,83 @@ const BattleWindow = function (element) {
 
   InteractiveWindow.call(this, element);
 
+  this.__layoutScheduled = false;
+  this.__emptyElement = document.createElement("div");
+  this.__emptyElement.className = "battle-window-empty";
+  this.__emptyElement.textContent = "No creatures nearby";
+  this.__emptyElement.style.display = "flex";
+  this.getBody().appendChild(this.__emptyElement);
+
 }
 
 // Set the prototype and constructor
 BattleWindow.prototype = Object.create(InteractiveWindow.prototype);
 BattleWindow.prototype.constructor = BattleWindow;
+
+BattleWindow.prototype.__isMobile = function () {
+  return Boolean(gameClient.touch && gameClient.touch.isMobileMode);
+}
+
+BattleWindow.prototype.__getCreatureRows = function () {
+  return Array.from(this.getBody().querySelectorAll(".battle-window-target-wrapper"));
+}
+
+BattleWindow.prototype.__isBattleCreature = function (creature) {
+  return Boolean(
+    creature &&
+    (creature.type === CONST.TYPES.PLAYER || creature.type === CONST.TYPES.MONSTER)
+  );
+}
+
+BattleWindow.prototype.__scheduleLayout = function () {
+  if (this.__layoutScheduled) {
+    return;
+  }
+
+  this.__layoutScheduled = true;
+  let callback = function () {
+    this.__layoutScheduled = false;
+    this.__refreshLayout();
+  }.bind(this);
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(callback);
+  } else {
+    setTimeout(callback, 0);
+  }
+}
+
+BattleWindow.prototype.__refreshLayout = function () {
+  let rows = this.__getCreatureRows();
+  let visibleRows = rows.filter(function (row) {
+    return row.style.display !== "none";
+  });
+
+  if (this.__isMobile()) {
+    visibleRows.sort(function (left, right) {
+      let distance = Number(left.dataset.distance) - Number(right.dataset.distance);
+      if (distance !== 0) {
+        return distance;
+      }
+
+      let type = Number(left.dataset.creatureType) - Number(right.dataset.creatureType);
+      if (type !== 0) {
+        return type;
+      }
+
+      return left.dataset.creatureName.localeCompare(right.dataset.creatureName);
+    });
+
+    visibleRows.forEach(function (row) {
+      this.getBody().insertBefore(row, this.__emptyElement);
+    }, this);
+  }
+
+  this.__emptyElement.style.display = visibleRows.length === 0 ? "flex" : "none";
+  this.getElement(".header").querySelector(".title").textContent = this.__isMobile()
+    ? "Battle · " + visibleRows.length
+    : "Battle";
+}
 
 BattleWindow.prototype.removeCreature = function (id) {
 
@@ -25,25 +97,63 @@ BattleWindow.prototype.removeCreature = function (id) {
   }
 
   element.remove();
+  this.__scheduleLayout();
 
 }
 
 BattleWindow.prototype.setTarget = function (creature) {
 
-  Array.from(this.getBody().children).forEach(function (x) {
-
-    if (creature === null) {
-      return x.style.border = "1px solid black";
-    }
-
-    if (Number(x.getAttribute('id')) === creature.id) {
-      x.style.border = "1px solid red";
-    } else {
-      x.style.border = "1px solid black";
-    }
-
+  this.__getCreatureRows().forEach(function (row) {
+    row.classList.toggle(
+      "battle-window-targeted",
+      creature !== null && Number(row.getAttribute("id")) === creature.id
+    );
   });
 
+}
+
+BattleWindow.prototype.__drawCreaturePreview = function (element, creature) {
+  let frames = creature.getCharacterFrames();
+  if (frames === null) {
+    return;
+  }
+
+  let canvasElement = element.querySelector(".battle-window-target-canvas canvas");
+  let canvas = new Canvas(canvasElement, 32, 32);
+  let zPattern = (frames.characterGroup.pattern.z > 1 && creature.isMounted()) ? 1 : 0;
+
+  canvas.__drawCharacter(
+    creature.spriteBuffer,
+    creature.spriteBufferMount,
+    creature.outfit,
+    new Position(1, 1),
+    frames.characterGroup,
+    frames.mountGroup,
+    frames.characterFrame,
+    frames.mountFrame,
+    CONST.DIRECTION.SOUTH,
+    zPattern,
+    32,
+    0
+  );
+
+  element.dataset.outfitSignature = JSON.stringify(creature.outfit.serialize());
+}
+
+BattleWindow.prototype.__activateCreature = function (element) {
+  let creature = gameClient.world.getCreature(Number(element.id));
+  if (creature === null) {
+    return;
+  }
+
+  if (gameClient.mouse.__multiUseObject !== null) {
+    gameClient.send(new ItemUseOnCreaturePacket(gameClient.mouse.__multiUseObject, creature.id));
+    gameClient.mouse.__multiUseObject = null;
+    gameClient.mouse.setCursor("auto");
+    return;
+  }
+
+  gameClient.world.toggleCreatureTarget(creature);
 }
 
 BattleWindow.prototype.updateCreature = function (creature) {
@@ -54,6 +164,10 @@ BattleWindow.prototype.updateCreature = function (creature) {
    */
 
   if (gameClient.isSelf(creature)) {
+    return this.removeCreature(creature.id);
+  }
+
+  if (!this.__isBattleCreature(creature)) {
     return this.removeCreature(creature.id);
   }
 
@@ -72,23 +186,41 @@ BattleWindow.prototype.updateCreature = function (creature) {
     let dx = Math.abs(playerPos.x - creaturePos.x);
     let dy = Math.abs(playerPos.y - creaturePos.y);
 
-    if (playerPos.z !== creaturePos.z || dx > 9 || dy > 9) {
+    let isVisible = playerPos.z === creaturePos.z && (
+      typeof player.canSee === "function"
+        ? player.canSee(creature)
+        : dx < 10 && dy < 8
+    );
+
+    if (!isVisible) {
       element.style.display = "none";
+      this.__scheduleLayout();
       return;
     }
+
+    element.dataset.distance = String(Math.max(dx, dy));
   }
 
   element.style.display = "flex";
+  element.dataset.creatureType = String(creature.type);
+  element.dataset.creatureName = creature.name.toLocaleLowerCase();
+  element.classList.toggle(
+    "battle-window-targeted",
+    typeof player.isCreatureTarget === "function" && player.isCreatureTarget(creature)
+  );
 
   let nameSpan = element.firstElementChild.firstElementChild;
-  nameSpan.innerHTML = creature.name;
+  nameSpan.textContent = creature.name;
+  element.setAttribute("aria-label", creature.name);
 
   let nodeList = element.querySelectorAll(".battle-window-bar-wrapper");
 
   // Health Bar
   let hpParams = [creature.state.health, creature.maxHealth];
-  nodeList[0].querySelector('.bar-text').innerHTML = "%s / %s".format(...hpParams);
   let hpPercent = Math.min(100, Math.max(0, (creature.state.health / (creature.maxHealth || 1)) * 100));
+  nodeList[0].querySelector('.bar-text').textContent = this.__isMobile()
+    ? Math.round(hpPercent) + "%"
+    : "%s / %s".format(...hpParams);
   nodeList[0].querySelector('.health').style.width = hpPercent + "%";
 
   // Mana Bar
@@ -100,6 +232,13 @@ BattleWindow.prototype.updateCreature = function (creature) {
     let manaPercent = Math.min(100, Math.max(0, ((creature.state.mana || 0) / (creature.maxMana || 1)) * 100));
     nodeList[1].querySelector('.mana').style.width = manaPercent + "%";
   }
+
+  let outfitSignature = JSON.stringify(creature.outfit.serialize());
+  if (element.dataset.outfitSignature !== outfitSignature) {
+    this.__drawCreaturePreview(element, creature);
+  }
+
+  this.__scheduleLayout();
 
 }
 
@@ -114,6 +253,10 @@ BattleWindow.prototype.addCreature = function (creature) {
     return this.removeCreature(creature.id);
   }
 
+  if (!this.__isBattleCreature(creature)) {
+    return this.removeCreature(creature.id);
+  }
+
   // Check if creature already exists in the list to avoid duplicates
   let existing = this.getBody().querySelector('[id="%s"]'.format(creature.id));
   if (existing) {
@@ -125,33 +268,17 @@ BattleWindow.prototype.addCreature = function (creature) {
   let node = document.getElementById("battle-window-target").cloneNode(true);
   node.style.display = "flex";
   node.setAttribute("id", creature.id);
+  node.setAttribute("role", "button");
+  node.classList.add(creature.type === CONST.TYPES.PLAYER
+    ? "battle-window-player"
+    : "battle-window-monster");
 
-  // Create a new canvas
-  let canvas = new Canvas(node.lastElementChild.firstElementChild, 32, 32);
-
-  let frames = creature.getCharacterFrames();
-  let zPattern = (frames.characterGroup.pattern.z > 1 && creature.isMounted()) ? 1 : 0;
-
-  // Call to draw the character
-  canvas.__drawCharacter(
-    creature.spriteBuffer,
-    creature.spriteBufferMount,
-    creature.outfit,
-    new Position(1, 1),
-    frames.characterGroup,
-    frames.mountGroup,
-    frames.characterFrame,
-    frames.mountFrame,
-    CONST.DIRECTION.SOUTH,
-    zPattern,
-    32,
-    0
-  );
+  this.__drawCreaturePreview(node, creature);
 
   let nameSpan = node.firstElementChild.firstElementChild;
-  nameSpan.innerHTML = creature.name;
+  nameSpan.textContent = creature.name;
 
-  this.getBody().appendChild(node);
+  this.getBody().insertBefore(node, this.__emptyElement);
 
   // Update the stats immediately
   this.updateCreature(creature);
@@ -181,28 +308,17 @@ BattleWindow.prototype.addCreature = function (creature) {
       return;
     }
 
-    // Check if we have a multi-use item active (crosshair mode for runes)
-    if (gameClient.mouse.__multiUseObject !== null) {
-      // Use the rune on this creature
-      let creatureId = Number(this.id);
-      gameClient.send(new ItemUseOnCreaturePacket(gameClient.mouse.__multiUseObject, creatureId));
-
-      // Reset the multi-use item and cursor
-      gameClient.mouse.__multiUseObject = null;
-      gameClient.mouse.setCursor("auto");
-      return;
-    }
-
-    // Desktop behavior - clicking the selected entry again stops attacking.
-    let creature = gameClient.world.getCreature(this.id);
-    gameClient.world.toggleCreatureTarget(creature);
+    this.__battleWindow.__activateCreature(this);
   });
+
+  node.__battleWindow = this;
 
   // Mobile support: Custom Tap Handling
   // We cannot just use touchstart with preventDefault because that breaks scrolling.
   // We need to track the touch and fire only if it wasn't a scroll.
   let touchStartX = 0;
   let touchStartY = 0;
+  let touchMoved = false;
 
   node.addEventListener("touchstart", function (event) {
     if (gameClient.touch && gameClient.touch.isMobileMode) {
@@ -214,8 +330,18 @@ BattleWindow.prototype.addCreature = function (creature) {
       let touch = event.changedTouches[0];
       touchStartX = touch.clientX;
       touchStartY = touch.clientY;
+      touchMoved = false;
     }
   }, { passive: true }); // Passive to allow scrolling
+
+  node.addEventListener("touchmove", function (event) {
+    if (gameClient.touch && gameClient.touch.isMobileMode) {
+      let touch = event.changedTouches[0];
+      if (Math.abs(touch.clientX - touchStartX) >= 10 || Math.abs(touch.clientY - touchStartY) >= 10) {
+        touchMoved = true;
+      }
+    }
+  }, { passive: true });
 
   node.addEventListener("touchend", function (event) {
     if (gameClient.touch && gameClient.touch.isMobileMode) {
@@ -224,20 +350,19 @@ BattleWindow.prototype.addCreature = function (creature) {
       let dy = Math.abs(touch.clientY - touchStartY);
 
       // If moved less than 10 pixels, consider it a tap
-      if (dx < 10 && dy < 10) {
+      if (!touchMoved && dx < 10 && dy < 10) {
         // It's a tap!
         event.preventDefault(); // Prevent mouse compatibility events
         event.stopPropagation();
         event.stopImmediatePropagation();
 
-        let id = Number(this.id);
-        let creature = gameClient.world.getCreature(id);
-
-        if (creature) {
-          gameClient.world.toggleCreatureTarget(creature);
-        }
+        this.__battleWindow.__activateCreature(this);
       }
     }
+  });
+
+  node.addEventListener("touchcancel", function () {
+    touchMoved = true;
   });
 
 }
