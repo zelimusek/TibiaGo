@@ -69,16 +69,24 @@ function createInput() {
 }
 
 const slider = createInput();
-const numberInput = createInput();
+const minusButton = createInput();
+const plusButton = createInput();
 const output = { innerHTML: "" };
-const modalElement = { querySelectorAll: () => [] };
+const modalListeners = new Map();
+const modalElement = {
+  querySelectorAll: () => [],
+  addEventListener(type, listener) { modalListeners.set(type, listener); },
+  setAttribute(name, value) { this[name] = value; },
+  focus() { this.focused = true; },
+};
 let confirmed = 0;
 let moveModal = null;
 const modalContext = vm.createContext({
   console,
   Math,
   Number,
-  Modal: function Modal() {},
+  Date,
+  Modal: function Modal(id) { this.element = modalContext.document.getElementById(id); },
   Canvas: function Canvas() {
     this.clear = function () {};
     this.drawSprite = function () {};
@@ -89,7 +97,8 @@ const modalContext = vm.createContext({
     getElementById(id) {
       if (id === "move-item-modal") return modalElement;
       if (id === "item-amount") return slider;
-      if (id === "item-amount-input") return numberInput;
+      if (id === "item-amount-minus") return minusButton;
+      if (id === "item-amount-plus") return plusButton;
       if (id === "item-count") return output;
       return null;
     }
@@ -123,26 +132,51 @@ vm.runInContext(modalSource + "\nthis.MoveItemModal = MoveItemModal;", modalCont
 
 moveModal = new modalContext.MoveItemModal("move-item-modal");
 moveModal.handleOpen({ fromObject, toObject, item });
-assert.strictEqual(numberInput.value, 73);
-assert.strictEqual(numberInput.max, 73);
-assert.strictEqual(numberInput.focused, true);
-assert.strictEqual(numberInput.selected, true);
-
-numberInput.value = "12";
-numberInput.listeners.get("input")();
-assert.strictEqual(slider.value, 12);
-assert.strictEqual(output.innerHTML, 12);
+assert.strictEqual(slider.value, 73);
+assert.strictEqual(slider.max, 73);
+assert.strictEqual(modalElement.focused, true);
 
 let prevented = false;
 let stopped = false;
-numberInput.listeners.get("keydown")({
+const typeDigit = key => modalListeners.get("keydown")({
+  key,
+  keyCode: key.charCodeAt(0),
+  preventDefault() { prevented = true; },
+  stopPropagation() { stopped = true; },
+});
+typeDigit("1");
+typeDigit("8");
+assert.strictEqual(slider.value, 18);
+assert.strictEqual(output.innerHTML, 18);
+
+minusButton.listeners.get("click")();
+assert.strictEqual(slider.value, 17);
+plusButton.listeners.get("click")();
+assert.strictEqual(slider.value, 18);
+
+modalListeners.get("keydown")({
+  key: "ArrowLeft",
+  keyCode: 37,
+  preventDefault() { prevented = true; },
+  stopPropagation() { stopped = true; },
+});
+assert.strictEqual(slider.value, 17);
+modalListeners.get("keydown")({
+  key: "ArrowRight",
+  keyCode: 39,
+  preventDefault() { prevented = true; },
+  stopPropagation() { stopped = true; },
+});
+assert.strictEqual(slider.value, 18);
+
+modalListeners.get("keydown")({
   key: "Enter",
   keyCode: 13,
   preventDefault() { prevented = true; },
   stopPropagation() { stopped = true; },
 });
 assert.strictEqual(confirmed, 1);
-assert.strictEqual(moved.at(-1).count, 12);
+assert.strictEqual(moved.at(-1).count, 18);
 assert.strictEqual(prevented, true);
 assert.strictEqual(stopped, true);
 

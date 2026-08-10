@@ -1020,19 +1020,18 @@
               <div class="modal-header">Move Item</div>
               <div class="modal-body">
                 <div class="move-item-wrapper">
-                  <div class="slot">
-                    <canvas id="move-count-sprite" width="32" height="32"></canvas>
-                    <span class="count" id="item-count"></span>
+                  <div class="move-item-selector-row">
+                    <div class="slot move-item-slot">
+                      <canvas id="move-count-sprite" width="32" height="32"></canvas>
+                      <span class="count" id="item-count"></span>
+                    </div>
+                    <button type="button" class="move-item-step" id="item-amount-minus" aria-label="Move one item fewer">-</button>
+                    <input type="range" class="slider" id="item-amount" min="1" aria-label="Amount to move">
+                    <button type="button" class="move-item-step" id="item-amount-plus" aria-label="Move one item more">+</button>
                   </div>
-                  <div class="move-item-wrapper-inner">
-                    <div class="move-item-wrapper-inner-row">
-                      <input type="range" class="slider" id="item-amount" min="1">
-                      <input type="number" id="item-amount-input" min="1" step="1" inputmode="numeric" aria-label="Amount to move">
-                    </div>
-                    <div class="move-item-wrapper-inner-row">
-                      <button action="cancel" value="Cancel">Cancel</button>
-                      <button action="confirm" value="Ok">Confirm</button>
-                    </div>
+                  <div class="move-item-wrapper-inner-row move-item-actions">
+                    <button action="cancel" value="Cancel">Cancel</button>
+                    <button action="confirm" value="Ok">Confirm</button>
                   </div>
                 </div>
               </div>

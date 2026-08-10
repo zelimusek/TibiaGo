@@ -22,17 +22,22 @@ const MoveItemModal = function(element) {
 
   // Specific HTML elements
   this.__slider = document.getElementById("item-amount");
-  this.__numberInput = document.getElementById("item-amount-input");
+  this.__minusButton = document.getElementById("item-amount-minus");
+  this.__plusButton = document.getElementById("item-amount-plus");
   this.__output = document.getElementById("item-count");
 
-  // Keep mouse/touch slider input and direct keyboard input synchronized.
+  // Keep the slider, buttons and direct numeric keyboard input synchronized.
   this.__slider.addEventListener("input", this.__changeSelectedCount.bind(this, this.__slider));
-  this.__numberInput.addEventListener("input", this.__changeSelectedCount.bind(this, this.__numberInput));
-  this.__numberInput.addEventListener("keydown", this.__handleNumberKeyDown.bind(this));
+  this.__minusButton.addEventListener("click", this.__stepSelectedCount.bind(this, -1));
+  this.__plusButton.addEventListener("click", this.__stepSelectedCount.bind(this, 1));
+  this.element.addEventListener("keydown", this.__handleKeyDown.bind(this));
+  this.element.setAttribute("tabindex", "-1");
   
   // State properties of the modal
   this.__properties = null;
   this.__count = null;
+  this.__typedAmount = "";
+  this.__lastTypedAt = 0;
 
 }
 
@@ -53,14 +58,13 @@ MoveItemModal.prototype.handleOpen = function(properties) {
 
   // Set the current count and maximum
   this.__slider.value = this.__slider.max = this.__count;
-  this.__numberInput.value = this.__count;
-  this.__numberInput.max = this.__count;
+  this.__typedAmount = "";
+  this.__lastTypedAt = 0;
 
   this.__changeSelectedCount(this.__slider);
 
-  // Selecting the value makes typing a replacement number immediate.
-  this.__numberInput.focus();
-  this.__numberInput.select();
+  // Keep keyboard input inside the modal, even though no text field is shown.
+  this.element.focus();
 
 }
 
@@ -126,14 +130,64 @@ MoveItemModal.prototype.__changeSelectedCount = function(source) {
 
   this.__count = Math.min(max, Math.max(1, amount));
   this.__slider.value = this.__count;
-  this.__numberInput.value = this.__count;
 
   // Redraw the DOM elements in the modal
   this.__redrawModal();
 
 }
 
-MoveItemModal.prototype.__handleNumberKeyDown = function(event) {
+MoveItemModal.prototype.__stepSelectedCount = function(step) {
+
+  this.__typedAmount = "";
+  this.__lastTypedAt = 0;
+  this.__slider.value = this.__count + step;
+  this.__changeSelectedCount(this.__slider);
+  this.element.focus();
+
+}
+
+MoveItemModal.prototype.__handleKeyDown = function(event) {
+
+  let direction = 0;
+
+  if (event.key === "ArrowLeft" || event.keyCode === 37) {
+    direction = -1;
+  } else if (event.key === "ArrowRight" || event.keyCode === 39) {
+    direction = 1;
+  }
+
+  if (direction !== 0) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.__stepSelectedCount(direction);
+    return;
+  }
+
+  let isDigit = typeof event.key === "string" && /^[0-9]$/.test(event.key);
+
+  if (isDigit) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    let now = Date.now();
+    if (now - this.__lastTypedAt > 1000) {
+      this.__typedAmount = "";
+    }
+
+    this.__typedAmount += event.key;
+    this.__lastTypedAt = now;
+    this.__changeSelectedCount({ value: this.__typedAmount });
+    return;
+  }
+
+  if (event.key === "Backspace" && this.__typedAmount.length > 0) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.__typedAmount = this.__typedAmount.slice(0, -1);
+    this.__lastTypedAt = Date.now();
+    this.__changeSelectedCount({ value: this.__typedAmount || 1 });
+    return;
+  }
 
   if (event.key !== "Enter" && event.keyCode !== 13) {
     return;
