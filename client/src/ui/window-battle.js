@@ -112,21 +112,44 @@ BattleWindow.prototype.setTarget = function (creature) {
 
 }
 
+BattleWindow.prototype.__getCreaturePreviewLayout = function (frames, mounted) {
+  let tileSpan = Math.max(
+    1,
+    frames.characterGroup.width || 1,
+    frames.characterGroup.height || 1
+  );
+
+  if (mounted && frames.mountGroup) {
+    tileSpan = Math.max(
+      tileSpan,
+      frames.mountGroup.width || 1,
+      frames.mountGroup.height || 1
+    );
+  }
+
+  return {
+    canvasSize: tileSpan * 32,
+    anchor: tileSpan - 1
+  };
+}
+
 BattleWindow.prototype.__drawCreaturePreview = function (element, creature) {
   let frames = creature.getCharacterFrames();
   if (frames === null) {
     return;
   }
 
+  let mounted = creature.isMounted();
+  let layout = this.__getCreaturePreviewLayout(frames, mounted);
   let canvasElement = element.querySelector(".battle-window-target-canvas canvas");
-  let canvas = new Canvas(canvasElement, 32, 32);
-  let zPattern = (frames.characterGroup.pattern.z > 1 && creature.isMounted()) ? 1 : 0;
+  let canvas = new Canvas(canvasElement, layout.canvasSize, layout.canvasSize);
+  let zPattern = (frames.characterGroup.pattern.z > 1 && mounted) ? 1 : 0;
 
   canvas.__drawCharacter(
     creature.spriteBuffer,
     creature.spriteBufferMount,
     creature.outfit,
-    new Position(1, 1),
+    new Position(layout.anchor, layout.anchor),
     frames.characterGroup,
     frames.mountGroup,
     frames.characterFrame,

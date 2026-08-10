@@ -47,6 +47,23 @@ assert.strictEqual(battle.__isBattleCreature({ type: 1 }), true);
 assert.strictEqual(battle.__isBattleCreature({ type: 2 }), false);
 assert.strictEqual(battle.__isBattleCreature(null), false);
 
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(battle.__getCreaturePreviewLayout({
+    characterGroup: { width: 1, height: 1 },
+    mountGroup: null,
+  }, false))),
+  { canvasSize: 32, anchor: 0 },
+  "a one-tile outfit must be drawn inside the 32px preview"
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(battle.__getCreaturePreviewLayout({
+    characterGroup: { width: 2, height: 2 },
+    mountGroup: { width: 3, height: 2 },
+  }, true))),
+  { canvasSize: 96, anchor: 2 },
+  "large mounted outfits must fit inside the preview before CSS scaling"
+);
+
 const sentPackets = [];
 let cursor = "crosshair";
 let toggledCreature = null;
