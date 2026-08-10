@@ -80,6 +80,90 @@ PacketHandler.prototype.__handlePushCreature = function (creature, position) {
 
 }
 
+PacketHandler.prototype.__resolveSmartItemDestination = function (toWhere, toIndex) {
+  /* Dropping onto the equipped backpack means putting the item inside it. */
+  if (
+    toWhere.constructor.name === "Equipment" &&
+    Number(toIndex) === CONST.EQUIPMENT.BACKPACK
+  ) {
+    let backpack = toWhere.peekIndex(CONST.EQUIPMENT.BACKPACK);
+
+    if (backpack !== null && backpack.isContainer && backpack.isContainer()) {
+      return { toWhere: backpack, toIndex: 0 };
+    }
+  }
+
+  return { toWhere, toIndex };
+}
+
+PacketHandler.prototype.__getSmartContainerMaximumAddCount = function (
+  player,
+  container,
+  item,
+  fromWhere,
+  requestedCount
+) {
+  /*
+   * A container drop targets the container, not necessarily the occupied slot
+   * under the cursor. Find the capacity that addThingSmart can really use.
+   */
+  if (
+    container === fromWhere &&
+    (!item.isStackable() || requestedCount >= item.count)
+  ) {
+    return requestedCount;
+  }
+
+  let slots = container.getSlots
+    ? container.getSlots()
+    : (container.container && container.container.getSlots
+      ? container.container.getSlots()
+      : []);
+  let maximum = 0;
+  let isFull = slots.length > 0 && slots.every(function (slot) {
+    return slot !== null;
+  });
+
+  for (let index = 0; index < slots.length; index++) {
+    let slotMaximum = container.getMaximumAddCount(player, item, index);
+
+    // addThingSmart uses the first compatible stack in a full container.
+    // Limiting to that exact capacity prevents stack overflow from being lost.
+    if (isFull && slotMaximum > 0) {
+      return slotMaximum;
+    }
+
+    maximum = Math.max(maximum, slotMaximum);
+  }
+
+  if (maximum > 0) {
+    return maximum;
+  }
+
+  // addThingSmart only descends into nested containers when this one is full.
+  for (let index = 0; index < slots.length; index++) {
+    let child = slots[index];
+
+    if (child !== null && child.isContainer && child.isContainer()) {
+      let childMaximum = this.__getSmartContainerMaximumAddCount(
+        player,
+        child,
+        item,
+        fromWhere,
+        requestedCount
+      );
+
+      // addThingSmart descends into the first nested container that accepts
+      // the item, so its capacity is the effective limit for this move.
+      if (childMaximum > 0) {
+        return childMaximum;
+      }
+    }
+  }
+
+  return maximum;
+}
+
 PacketHandler.prototype.moveItem = function (player, packet) {
 
   /*
@@ -158,6 +242,11 @@ PacketHandler.prototype.moveItem = function (player, packet) {
     return player.sendCancelMessage("You cannot move this item.");
   }
 
+  // Treat the equipped backpack icon as a shortcut to the backpack contents.
+  let destination = this.__resolveSmartItemDestination(toWhere, toIndex);
+  toWhere = destination.toWhere;
+  toIndex = destination.toIndex;
+
   // Moving to a place where there is a floor change (or teleporter)
   if (toWhere.constructor.name === "Tile") {
 
@@ -203,8 +292,22 @@ PacketHandler.prototype.moveItem = function (player, packet) {
     }
   }
 
-  // Check how much maximum can be added
-  let maxCount = toWhere.getMaximumAddCount(player, fromItem, toIndex);
+  let isSmartContainer = (
+    toWhere.constructor.name === "DepotContainer" ||
+    (toWhere.isContainer && toWhere.isContainer())
+  );
+
+  // Container drops are semantic "put inside" actions. An occupied slot under
+  // the cursor must not hide another empty slot or compatible stack.
+  let maxCount = isSmartContainer
+    ? this.__getSmartContainerMaximumAddCount(
+      player,
+      toWhere,
+      fromItem,
+      fromWhere,
+      count
+    )
+    : toWhere.getMaximumAddCount(player, fromItem, toIndex);
 
   // No items can be added there.
   if (maxCount === 0) {
