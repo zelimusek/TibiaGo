@@ -509,7 +509,24 @@ Keyboard.prototype.__keyDown = function (event) {
 
   // Must focus on the main game body (i.e., the game screen)
   if (document.activeElement !== document.body) {
-    return this.__handleKeyType(event);
+    let canResumeMovement = (
+      gameClient.player &&
+      this.__isMovementKey(event.keyCode) &&
+      (!this.__isWASDMovementKey(event.keyCode) || this.__isWASDMovementEnabled()) &&
+      !this.__isEditableElement(document.activeElement)
+    );
+
+    // Game UI buttons retain browser focus after a mouse click. Let the next
+    // direction key immediately return control to the character, while inputs,
+    // textareas and selects continue receiving their normal keyboard input.
+    if (!canResumeMovement) {
+      return this.__handleKeyType(event);
+    }
+
+    if (document.activeElement && typeof document.activeElement.blur === "function") {
+      document.activeElement.blur();
+    }
+    event.preventDefault();
   }
 
   // Otherwise set the key activity to true
@@ -563,6 +580,20 @@ Keyboard.prototype.__isConfigured = function (key) {
 
   // Check the object
   return Object.values(this.KEYS).includes(key);
+};
+
+Keyboard.prototype.__isEditableElement = function (element) {
+
+  if (!element) {
+    return false;
+  }
+
+  if (element.isContentEditable) {
+    return true;
+  }
+
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName);
+
 };
 
 Keyboard.prototype.__isWASDMovementKey = function (key) {
