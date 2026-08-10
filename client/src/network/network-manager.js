@@ -364,8 +364,10 @@ NetworkManager.prototype.createAccount = function (options) {
     switch (response.status) {
       case 201: break;
       case 400: throw ("Malformed account creation request.");
+      case 403: throw ("Account registration is currently closed.");
       case 409: throw ("An account or character with this name already exists.");
       case 500: throw ("The server experienced an internal error.");
+      default: throw ("Could not create the account.");
     }
 
     // Update the DOM with the newly created accounted
@@ -491,6 +493,37 @@ NetworkManager.prototype.connect = function () {
     gameClient.interface.modalManager.open("floater-connecting", message);
   });
 
+}
+
+NetworkManager.prototype.refreshRegistrationStatus = function () {
+  let button = document.getElementById("create-account");
+  if (!button) return Promise.resolve(false);
+
+  return fetch("/api/registration", { cache: "no-store" }).then(function (response) {
+    if (!response.ok) throw new Error("Registration status unavailable");
+    return response.json();
+  }).then(function (payload) {
+    let enabled = payload && payload.enabled === true;
+    button.disabled = !enabled;
+    button.textContent = enabled ? "Create Account" : "Registration Closed";
+    return enabled;
+  }).catch(function () {
+    button.disabled = true;
+    button.textContent = "Registration Unavailable";
+    return false;
+  });
+}
+
+NetworkManager.prototype.initializeRegistrationStatus = function () {
+  this.refreshRegistrationStatus();
+
+  // A GM may toggle registration while somebody is already on the login
+  // screen. Keep that screen current without requiring a cache clear/reload.
+  this.__registrationStatusTimer = window.setInterval(function () {
+    if (!this.state.connected && document.visibilityState !== "hidden") {
+      this.refreshRegistrationStatus();
+    }
+  }.bind(this), 5000);
 }
 
 NetworkManager.prototype.__handlePacket = function (event) {

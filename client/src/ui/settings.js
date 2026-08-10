@@ -305,7 +305,9 @@ Settings.prototype.__getCleanState = function () {
     "enable-lighting": document.getElementById("enable-lighting").checked,
     "enable-weather": document.getElementById("enable-weather").checked,
     "show-performance": document.getElementById("show-performance").checked,
-    "anti-aliasing": document.getElementById("anti-aliasing").checked,
+    // A fresh client (including after clearing its cache) starts with sprite
+    // smoothing enabled. The player can still change and persist it later.
+    "anti-aliasing": true,
     "enable-wasd-movement": document.getElementById("enable-wasd-movement").checked,
     "fps-mode": document.getElementById("fps-mode").value,
     "mouse-control-mode": "regular",

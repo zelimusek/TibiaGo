@@ -63,6 +63,12 @@ const settings = Object.create(context.Settings.prototype);
 settings.__state = settings.__getCleanState();
 
 assert.strictEqual(
+  settings.__state["anti-aliasing"],
+  true,
+  "Anti-aliasing should be enabled for a fresh or cleared client."
+);
+
+assert.strictEqual(
   settings.isWASDMovementEnabled(),
   true,
   "WASD movement should be enabled by default."

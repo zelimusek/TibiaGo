@@ -842,6 +842,29 @@ CommandHandler.prototype.handleCommandLaserRoulette = function (player, message)
   return result.ok;
 };
 
+CommandHandler.prototype.handleCommandRegistration = function (player, message) {
+  let action = String(message[1] || "status").toLowerCase();
+  let policy = gameServer.registrationPolicy;
+  if (!policy) return player.sendCancelMessage("Registration controls are unavailable.");
+
+  if (action === "status") {
+    player.sendCancelMessage(policy.getStatus());
+    return true;
+  }
+
+  let enabled;
+  if (["on", "enable", "enabled"].includes(action)) enabled = true;
+  else if (["off", "disable", "disabled"].includes(action)) enabled = false;
+  else {
+    player.sendCancelMessage("Usage: /registration on, off or status.");
+    return false;
+  }
+
+  let result = policy.setEnabled(enabled);
+  player.sendCancelMessage(result.message);
+  return result.ok;
+};
+
 CommandHandler.prototype.handleCommandAddSkill = function (
   player,
   skill,
@@ -1156,6 +1179,10 @@ CommandHandler.prototype.handle = function (player, message) {
 
   if (["/roulette", "/laserroulette", "/laser-roulette"].includes(message[0])) {
     return this.handleCommandLaserRoulette(player, message);
+  }
+
+  if (message[0] === "/registration" || message[0] === "/register") {
+    return this.handleCommandRegistration(player, message);
   }
 
   if (message[0] === "/teleport") {

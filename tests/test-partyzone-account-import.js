@@ -13,6 +13,7 @@ const Skill = requireModule("utils/skill");
 const { parseScryptHash, verifyPassword } = requireModule("auth/password-verifier");
 const {
   ITEMS,
+  ROSTER,
   SPAWN,
   buildCharacter,
 } = require("../scripts/import-partyzone-guild-accounts");
@@ -106,6 +107,30 @@ async function main() {
   ));
   assert.ok(!mage.character.containers.equipment.some(entry => entry.slot === CONST.EQUIPMENT.BOOTS));
   assert.deepStrictEqual(mage.character.storage, {});
+
+  const grappler = buildCharacter(
+    { name: "Grappler", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },
+    { name: "Grappler", level: 265, experience: 303491105 },
+    { main: 96, shielding: 92, magic: null }
+  );
+  assert.strictEqual(
+    new Skill(CONST.PROPERTIES.AXE, grappler.character.skills.axe)
+      .getSkillLevel(CONST.VOCATION.ELITE_KNIGHT),
+    96
+  );
+  assert.ok(grappler.character.containers.equipment.some(entry =>
+    entry.slot === CONST.EQUIPMENT.RIGHT && entry.item.id === ITEMS.STONECUTTER_AXE
+  ));
+  assert.ok(ROSTER.some(entry => entry.name === "Grappler" && entry.main === "axe"));
+
+  const lastRaven = buildCharacter(
+    { name: "Last Raven", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },
+    { name: "Last Raven", level: 151, experience: 55762470 },
+    { main: 91, shielding: 83, magic: null }
+  );
+  assert.ok(lastRaven.character.containers.equipment.some(entry =>
+    entry.slot === CONST.EQUIPMENT.RIGHT && entry.item.id === ITEMS.STONECUTTER_AXE
+  ));
 
   console.log("PartyZone account import prerequisites passed.");
 }

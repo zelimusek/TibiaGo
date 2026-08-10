@@ -26,6 +26,7 @@ const ROSTER = [
   { name: "Last Raven", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },
   { name: "Knight Kamil", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "sword" },
   { name: "Macius The Clown", vocation: CONST.VOCATION.MASTER_SORCERER, main: "magic" },
+  { name: "Grappler", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },
 ];
 
 const SKILL_TYPES = {

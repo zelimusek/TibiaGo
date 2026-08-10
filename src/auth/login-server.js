@@ -7,6 +7,7 @@ const url = require("url");
 
 const AccountDatabase = requireModule("auth/account-database");
 const { verifyPassword } = requireModule("auth/password-verifier");
+const RegistrationPolicy = requireModule("auth/registration-policy");
 
 const LoginServer = function (host, port) {
 
@@ -25,6 +26,7 @@ const LoginServer = function (host, port) {
 
   // The character manager
   this.accountDatabase = new AccountDatabase();
+  this.registrationPolicy = new RegistrationPolicy();
 
   // Create the server and handler
   this.server = http.createServer(this.__handleRequest.bind(this));
@@ -123,6 +125,11 @@ LoginServer.prototype.__createAccount = function (queryObject, response) {
    * LoginServer.__createAccount
    * Makes a call to the account manager to create a new account if the request is valid
    */
+
+  if (!this.registrationPolicy.isEnabled()) {
+    response.statusCode = 403;
+    return response.end();
+  }
 
   // Is valid
   if (!this.__isValidCreateAccount(queryObject)) {

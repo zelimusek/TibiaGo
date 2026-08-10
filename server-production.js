@@ -125,6 +125,7 @@ console.log("Data directory: %s", getDataFile(""));
 
 // Create the game server (this creates HTTPServer internally with our overridden PORT)
 global.gameServer = process.gameServer = new GameServer();
+gameServer.registrationPolicy = loginServer.registrationPolicy;
 
 // Initialize the gameserver (this starts the HTTP server, game loop, database, etc.)
 gameServer.initialize();
@@ -632,6 +633,20 @@ async function handlePartyManiacsAPI(req, res) {
   }
 }
 
+function handleRegistrationAPI(req, res) {
+  if (req.method !== "GET") {
+    res.writeHead(405, { "Allow": "GET" });
+    res.end();
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(JSON.stringify({ enabled: loginServer.registrationPolicy.isEnabled() }));
+}
+
 // ─── Override the HTTP server's request handler ─────────────────────────
 // Remove all existing 'request' listeners (the game server's handler that rejects HTTP)
 httpServer.removeAllListeners("request");
@@ -653,6 +668,10 @@ httpServer.on("request", (req, res) => {
   // 3. Public party leaderboards shown before login
   if (pathname === "/api/party-maniacs") {
     return handlePartyManiacsAPI(req, res);
+  }
+
+  if (pathname === "/api/registration") {
+    return handleRegistrationAPI(req, res);
   }
 
   // 4. Health check
