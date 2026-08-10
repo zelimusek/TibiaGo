@@ -5,8 +5,9 @@ const Skills = function (skills, vocation) {
   // Store level and vocation for external access
   this.level = skills.level || 1;
 
-  // Store vocation from player data (0 = none, 1 = knight, 2 = paladin, 3 = sorcerer, 4 = druid)
-  this.vocation = vocation || 0;
+  // Promoted vocations use the same skill advancement constants as their
+  // respective base vocations.
+  this.vocation = normalizeSkillVocation(vocation || CONST.VOCATION.NONE);
 
   // Experience table for calculating percentage to next level
   this.__experienceTable = Array.from({ length: 1000 }, (_, i) => {
@@ -71,7 +72,7 @@ Skills.prototype.__getSkillConstant = function (skillType) {
 // Get the vocation constant B based on vocation and skill type
 // Matches server skill.js and packet-handler.js exactly
 Skills.prototype.__getVocationConstant = function (skillType) {
-  let vocation = this.vocation;
+  let vocation = normalizeSkillVocation(this.vocation);
 
   if (vocation === 0) { // NONE
     switch (skillType) {

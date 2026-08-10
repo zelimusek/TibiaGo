@@ -188,7 +188,9 @@ PacketHandler.prototype.__getVocationSkillConstant = function (skillType, vocati
    * Matches server skill.js __getVocationConstant exactly
    */
 
-  // CONST.VOCATION values: NONE=0, KNIGHT=1, PALADIN=2, SORCERER=3, DRUID=4
+  vocation = normalizeSkillVocation(vocation);
+
+  // Promoted vocations have now been mapped to their base vocation.
 
   if (vocation === 0) { // NONE
     switch (skillType) {

@@ -2,12 +2,13 @@
 
 (function () {
 
-  const CLIENT_BUILD = "20260802.4";
+  const CLIENT_BUILD = "20260811.1";
 
   // List of all scripts to load in order
   const SCRIPTS = [
     "src/utils/error.js",
     "src/utils/position.js",
+    "src/utils/vocation.js",
     "src/input/pathfinder.js",
     "src/ui/hotbar-manager.js",
     "src/entities/condition.js",

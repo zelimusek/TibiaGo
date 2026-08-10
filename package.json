@@ -10,7 +10,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "build:client": "node scripts/build-client.js",
-    "test:client-ui": "node tests/test-client-mobile-controls.js && node tests/test-mobile-control-layout.js && node tests/test-movement-latency-buffer.js && node tests/test-stack-move-controls.js",
+    "test:client-ui": "node tests/test-client-mobile-controls.js && node tests/test-mobile-control-layout.js && node tests/test-movement-latency-buffer.js && node tests/test-stack-move-controls.js && node tests/test-client-promoted-skills.js",
     "test:partyzone-accounts": "node tests/test-partyzone-account-import.js && node tests/test-registration-policy.js",
     "test:radio": "node tests/test-radio-rhythm.js && node tests/test-disco-spotlights.js && node tests/test-party-radio-queue.js",
     "test:combat": "node tests/test-equipment-combat.js",
