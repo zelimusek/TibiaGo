@@ -41,6 +41,10 @@ if (fs.existsSync(envPath)) {
 
 // ─── Production port ────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT, 10) || 2436;
+const APP_NAME = String(process.env.APP_NAME || "TibiaGo").trim() || "TibiaGo";
+const APP_DESCRIPTION = String(
+  process.env.APP_DESCRIPTION || "TibiaGo - graj w Open Tibia bezpośrednio w przeglądarce."
+).trim();
 
 // ─── Load TibiaGo globals (CONFIG, CONST, requireModule, etc.) ──────────
 require("./require");
@@ -113,7 +117,7 @@ const loginServer = new LoginServer();
 // ─── Initialize Game Server ─────────────────────────────────────────────
 const GameServer = requireModule("core/gameserver");
 
-console.log("Starting TibiaGo Production Server (all-in-one)");
+console.log("Starting %s Production Server (all-in-one)", APP_NAME);
 console.log("Port: %s", PORT);
 console.log("External Host: %s", CONFIG.SERVER.EXTERNAL_HOST);
 console.log("Client Version: %s", CONFIG.SERVER.CLIENT_VERSION);
@@ -471,6 +475,37 @@ function serveFile(fullPath, res, req, knownStats) {
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
   const headers = { "Content-Type": contentType };
 
+  const basename = path.basename(fullPath).toLowerCase();
+  if (basename === "index.html" || basename === "manifest.webmanifest") {
+    fs.readFile(fullPath, "utf8", (error, source) => {
+      if (error) {
+        res.writeHead(500);
+        res.end("Internal Server Error");
+        return;
+      }
+      let body = source;
+      if (basename === "index.html") {
+        body = body
+          .replace(/<title>[^<]*<\/title>/i, `<title>${APP_NAME}</title>`)
+          .replace(/<meta name="description" content="[^"]*">/i,
+            `<meta name="description" content="${APP_DESCRIPTION}">`);
+      } else {
+        const manifest = JSON.parse(source);
+        manifest.name = APP_NAME;
+        manifest.short_name = APP_NAME;
+        manifest.description = APP_DESCRIPTION;
+        body = JSON.stringify(manifest, null, 2);
+      }
+      const brandedHeaders = Object.assign({}, headers, {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Content-Length": Buffer.byteLength(body),
+      });
+      res.writeHead(200, brandedHeaders);
+      res.end(req && req.method === "HEAD" ? undefined : body);
+    });
+    return;
+  }
+
   // The installed PWA must always receive current application code. Assets
   // remain cacheable through the service worker, but a stale JS protocol can
   // otherwise leave the game on a black screen after a server update.
@@ -654,5 +689,5 @@ httpServer.on("upgrade", (request, socket, head) => {
   }
 });
 
-console.log("TibiaGo Production Server is ready on port %s", PORT);
-console.log("Access the game at: https://tibiago.cyrk.fun");
+console.log("%s Production Server is ready on port %s", APP_NAME, PORT);
+console.log("Access the game at: %s", CONFIG.SERVER.EXTERNAL_HOST.replace(/^wss:/, "https:").replace(/\/gameworld$/, ""));

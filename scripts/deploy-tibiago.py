@@ -2,11 +2,11 @@
 """
 deploy-tibiago.py
 
-Deploys TibiaGo to MyDevil hosting at tibiago.cyrk.fun.
-Uploads files to /home/zelek/tibiago/ (completely separate from cyrkgildia).
+Deploys the TibiaGo codebase to an isolated MyDevil instance.
 
 Usage:
-    python scripts/deploy-tibiago.py              # Full deploy
+    python scripts/deploy-tibiago.py              # Full TibiaGo deploy
+    python scripts/deploy-tibiago.py --target partyzone
     python scripts/deploy-tibiago.py --dry-run     # Preview only
     python scripts/deploy-tibiago.py --skip-restart # Upload without restart
     python scripts/deploy-tibiago.py --files server-production.js config.json  # Specific files
@@ -28,7 +28,20 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PRODUCTION_ENV_FILE = ROOT / ".env.production"
+TARGETS = {
+    "tibiago": {
+        "remoteRoot": "/home/zelek/tibiago",
+        "envFile": ROOT / ".env.production",
+        "port": 2436,
+        "domain": "tibiago.cyrk.fun",
+    },
+    "partyzone": {
+        "remoteRoot": "/home/zelek/partyzone",
+        "envFile": ROOT / ".env.partyzone.production",
+        "port": 2530,
+        "domain": "partyzone.cyrk.fun",
+    },
+}
 
 # Server connection details (same credentials as cyrkgildia)
 CYRK_CONFIG = ROOT.parent / "cyrkgildia" / ".deploy-production.local.json"
@@ -36,7 +49,6 @@ CYRK_CONFIG = ROOT.parent / "cyrkgildia" / ".deploy-production.local.json"
 DEFAULTS = {
     "host": "s87.mydevil.net",
     "user": "zelek",
-    "remoteRoot": "/home/zelek/tibiago",
 }
 
 # Directories / files that should NOT be uploaded
@@ -85,8 +97,9 @@ ALLOWED_FILES = {
 }
 
 
-def load_config():
+def load_config(target="tibiago"):
     config = dict(DEFAULTS)
+    config.update(TARGETS[target])
     # Try loading password from cyrkgildia's deploy config
     if CYRK_CONFIG.exists():
         with CYRK_CONFIG.open("r", encoding="utf-8") as f:
@@ -107,15 +120,15 @@ def load_config():
     return config
 
 
-def load_production_env():
+def load_production_env(env_file):
     """Return the production environment file uploaded as remote .env."""
-    if not PRODUCTION_ENV_FILE.is_file():
+    if not env_file.is_file():
         raise RuntimeError(
-            f"Missing {PRODUCTION_ENV_FILE.name}. Create it before deploying."
+            f"Missing {env_file.name}. Create it before deploying."
         )
 
-    content = PRODUCTION_ENV_FILE.read_text(encoding="utf-8")
-    required = {"USE_EMBEDDED_DB", "EXTERNAL_HOST", "PORT"}
+    content = env_file.read_text(encoding="utf-8")
+    required = {"USE_EMBEDDED_DB", "EXTERNAL_HOST", "PORT", "INSTANCE_NAME", "APP_NAME"}
     defined = {
         line.split("=", 1)[0].strip()
         for line in content.splitlines()
@@ -124,7 +137,7 @@ def load_production_env():
     missing = required - defined
     if missing:
         raise RuntimeError(
-            f"{PRODUCTION_ENV_FILE.name} is missing: {', '.join(sorted(missing))}"
+            f"{env_file.name} is missing: {', '.join(sorted(missing))}"
         )
     return content
 
@@ -209,7 +222,8 @@ def run_remote(client, command):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Deploy TibiaGo to tibiago.cyrk.fun")
+    parser = argparse.ArgumentParser(description="Deploy a TibiaGo/PartyZone instance")
+    parser.add_argument("--target", choices=tuple(TARGETS), default="tibiago")
     parser.add_argument("--files", nargs="*", help="Specific files to upload")
     parser.add_argument("--dry-run", action="store_true", help="Preview without uploading")
     parser.add_argument("--skip-install", action="store_true", help="Skip npm install")
@@ -221,8 +235,9 @@ def main():
     )
     args = parser.parse_args()
 
-    config = load_config()
-    load_production_env()
+    config = load_config(args.target)
+    production_env_file = config["envFile"]
+    load_production_env(production_env_file)
     password = config.get("password")
     if not password and not args.dry_run:
         import getpass
@@ -286,7 +301,7 @@ def main():
         print("Uploading production environment...")
         with client.open_sftp() as sftp:
             remote_env = posixpath.join(remote_root, ".env")
-            sftp.put(str(PRODUCTION_ENV_FILE), remote_env)
+            sftp.put(str(production_env_file), remote_env)
             sftp.chmod(remote_env, 0o600)
 
         # ─── npm install ─────────────────────────────────────────────────
@@ -296,32 +311,42 @@ def main():
 
         # ─── Restart process ─────────────────────────────────────────────
         if not args.skip_restart:
-            print("Restarting TibiaGo server...")
-            # Kill any existing instance
-            run_remote_safe(client, "pkill -f '[n]ode.*server-production\\.js' || true")
-            # Wait a moment
-            time.sleep(2)
+            instance = args.target
+            port = config["port"]
+            print(f"Restarting {instance} server...")
+            # Resolve the owner of this instance's unique listener. This also
+            # safely upgrades the legacy process which did not have --instance.
+            stop_command = (
+                f"pid=$(sockstat -4 -l 2>/dev/null | awk '$6 ~ /:{port}$/ {{print $3; exit}}'); "
+                "if [ -n \"$pid\" ]; then "
+                "cmd=$(ps -ww -p \"$pid\" -o command= 2>/dev/null || true); "
+                "case \"$cmd\" in *server-production.js*) kill -TERM \"$pid\";; "
+                "*) echo \"Refusing to stop unexpected port owner: $cmd\" >&2; exit 1;; esac; fi; "
+                f"i=0; while sockstat -4 -l 2>/dev/null | grep -q ':{port}'; do "
+                "i=$((i+1)); [ \"$i\" -lt 30 ] || exit 1; sleep 1; done"
+            )
+            run_remote(client, stop_command)
             # Start in background
             run_remote(
                 client,
                 f"cd {remote_root} && mkdir -p logs && "
-                "(nohup node server-production.js >> logs/server.log 2>&1 & "
+                f"(nohup node server-production.js --instance {instance} >> logs/server.log 2>&1 & "
                 "echo $! > .server-production.pid)",
             )
             for attempt in range(10):
                 time.sleep(2)
                 try:
-                    run_remote(client, f"curl -fsS --max-time 10 http://127.0.0.1:2436/health")
+                    run_remote(client, f"curl -fsS --max-time 10 http://127.0.0.1:{port}/health")
                     break
                 except RuntimeError:
                     if attempt == 9:
                         raise
-            print("TibiaGo server started and passed its health check!")
+            print(f"{instance} server started and passed its health check!")
 
     finally:
         client.close()
 
-    print("\n[OK] Deploy finished! Game is available at: https://tibiago.cyrk.fun")
+    print(f"\n[OK] Deploy finished! Game is available at: https://{config['domain']}")
     return 0
 
 

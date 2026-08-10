@@ -6,8 +6,12 @@
 
 set -u
 
-ROOT="/home/zelek/tibiago"
-PORT="2436"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+ROOT="$(dirname "$SCRIPT_DIR")"
+PORT="$(sed -n 's/^PORT=//p' "$ROOT/.env" | tail -n 1)"
+INSTANCE="$(sed -n 's/^INSTANCE_NAME=//p' "$ROOT/.env" | tail -n 1)"
+[ -n "$PORT" ] || exit 1
+[ -n "$INSTANCE" ] || exit 1
 LOCK_DIR="$ROOT/.watchdog.lock"
 LOCK_PID="$LOCK_DIR/pid"
 
@@ -16,7 +20,7 @@ timestamp() {
 }
 
 server_pids() {
-  pgrep -f "node.*server-production[.]js" 2>/dev/null || true
+  pgrep -f "node.*server-production[.]js --instance $INSTANCE" 2>/dev/null || true
 }
 
 port_is_listening() {
@@ -69,7 +73,7 @@ done
 
 pids="$(server_pids)"
 if [ -n "$pids" ]; then
-  echo "$(timestamp) stopping stale TibiaGo candidates: $pids"
+  echo "$(timestamp) stopping stale $INSTANCE candidates: $pids"
   for pid in $pids; do
     kill -TERM "$pid" 2>/dev/null || true
   done
@@ -90,24 +94,24 @@ fi
 cd "$ROOT" || exit 1
 rm -f "$ROOT/game.sock"
 mkdir -p "$ROOT/logs"
-nohup node server-production.js >> "$ROOT/logs/server.log" 2>&1 &
+nohup node server-production.js --instance "$INSTANCE" >> "$ROOT/logs/server.log" 2>&1 &
 pid="$!"
 echo "$pid" > "$ROOT/.server-production.pid"
-echo "$(timestamp) started TibiaGo PID $pid"
+echo "$(timestamp) started $INSTANCE PID $pid"
 
 attempt=0
 while [ "$attempt" -lt 60 ]; do
   if port_is_listening && health_is_ok; then
-    echo "$(timestamp) TibiaGo passed health check"
+    echo "$(timestamp) $INSTANCE passed health check"
     exit 0
   fi
   if ! kill -0 "$pid" 2>/dev/null; then
-    echo "$(timestamp) ERROR TibiaGo PID $pid exited during startup"
+    echo "$(timestamp) ERROR $INSTANCE PID $pid exited during startup"
     exit 1
   fi
   attempt=$((attempt + 1))
   sleep 2
 done
 
-echo "$(timestamp) ERROR TibiaGo did not become healthy within 120 seconds"
+echo "$(timestamp) ERROR $INSTANCE did not become healthy within 120 seconds"
 exit 1

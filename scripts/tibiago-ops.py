@@ -26,7 +26,7 @@ TIBIAGO_CRON_LINE = (
     "/home/zelek/tibiago/scripts/tibiago-watchdog.sh "
     ">> /home/zelek/tibiago/logs/watchdog.log 2>&1"
 )
-WATCHDOG_CRON_PATTERN = r"server-production\.js|tibiago-watchdog\.sh"
+WATCHDOG_CRON_PATTERN = r"/home/zelek/tibiago/scripts/tibiago-watchdog\.sh"
 
 
 def load_deploy_module():
@@ -94,7 +94,7 @@ def process_status(client) -> str:
 def get_server_candidate_pids(client) -> list[int]:
     output = run_remote(
         client,
-        "pgrep -f 'node.*server-production\\.js' || true",
+        "pgrep -f 'node.*server-production\\.js --instance tibiago' || true",
     )
     return [
         int(line.strip())
@@ -231,7 +231,7 @@ def start_server(client, remote_root: str) -> None:
     run_remote(
         client,
         f"cd {remote_root} && rm -f game.sock && mkdir -p logs && "
-        "(nohup node server-production.js >> logs/server.log 2>&1 & "
+        "(nohup node server-production.js --instance tibiago >> logs/server.log 2>&1 & "
         "echo $! > .server-production.pid)",
     )
 
@@ -427,7 +427,7 @@ def main() -> int:
             )
             candidates = run_remote(
                 client,
-                "pgrep -fl 'node.*server-production\\.js' || true",
+                "pgrep -fl 'node.*server-production\\.js --instance tibiago' || true",
             )
             print(status if status else "NO_PROCESS_ON_PORT_2436")
             print(sockets if sockets else "NO_SOCKET_ON_PORT_2436")
