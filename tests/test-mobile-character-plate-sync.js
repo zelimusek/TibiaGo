@@ -44,7 +44,7 @@ assert.match(
 );
 assert.match(
   source,
-  /return\s+hasTitle\s*\?\s*-0\.25\s*:\s*0/,
+  /return\s+hasTitle\s*\?\s*-0\.1875\s*:\s*0/,
   "Titled desktop plates must be raised without moving untitled plates."
 );
 assert.match(

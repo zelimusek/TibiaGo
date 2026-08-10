@@ -197,7 +197,7 @@ CharacterElement.prototype.__getPlateVerticalAdjustment = function (isMobile) {
 
   if (!isMobile) {
     // Raise titled desktop plates so their bars share the untitled baseline.
-    return hasTitle ? -0.25 : 0;
+    return hasTitle ? -0.1875 : 0;
   }
 
   if (hasTitle) {
