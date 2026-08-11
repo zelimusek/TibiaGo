@@ -16,6 +16,7 @@ const {
   ROSTER,
   SPAWN,
   buildCharacter,
+  resolveMainWeapon,
 } = require("../scripts/import-partyzone-guild-accounts");
 
 async function main() {
@@ -122,6 +123,18 @@ async function main() {
     entry.slot === CONST.EQUIPMENT.RIGHT && entry.item.id === ITEMS.STONECUTTER_AXE
   ));
   assert.ok(ROSTER.some(entry => entry.name === "Grappler" && entry.main === "axe"));
+
+  assert.strictEqual(resolveMainWeapon(
+    { name: "Neked", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
+    87,
+    96
+  ).main, "axe");
+  assert.strictEqual(resolveMainWeapon(
+    { name: "Neked", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
+    96,
+    87
+  ).main, "sword");
+  assert.ok(ROSTER.some(entry => entry.name === "Neked" && entry.main === "auto"));
 
   const lastRaven = buildCharacter(
     { name: "Last Raven", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },

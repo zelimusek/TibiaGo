@@ -27,6 +27,7 @@ const ROSTER = [
   { name: "Knight Kamil", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "sword" },
   { name: "Macius The Clown", vocation: CONST.VOCATION.MASTER_SORCERER, main: "magic" },
   { name: "Grappler", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },
+  { name: "Neked", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
 ];
 
 const SKILL_TYPES = {
@@ -160,6 +161,16 @@ function equipmentFor(entry) {
   return equipment;
 }
 
+function resolveMainWeapon(entry, swordLevel, axeLevel) {
+  if (entry.main !== "auto") {
+    return entry;
+  }
+  if (!Number.isFinite(swordLevel) || !Number.isFinite(axeLevel)) {
+    throw new Error(`Could not compare sword and axe skills for ${entry.name}`);
+  }
+  return { ...entry, main: axeLevel > swordLevel ? "axe" : "sword" };
+}
+
 function buildCharacter(entry, source, skillLevels) {
   const creator = new CharacterCreator();
   const character = JSON.parse(creator.create(source.name, "male", { discoMode: true }));
@@ -219,10 +230,12 @@ async function prepareRows() {
       .map(entry => normalized(entry.name))
   );
   const swordUsers = new Set(
-    ROSTER.filter(entry => entry.main === "sword").map(entry => normalized(entry.name))
+    ROSTER.filter(entry => entry.main === "sword" || entry.main === "auto")
+      .map(entry => normalized(entry.name))
   );
   const axeUsers = new Set(
-    ROSTER.filter(entry => entry.main === "axe").map(entry => normalized(entry.name))
+    ROSTER.filter(entry => entry.main === "axe" || entry.main === "auto")
+      .map(entry => normalized(entry.name))
   );
   const [sword, axe, shielding, magic] = await Promise.all([
     fetchHighscore("sword", swordUsers),
@@ -231,8 +244,9 @@ async function prepareRows() {
     fetchHighscore("magic", mages),
   ]);
 
-  return ROSTER.map(entry => {
-    const key = normalized(entry.name);
+  return ROSTER.map(rosterEntry => {
+    const key = normalized(rosterEntry.name);
+    const entry = resolveMainWeapon(rosterEntry, sword.get(key), axe.get(key));
     const source = characters.get(key);
     const portal = portalAccounts.get(key);
     const skillLevels = {
@@ -250,6 +264,7 @@ async function prepareRows() {
         name: source.name,
         account: normalized(portal.username),
         vocation: source.vocationName,
+        main: entry.main,
         level: source.level,
         experience: source.experience,
         skills: built.desired,
@@ -328,4 +343,12 @@ if (require.main === module) {
   });
 }
 
-module.exports = { ITEMS, ROSTER, SPAWN, buildCharacter, equipmentFor, pointsForLevel };
+module.exports = {
+  ITEMS,
+  ROSTER,
+  SPAWN,
+  buildCharacter,
+  equipmentFor,
+  pointsForLevel,
+  resolveMainWeapon,
+};
