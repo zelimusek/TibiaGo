@@ -400,7 +400,7 @@
 
     // Random simple tips
     const tips = [
-      "Tip: Use /radio to join the party music.",
+      "Tip: Winners choose the next game.",
       "Tip: Stay off the hot tiles during Floor is Lava.",
       "Tip: Place bombs with /bomb during Bomberman.",
       "Tip: The bouncers control entry to the dance hall."
