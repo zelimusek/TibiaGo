@@ -53,13 +53,27 @@ ModalManager.prototype.__addEventListeners = function () {
 
   // Main login window buttons
   document.getElementById("information").addEventListener("click", this.open.bind(this, "information-modal"));
-  document.getElementById("login-info").addEventListener("click", this.open.bind(this, "floater-enter"));
+  document.getElementById("login-info").addEventListener("click", this.__openLogin.bind(this));
   document.getElementById("create-account").addEventListener("click", this.open.bind(this, "floater-create"));
   document.getElementById("party-maniacs").addEventListener("click", this.open.bind(this, "party-maniacs-modal"));
   document.getElementById("settings").addEventListener("click", this.__openSettings.bind(this, true));
 
   // Add event listeners to the header elements of the modals
   Array.from(document.querySelectorAll(".modal-header")).forEach(header => header.addEventListener("mousedown", this.__handleHeaderMouseDown));
+
+}
+
+ModalManager.prototype.__openLogin = function () {
+
+  // The launcher button is already a user gesture, so focusing immediately
+  // lets desktop users type at once and opens the keyboard on mobile without
+  // requiring a second tap inside the account field.
+  this.open("floater-enter");
+
+  let username = document.getElementById("user-username");
+  if (username) {
+    username.focus();
+  }
 
 }
 
@@ -73,6 +87,14 @@ ModalManager.prototype.__openSettings = function (fromLogin) {
   let wrapper = fromLogin
     ? document.querySelector("#login-wrapper #login-inner > .modal-wrapper")
     : document.querySelector("#game-wrapper #canvas-id > .modal-wrapper");
+
+  // Clearing the local asset/map cache is intentionally available only from
+  // the login screen. Moving the shared settings modal between wrappers must
+  // not expose a destructive reload action during an active game session.
+  let maintenance = this.__modals["settings-modal"].element.querySelector(".settings-maintenance");
+  if (maintenance) {
+    maintenance.style.display = fromLogin ? "block" : "none";
+  }
 
   wrapper.appendChild(this.__modals["settings-modal"].element);
   this.open("settings-modal");
