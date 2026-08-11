@@ -490,6 +490,15 @@ NetworkManager.prototype.connect = function () {
       message = restartMessage;
     }
 
+    if (error && error.name === "AuthenticationError") {
+      return gameClient.interface.modalManager.open("floater-connecting", {
+        message: message,
+        dismissible: true,
+        returnToLogin: true,
+        focusElementId: "user-password"
+      });
+    }
+
     gameClient.interface.modalManager.open("floater-connecting", message);
   });
 

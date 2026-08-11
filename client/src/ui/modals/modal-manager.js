@@ -186,8 +186,16 @@ ModalManager.prototype.handleConfirm = function () {
     return;
   }
 
-  this.__openedModal.handleConfirm();
-  this.close();
+  let openedModal = this.__openedModal;
+  let shouldClose = openedModal.handleConfirm();
+
+  // A modal may handle Enter by replacing itself (login feedback does this)
+  // or reject confirmation. Do not dismiss the replacement/invalid form.
+  if (shouldClose !== false && this.__openedModal === openedModal) {
+    this.close();
+  }
+
+  return shouldClose;
 
 }
 
