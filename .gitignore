@@ -8,3 +8,8 @@ data/pgdata/
 packets.wal
 game.sock
 .production-backups/
+tmp/
+.codex-video-frames/
+.codex-remote-attachments/
+__pycache__/
+*.py[cod]
