@@ -145,9 +145,10 @@ DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colo
   let anchor = gameClient.renderer.getCreatureScreenPosition(creature);
   let shoulder = {
     // Follow the outfit's existing foreground arm instead of growing a new
-    // limb from its torso. The wider sleeve below covers the original pixels.
-    x: Math.round(anchor.x * 32 + 19),
-    y: Math.round(anchor.y * 32 + 19)
+    // limb on the deck. Creature anchors start at the tile's visual corner,
+    // so the shoulder sits near its upper-left quarter, not its centre.
+    x: Math.round(anchor.x * 32 + 7),
+    y: Math.round(anchor.y * 32 + 11)
   };
   let cuff = {
     // With the booth tucked under the outfits this is now a very short reach.

@@ -23,7 +23,7 @@ const drawingContext = {
   save() {},
   restore() {},
   beginPath() {},
-  moveTo() {},
+  moveTo(x, y) { drawCalls.push({ type: "moveTo", x, y }); },
   lineTo() {},
   stroke() { drawCalls.push("stroke"); },
   fillRect() { drawCalls.push("fillRect"); },
@@ -99,6 +99,17 @@ assert.deepStrictEqual(
   "the booth should overlap the lower part of the DJ outfits"
 );
 assert.ok(drawCalls.filter(call => call === "stroke").length >= 4, "both DJs should move an arm");
+let armOrigins = drawCalls.filter(call => call && call.type === "moveTo");
+assert.deepStrictEqual(
+  { x: armOrigins[0].x, y: armOrigins[0].y },
+  { x: 135, y: 75 },
+  "Thomas's animated arm should begin on his outfit"
+);
+assert.deepStrictEqual(
+  { x: armOrigins[4].x, y: armOrigins[4].y },
+  { x: 199, y: 75 },
+  "Hubertuse's animated arm should begin on his outfit"
+);
 
 drawCalls = [];
 assert.strictEqual(context.window.partyZoneDjAnimation.disable(), false);
