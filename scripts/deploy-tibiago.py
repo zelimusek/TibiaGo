@@ -306,6 +306,8 @@ def main():
                 remote_path = posixpath.join(remote_root, rel)
                 ensure_remote_dir(sftp, posixpath.dirname(remote_path))
                 sftp.put(local_path, remote_path)
+                if rel.endswith(".sh"):
+                    sftp.chmod(remote_path, 0o755)
                 uploaded += 1
                 if uploaded % 50 == 0:
                     print(f"  uploaded {uploaded}/{len(files)}...")

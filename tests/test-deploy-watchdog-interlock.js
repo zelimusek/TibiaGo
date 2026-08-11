@@ -37,5 +37,9 @@ assert.ok(deploy.includes("time.sleep(5)"),
   "deploy must keep observing the new process after its first healthy response");
 assert.ok(deploy.includes('[ \\"$owner\\" = \\"$pid\\" ]'),
   "the stable health check must verify that the expected PID owns the port");
+assert.ok(deploy.includes('if rel.endswith(".sh"):'),
+  "deploy must recognize uploaded shell scripts");
+assert.ok(deploy.includes("sftp.chmod(remote_path, 0o755)"),
+  "uploaded watchdog scripts must remain executable by cron");
 
 console.log("Deploy/watchdog restart interlock tests passed.");
