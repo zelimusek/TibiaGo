@@ -1,12 +1,41 @@
 [
   {
-    "id": "god-disco-house",
-    "name": "God Disco House",
+    "id": "radio-32515-32346-7",
+    "name": "CYRK'S PARTY ZONE",
     "enabled": true,
     "url": "https://s1.radioparty.pl:8000/stream",
     "volume": 0.75,
+    "radius": 12,
     "fadeRadius": 8,
-    "from": { "x": 32384, "y": 32205, "z": 7 },
-    "to": { "x": 32410, "y": 32235, "z": 7 }
+    "effectsEnabled": true,
+    "effectStyles": [
+      "disco",
+      "magic",
+      "rings",
+      "fire",
+      "energy",
+      "poison",
+      "death",
+      "teleport",
+      "blood",
+      "lightning"
+    ],
+    "effectIntervalMs": 2000,
+    "effectIntensity": 3,
+    "beatBpm": 0,
+    "rhythmMode": "auto",
+    "bassSensitivity": 50,
+    "weather": "none",
+    "light": "night",
+    "discoCanvasEnabled": true,
+    "spotlightsEnabled": true,
+    "legacyLasersEnabled": true,
+    "discoCanvasIntensity": 60,
+    "spotlightSpeed": 100,
+    "fadeMetric": "chebyshev",
+    "owner": "God",
+    "center": { "x": 32515, "y": 32346, "z": 7 },
+    "from": { "x": 32503, "y": 32334, "z": 7 },
+    "to": { "x": 32527, "y": 32358, "z": 7 }
   }
 ]

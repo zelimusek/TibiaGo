@@ -1,5 +1,5 @@
 {
-  "mode": "open",
+  "mode": "payment",
   "password": "",
-  "payment": 0
+  "payment": 50
 }
