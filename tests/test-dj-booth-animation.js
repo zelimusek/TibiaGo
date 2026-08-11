@@ -27,7 +27,9 @@ const drawingContext = {
   lineTo() {},
   stroke() { drawCalls.push("stroke"); },
   fillRect() { drawCalls.push("fillRect"); },
-  drawImage() { drawCalls.push("drawImage"); },
+  drawImage(image, x, y, width, height) {
+    drawCalls.push({ type: "drawImage", x, y, width, height });
+  },
   set imageSmoothingEnabled(value) {},
   set globalCompositeOperation(value) {},
   set globalAlpha(value) {},
@@ -89,7 +91,13 @@ animation.__image.onload();
 const disco = { center: { x: 32515, y: 32346, z: 7 }, beatBpm: 140 };
 
 assert.strictEqual(animation.draw(disco), true);
-assert.ok(drawCalls.includes("drawImage"), "the shared DJ console should render");
+let boothDraw = drawCalls.find(call => call && call.type === "drawImage");
+assert.ok(boothDraw, "the shared DJ console should render");
+assert.deepStrictEqual(
+  { x: boothDraw.x, y: boothDraw.y, width: boothDraw.width, height: boothDraw.height },
+  { x: 128, y: 80, width: 96, height: 40 },
+  "the booth should overlap the lower part of the DJ outfits"
+);
 assert.ok(drawCalls.filter(call => call === "stroke").length >= 4, "both DJs should move an arm");
 
 drawCalls = [];

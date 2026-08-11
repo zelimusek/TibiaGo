@@ -144,12 +144,16 @@ DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colo
 
   let anchor = gameClient.renderer.getCreatureScreenPosition(creature);
   let shoulder = {
-    x: Math.round(anchor.x * 32 + 8),
-    y: Math.round(anchor.y * 32 + 5)
+    // Start at the lower/front part of the outfit. The booth overlaps this
+    // point, making the short extra limb read as the DJ's foreground arm.
+    x: Math.round(anchor.x * 32 + 15),
+    y: Math.round(anchor.y * 32 + 15)
   };
-  let elbow = {
-    x: Math.round((shoulder.x + target.x) / 2 + sway * 0.35),
-    y: Math.round((shoulder.y + target.y) / 2 - 2)
+  let cuff = {
+    // Keep almost the whole reach covered by the coloured sleeve. Only the
+    // final quarter is skin, avoiding the long third-arm/trunk appearance.
+    x: Math.round(shoulder.x + (target.x - shoulder.x) * 0.74 + sway * 0.08),
+    y: Math.round(shoulder.y + (target.y - shoulder.y) * 0.74)
   };
 
   context.save();
@@ -159,24 +163,24 @@ DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colo
   context.lineWidth = 6;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y);
-  context.lineTo(elbow.x, elbow.y);
+  context.lineTo(cuff.x, cuff.y);
   context.stroke();
   context.strokeStyle = colors.sleeve;
   context.lineWidth = 4;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y - 1);
-  context.lineTo(elbow.x, elbow.y - 1);
+  context.lineTo(cuff.x, cuff.y - 1);
   context.stroke();
   context.strokeStyle = colors.skinShadow;
   context.lineWidth = 5;
   context.beginPath();
-  context.moveTo(elbow.x, elbow.y);
+  context.moveTo(cuff.x, cuff.y);
   context.lineTo(target.x, target.y);
   context.stroke();
   context.strokeStyle = colors.skin;
   context.lineWidth = 3;
   context.beginPath();
-  context.moveTo(elbow.x, elbow.y - 1);
+  context.moveTo(cuff.x, cuff.y - 1);
   context.lineTo(target.x, target.y - 1);
   context.stroke();
   context.fillStyle = colors.skin;
@@ -196,7 +200,9 @@ DJBoothAnimation.prototype.draw = function (disco) {
       new Position(disco.center.x - 1, disco.center.y - 8, disco.center.z)
     );
     let x = Math.round(consolePosition.x * 32);
-    let y = Math.round(consolePosition.y * 32 - 6);
+    // Pull the booth half a tile towards the DJs. Besides shortening their
+    // reach, this lets its front edge naturally cover the bottom of outfits.
+    let y = Math.round(consolePosition.y * 32 - 16);
     let context = this.screen.context;
     let scratch = Math.sin(rhythm.phase * Math.PI * 2) * 4;
     let beat = Number.isFinite(rhythm.sequence)
@@ -241,4 +247,3 @@ DJBoothAnimation.prototype.draw = function (disco) {
   }
 
 };
-
