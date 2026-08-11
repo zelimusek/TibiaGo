@@ -43472,5 +43472,15 @@
         "flags": 96,
         "group": 0,
         "properties": {}
+    },
+    "5090": {
+        "id": 5090,
+        "flags": 3,
+        "group": 0,
+        "properties": {
+            "article": "a",
+            "name": "speaker",
+            "type": "magicfield"
+        }
     }
 }

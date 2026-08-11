@@ -8,8 +8,8 @@
  * fixed square. It deliberately contains no combat, loot or target logic.
  *
  * Run locally:
- *   $env:BOT_ACCOUNT="test-account"
- *   $env:BOT_PASSWORD="test-password"
+ *   $env:BOT_ACCOUNT="585856"
+ *   $env:BOT_PASSWORD="585856"
  *   $env:BOT_WALK="1"
  *   node tools/qa-packet-walker.js
  *
@@ -19,7 +19,7 @@
 
 const WebSocket = require("ws");
 
-const baseUrl = process.env.BOT_BASE_URL || "http://127.0.0.1:2436";
+const baseUrl = process.env.BOT_BASE_URL || "https://tibiago.cyrk.fun";
 const account = process.env.BOT_ACCOUNT;
 const password = process.env.BOT_PASSWORD;
 const shouldWalk = process.env.BOT_WALK === "1";

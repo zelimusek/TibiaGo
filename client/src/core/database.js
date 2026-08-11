@@ -184,7 +184,7 @@ Database.prototype.storeFile = function (filename, data) {
    * Cached a file to indexDB and writes a notification to localStorage for quick loading
    */
 
-  let storageFilename = gameClient.ASSET_VERSION + "/" + filename;
+  let storageFilename = gameClient.ASSET_CACHE_VERSION + "/" + filename;
 
   let fileStore = this.transaction("files", "readwrite");
 
@@ -233,7 +233,7 @@ Database.prototype.loadGameAssets = function () {
     window.CONST = constant;
 
     // Quickly check localstorage for state of assets
-    if (!localStorage.getItem(gameClient.ASSET_VERSION + "/Tibia.spr") || !localStorage.getItem(gameClient.ASSET_VERSION + "/Tibia.dat")) {
+    if (!localStorage.getItem(gameClient.ASSET_CACHE_VERSION + "/Tibia.spr") || !localStorage.getItem(gameClient.ASSET_CACHE_VERSION + "/Tibia.dat")) {
       return gameClient.networkManager.loadGameFilesServer();
     }
 
@@ -334,8 +334,8 @@ Database.prototype.__loadGameAssets = function () {
 
   request.onsuccess = function (event) {
 
-    let spriteFilename = gameClient.ASSET_VERSION + "/Tibia.spr";
-    let objectFilename = gameClient.ASSET_VERSION + "/Tibia.dat";
+    let spriteFilename = gameClient.ASSET_CACHE_VERSION + "/Tibia.spr";
+    let objectFilename = gameClient.ASSET_CACHE_VERSION + "/Tibia.dat";
     let files = new Map(event.target.result.map(file => [file.filename, file]));
     let spriteFile = files.get(spriteFilename);
     let objectFile = files.get(objectFilename);
@@ -370,8 +370,8 @@ Database.prototype.__loadGameAssets = function () {
   };
 
   request.onerror = function (event) {
-    let spriteFilename = gameClient.ASSET_VERSION + "/Tibia.spr";
-    let objectFilename = gameClient.ASSET_VERSION + "/Tibia.dat";
+    let spriteFilename = gameClient.ASSET_CACHE_VERSION + "/Tibia.spr";
+    let objectFilename = gameClient.ASSET_CACHE_VERSION + "/Tibia.dat";
 
     localStorage.removeItem(spriteFilename);
     localStorage.removeItem(objectFilename);

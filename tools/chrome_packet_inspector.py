@@ -1,5 +1,5 @@
 """Standalone TibiaGo Chrome WebSocket inspector (does not modify the game)."""
-import json, queue, subprocess, tempfile, threading, time, tkinter as tk
+import base64, json, queue, subprocess, tempfile, threading, time, tkinter as tk
 from pathlib import Path
 from tkinter import ttk
 from urllib.request import urlopen
@@ -50,8 +50,12 @@ class Inspector:
                 response = message["params"]["response"]
                 payload = response.get("payloadData", "")
                 direction = "<-" if method.endswith("Received") else "->"
-                preview = payload[:72].replace("\n", " ")
-                self.report(f"{direction} WS opcode={response.get('opcode')} bytes={len(payload)}  {preview!r}")
+                if response.get("opcode") == 2:
+                    raw = base64.b64decode(payload)
+                    preview = raw[:24].hex(" ")
+                    self.report(f"{direction} WS binary bytes={len(raw)} TibiaGo opcode={raw[0] if raw else '-'}  {preview}")
+                else:
+                    self.report(f"{direction} WS text bytes={len(payload)}  {payload[:72]!r}")
         except Exception as error: self.report(f"Inspector error: {error}")
 
 if __name__ == "__main__":

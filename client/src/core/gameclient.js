@@ -18,6 +18,10 @@ const GameClient = function () {
 
   this.SERVER_VERSION = "760";
   this.ASSET_VERSION = this.__getAssetVersion();
+  // Bump this whenever Tibia.dat/Tibia.spr are replaced. Keeping it separate
+  // from ASSET_VERSION lets the client continue loading /data/760 while
+  // forcing every browser to refresh its IndexedDB asset copy.
+  this.ASSET_CACHE_VERSION = this.ASSET_VERSION + "-r2";
   this.CLIENT_VERSION = "0.0.1"
 
   // These are the required gameclient resources: sprites and data files that need to be selected by the user

@@ -1,0 +1,18 @@
+{
+  "0": "drunk.js",
+  "1": "poisoned.js",
+  "2": "burning.js",
+  "3": "electrified.js",
+  "4": "invisible.js",
+  "6": "suppress-drunk.js",
+  "7": "light.js",
+  "8": "healing.js",
+  "9": "regeneration.js",
+  "10": "morph.js",
+  "11": "magic-shield.js",
+  "12": "magic-flame-condition.js",
+  "13": "sated.js",
+  "14": "haste.js",
+  "15": "arena.js",
+  "16": "paralyzed.js"
+}

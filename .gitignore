@@ -13,3 +13,4 @@ tmp/
 .codex-remote-attachments/
 __pycache__/
 *.py[cod]
+client/dist/

@@ -43585,6 +43585,16 @@
             "name": "mud"
         }
     },
+    "20029": {
+        "id": 5090,
+        "flags": 3,
+        "group": 0,
+        "properties": {
+            "article": "a",
+            "name": "speaker",
+            "type": "magicfield"
+        }
+    },
     "20026": {
         "id": 0,
         "flags": 64,
