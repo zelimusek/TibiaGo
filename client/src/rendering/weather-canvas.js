@@ -2713,16 +2713,26 @@ WeatherCanvas.prototype.__getDiscoLightFrame = function() {
         : normalTargetY;
     let transitionStart = focusTransition && focusTransition.from[index];
 
+    let fixtureX = centerX + fixtureOffsets[index][0] * radius * 32;
+    let fixtureY = centerY + fixtureOffsets[index][1] * radius * 32;
+    let targetX = transitionStart
+      ? transitionStart.x + (desiredTargetX - transitionStart.x) * transitionEase
+      : desiredTargetX;
+    let targetY = transitionStart
+      ? transitionStart.y + (desiredTargetY - transitionStart.y) * transitionEase
+      : desiredTargetY;
+    let headAngle = Math.atan2(targetY - fixtureY, targetX - fixtureX);
+    let lensDistance = 14;
+
     return {
       color: color,
-      fixtureX: centerX + fixtureOffsets[index][0] * radius * 32,
-      fixtureY: centerY + fixtureOffsets[index][1] * radius * 32,
-      targetX: transitionStart
-        ? transitionStart.x + (desiredTargetX - transitionStart.x) * transitionEase
-        : desiredTargetX,
-      targetY: transitionStart
-        ? transitionStart.y + (desiredTargetY - transitionStart.y) * transitionEase
-        : desiredTargetY
+      fixtureX: fixtureX,
+      fixtureY: fixtureY,
+      headAngle: headAngle,
+      lensX: fixtureX + Math.cos(headAngle) * lensDistance,
+      lensY: fixtureY + Math.sin(headAngle) * lensDistance,
+      targetX: targetX,
+      targetY: targetY
     };
   });
 
@@ -2795,8 +2805,8 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
     // The complete cone participates in the real light mask. Its lower power
     // keeps the moving target visibly brighter than the path leading to it.
     lightCanvas.renderColorLightBeam(
-      light.fixtureX,
-      light.fixtureY,
+      light.lensX,
+      light.lensY,
       light.targetX,
       light.targetY,
       4,
@@ -2819,14 +2829,69 @@ WeatherCanvas.prototype.renderDiscoIllumination = function(lightCanvas) {
 
     // A smaller halo keeps the physical fixture readable in a dark room.
     lightCanvas.renderColorLightBubble(
-      light.fixtureX,
-      light.fixtureY,
+      light.lensX,
+      light.lensY,
       45 * mobileScale,
       light.color,
       strength * 0.68,
       frame.clip
     );
   });
+
+}
+
+WeatherCanvas.prototype.__drawDiscoFixture = function(context, fixture, type, pulse) {
+
+  let laser = type === "laser";
+  let color = fixture.color;
+  let plateWidth = laser ? 12 : 15;
+  let plateHeight = laser ? 10 : 12;
+  let bodyLength = laser ? 11 : 13;
+  let bodyHeight = laser ? 8 : 10;
+  let lensWidth = laser ? 2 : 3;
+  let lensHeight = laser ? 2 : 6;
+
+  context.save();
+  context.globalCompositeOperation = "source-over";
+  context.globalAlpha = 0.96;
+  context.translate(Math.round(fixture.x), Math.round(fixture.y));
+
+  // Fixed wall plate and yoke. Layered rectangles keep the hardware crisp and
+  // deliberately pixel-art-like without adding strokes to the laser pass.
+  context.fillStyle = "rgba(4, 6, 9, 0.92)";
+  context.fillRect(-plateWidth / 2 - 1, -plateHeight / 2 - 1, plateWidth + 2, plateHeight + 2);
+  context.fillStyle = "rgb(48, 55, 66)";
+  context.fillRect(-plateWidth / 2, -plateHeight / 2, plateWidth, plateHeight);
+  context.fillStyle = "rgb(79, 89, 103)";
+  context.fillRect(-plateWidth / 2 + 2, -plateHeight / 2 + 1, plateWidth - 4, 2);
+  context.fillStyle = "rgb(17, 21, 28)";
+  context.fillRect(-2, -plateHeight / 2 - 2, 4, plateHeight + 4);
+
+  // The head turns around the fixed mount. Its local +X axis is the optical
+  // direction, shared with the cone or the middle ray of a three-beam fan.
+  context.rotate(fixture.headAngle);
+  context.fillStyle = "rgba(2, 3, 5, 0.96)";
+  context.fillRect(-4, -bodyHeight / 2 - 1, bodyLength + 2, bodyHeight + 2);
+  context.fillStyle = laser ? "rgb(37, 43, 54)" : "rgb(42, 48, 59)";
+  context.fillRect(-3, -bodyHeight / 2, bodyLength, bodyHeight);
+  context.fillStyle = "rgb(91, 101, 116)";
+  context.fillRect(-2, -bodyHeight / 2 + 1, Math.max(3, bodyLength - 4), 2);
+  context.fillStyle = "rgb(11, 14, 19)";
+  context.fillRect(bodyLength - 4, -bodyHeight / 2, 4, bodyHeight);
+
+  context.globalCompositeOperation = "screen";
+  context.globalAlpha = Math.min(1, 0.70 + pulse * 0.30);
+  context.fillStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
+  if(laser) {
+    [-3, 0, 3].forEach(function(offset) {
+      context.fillRect(bodyLength - 2, offset - lensHeight / 2, lensWidth, lensHeight);
+    });
+  } else {
+    context.fillRect(bodyLength - 2, -lensHeight / 2, lensWidth, lensHeight);
+    context.globalAlpha = 0.42 + pulse * 0.24;
+    context.fillRect(bodyLength, -lensHeight / 2 + 1, 2, Math.max(2, lensHeight - 2));
+  }
+  context.restore();
 
 }
 
@@ -3793,8 +3858,8 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     context.clip();
 
     frame.lights.forEach(function(light) {
-    let dx = light.targetX - light.fixtureX;
-    let dy = light.targetY - light.fixtureY;
+    let dx = light.targetX - light.lensX;
+    let dy = light.targetY - light.lensY;
     let length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
     let directionX = dx / length;
     let directionY = dy / length;
@@ -3803,7 +3868,7 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let endWidth = (mobile ? 34 : 48) + 24 * frame.intensity;
     let color = light.color;
     let beamVisibility = frame.focusActive ? frame.focusStrength : 1;
-    let beam = context.createLinearGradient(light.fixtureX, light.fixtureY, light.targetX, light.targetY);
+    let beam = context.createLinearGradient(light.lensX, light.lensY, light.targetX, light.targetY);
     beam.addColorStop(0, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.035 * intensity * beamVisibility));
     beam.addColorStop(0.55, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.065 * intensity * beamVisibility));
     beam.addColorStop(1, "rgba(%s, %s, %s, %s)".format(color[0], color[1], color[2], 0.16 * intensity * beamVisibility));
@@ -3811,7 +3876,7 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     // A widening translucent cone makes the beam visible, particularly in
     // fog and pipe smoke, while the LightCanvas pool does the real lighting.
     context.beginPath();
-    context.moveTo(light.fixtureX - perpendicularX * 3, light.fixtureY - perpendicularY * 3);
+    context.moveTo(light.lensX - perpendicularX * 3, light.lensY - perpendicularY * 3);
     context.lineTo(light.targetX - perpendicularX * endWidth, light.targetY - perpendicularY * endWidth);
     context.quadraticCurveTo(
       light.targetX + directionX * endWidth * 0.52,
@@ -3819,7 +3884,7 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       light.targetX + perpendicularX * endWidth,
       light.targetY + perpendicularY * endWidth
     );
-    context.lineTo(light.fixtureX + perpendicularX * 3, light.fixtureY + perpendicularY * 3);
+    context.lineTo(light.lensX + perpendicularX * 3, light.lensY + perpendicularY * 3);
     context.closePath();
     context.fillStyle = beam;
     context.fill();
@@ -3841,6 +3906,15 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     });
 
     context.restore();
+
+    frame.lights.forEach(function(light) {
+      this.__drawDiscoFixture(context, {
+        x: light.fixtureX,
+        y: light.fixtureY,
+        headAngle: light.headAngle,
+        color: light.color
+      }, "spotlight", frame.pulse);
+    }, this);
   }
 
   this.__drawPartyFlowOverlay(context, frame.partyFlow, mobile);
@@ -3889,6 +3963,7 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       : 1 + (frame.focusStrength - 1) * laserFocusAmount;
   let laserAlpha = Math.min(1, 0.72 * frame.intensity * legacyPulse * laserBrightness);
   let focusedEndpoints = [];
+  let laserFixtures = [];
 
   context.save();
   context.globalCompositeOperation = "screen";
@@ -3903,7 +3978,7 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     let normalAngle = inwardAngle + sweep;
     let hasFocusCenter = Number.isFinite(frame.laserFocusCenterX) && Number.isFinite(frame.laserFocusCenterY);
 
-    context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
+    let rays = [];
     for(let beam = -1; beam <= 1; beam++) {
       let beamIndex = index * 3 + beam + 1;
       let normalBeamAngle = normalAngle + beam * 0.24;
@@ -3949,15 +4024,48 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
       let visibleBeamLength = beamLength + (focusedBeamLength - beamLength) * laserControlAmount;
       let endpointX = x + Math.cos(angle) * visibleBeamLength;
       let endpointY = y + Math.sin(angle) * visibleBeamLength;
+      rays.push({
+        beam: beam,
+        beamIndex: beamIndex,
+        angle: angle,
+        endpointX: endpointX,
+        endpointY: endpointY
+      });
+    }
+
+    let headAngle = rays[1].angle;
+    let lensDistance = 11;
+    let lensX = x + Math.cos(headAngle) * lensDistance;
+    let lensY = y + Math.sin(headAngle) * lensDistance;
+    let perpendicularX = -Math.sin(headAngle);
+    let perpendicularY = Math.cos(headAngle);
+    let renderedFixture = {
+      x: x,
+      y: y,
+      headAngle: headAngle,
+      lensX: lensX,
+      lensY: lensY,
+      color: color,
+      rays: rays
+    };
+    laserFixtures.push(renderedFixture);
+
+    context.strokeStyle = "rgb(%s, %s, %s)".format(color[0], color[1], color[2]);
+    rays.forEach(function(ray) {
+      let emitterOffset = ray.beam * 3;
+      ray.emitterX = lensX + perpendicularX * emitterOffset;
+      ray.emitterY = lensY + perpendicularY * emitterOffset;
       context.beginPath();
-      context.moveTo(x, y);
-      context.lineTo(endpointX, endpointY);
+      context.moveTo(ray.emitterX, ray.emitterY);
+      context.lineTo(ray.endpointX, ray.endpointY);
       context.stroke();
       if(laserControlAmount > 0.01) {
-        focusedEndpoints.push({ x: endpointX, y: endpointY, color: color });
+        focusedEndpoints.push({ x: ray.endpointX, y: ray.endpointY, color: color });
       }
-    }
+    });
   });
+
+  frame.laserFixtures = laserFixtures;
 
   context.globalAlpha = Math.min(1, laserAlpha * 1.45) * laserControlAmount;
   focusedEndpoints.forEach(function(endpoint) {
@@ -3986,6 +4094,10 @@ WeatherCanvas.prototype.drawDiscoLights = function() {
     });
   }
   context.restore();
+
+  laserFixtures.forEach(function(fixture) {
+    this.__drawDiscoFixture(context, fixture, "laser", frame.pulse);
+  }, this);
 
   if(frame.vipShow) {
     this.__drawVipShow(context, frame, mobile);

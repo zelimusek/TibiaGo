@@ -18,6 +18,7 @@ let strokeLengths = [];
 let strokeEndpoints = [];
 let arcRadii = [];
 let arcCenters = [];
+let fixtureRotations = [];
 const observerCameraOffset = { x: 0, y: 0 };
 
 function gradient() {
@@ -41,6 +42,7 @@ const drawingContext = {
     arcRadii.push(radius);
   },
   translate() {},
+  rotate(angle) { fixtureRotations.push(angle); },
   scale(x, y) {
     if (x === 1 && y === 0.68) ellipseScales++;
   },
@@ -149,11 +151,31 @@ assert.ok(lights.every((entry) => entry[5] && entry[5].width > 0));
 
 roundedCaps = 0;
 ellipseScales = 0;
+fixtureRotations = [];
 weather.drawDiscoLights();
 assert.ok(fills >= 8, "each spotlight should draw a cone and target halo");
 assert.strictEqual(roundedCaps, 4, "ordinary spotlight beams should also end with rounded caps");
 assert.strictEqual(ellipseScales, 4, "ordinary spotlight targets should use the same perspective ellipses as focused lights");
 assert.strictEqual(strokes, 9, "new spotlights have no laser cores; three original three-ray lasers expected");
+assert.strictEqual(fixtureRotations.length, 7, "four spotlight heads and three laser projectors should be visible");
+assert.ok(fixtureRotations.every(Number.isFinite), "every physical fixture must have a valid aiming angle");
+const firstFixtureFrame = weather.__getDiscoLightFrame();
+firstFixtureFrame.lights.forEach((light) => {
+  assert.ok(Math.abs(Math.atan2(
+    Math.sin(light.headAngle - Math.atan2(light.targetY - light.fixtureY, light.targetX - light.fixtureX)),
+    Math.cos(light.headAngle - Math.atan2(light.targetY - light.fixtureY, light.targetX - light.fixtureX))
+  )) < 1e-9, "each spotlight head should face its illuminated target");
+  assert.ok(Math.hypot(light.lensX - light.fixtureX, light.lensY - light.fixtureY) > 10,
+    "spotlight beams should begin at the lens in front of the wall mount");
+});
+assert.strictEqual(firstFixtureFrame.laserFixtures.length, 3, "the original laser fans should have three physical projectors");
+firstFixtureFrame.laserFixtures.forEach((fixture) => {
+  assert.strictEqual(fixture.rays.length, 3, "each laser projector should retain three independent emitters");
+  assert.ok(Math.abs(Math.atan2(
+    Math.sin(fixture.headAngle - fixture.rays[1].angle),
+    Math.cos(fixture.headAngle - fixture.rays[1].angle)
+  )) < 1e-9, "each laser projector should follow the middle ray of its fan");
+});
 
 const firstTargetX = lights[0][0];
 lights.length = 0;
@@ -172,11 +194,13 @@ weather.setDiscoLights(true, false, 80, 100, 120, 6, {
 lights.length = 0;
 lightBeams.length = 0;
 strokes = 0;
+fixtureRotations = [];
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 weather.drawDiscoLights();
 assert.strictEqual(lightBeams.length, 4, "spotlight-only mode should illuminate four cones");
 assert.strictEqual(strokes, 0, "new spotlights must not draw thin laser beams");
+assert.strictEqual(fixtureRotations.length, 4, "spotlight-only mode should draw only four moving heads");
 
 weather.setDiscoLights(false, true, 80, 100, 120, 6, {
   x: 32515,
@@ -186,11 +210,13 @@ weather.setDiscoLights(false, true, 80, 100, 120, 6, {
 lights.length = 0;
 lightBeams.length = 0;
 strokes = 0;
+fixtureRotations = [];
 context.gameClient.renderer.debugger.__nFrames++;
 weather.renderDiscoIllumination(lightCanvas);
 weather.drawDiscoLights();
 assert.strictEqual(lightBeams.length, 0, "laser-only mode should not render spotlight illumination");
 assert.strictEqual(strokes, 9, "laser-only mode should retain all original rays");
+assert.strictEqual(fixtureRotations.length, 3, "laser-only mode should draw only three projectors");
 
 weather.setDiscoLights(true, true, 80, 0, 120, 6, {
   x: 32515,
