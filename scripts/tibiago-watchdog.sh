@@ -14,6 +14,7 @@ INSTANCE="$(sed -n 's/^INSTANCE_NAME=//p' "$ROOT/.env" | tail -n 1)"
 [ -n "$INSTANCE" ] || exit 1
 LOCK_DIR="$ROOT/.watchdog.lock"
 LOCK_PID="$LOCK_DIR/pid"
+DEPLOY_LOCK="$ROOT/.deploying"
 
 timestamp() {
   date -u "+%Y-%m-%dT%H:%M:%SZ"
@@ -36,6 +37,26 @@ release_lock() {
   rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 
+deploy_is_active() {
+  [ -d "$DEPLOY_LOCK" ] || return 1
+  now="$(date +%s)"
+  changed="$(stat -f %m "$DEPLOY_LOCK" 2>/dev/null || echo 0)"
+  age=$((now - changed))
+  if [ "$changed" -gt 0 ] && [ "$age" -lt 900 ]; then
+    return 0
+  fi
+  rm -f "$DEPLOY_LOCK/pid"
+  rmdir "$DEPLOY_LOCK" 2>/dev/null || true
+  return 1
+}
+
+# A deploy owns the restart lifecycle while this fresh marker exists. Check
+# both before and after acquiring our own lock to close the race between the
+# cron process and a manual CPD.
+if deploy_is_active; then
+  exit 0
+fi
+
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   owner=""
   if [ -f "$LOCK_PID" ]; then
@@ -51,6 +72,10 @@ fi
 
 echo "$$" > "$LOCK_PID"
 trap release_lock EXIT HUP INT TERM
+
+if deploy_is_active; then
+  exit 0
+fi
 
 if port_is_listening && health_is_ok; then
   exit 0

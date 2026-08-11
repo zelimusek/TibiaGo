@@ -329,34 +329,78 @@ def main():
             instance = args.target
             port = config["port"]
             print(f"Restarting {instance} server...")
-            # Resolve the owner of this instance's unique listener. This also
-            # safely upgrades the legacy process which did not have --instance.
-            stop_command = (
-                f"pid=$(sockstat -4 -l 2>/dev/null | awk '$6 ~ /:{port}$/ {{print $3; exit}}'); "
-                "if [ -n \"$pid\" ]; then "
-                "cmd=$(ps -ww -p \"$pid\" -o command= 2>/dev/null || true); "
-                "case \"$cmd\" in *server-production.js*) kill -TERM \"$pid\";; "
-                "*) echo \"Refusing to stop unexpected port owner: $cmd\" >&2; exit 1;; esac; fi; "
-                f"i=0; while sockstat -4 -l 2>/dev/null | grep -q ':{port}'; do "
-                "i=$((i+1)); [ \"$i\" -lt 30 ] || exit 1; sleep 1; done"
-            )
-            run_remote(client, stop_command)
-            # Start in background
-            run_remote(
-                client,
-                f"cd {remote_root} && mkdir -p logs && "
-                f"(nohup node server-production.js --instance {instance} >> logs/server.log 2>&1 & "
-                "echo $! > .server-production.pid)",
-            )
-            for attempt in range(10):
-                time.sleep(2)
-                try:
-                    run_remote(client, f"curl -fsS --max-time 10 http://127.0.0.1:{port}/health")
-                    break
-                except RuntimeError:
-                    if attempt == 9:
-                        raise
-            print(f"{instance} server started and passed its health check!")
+            deploy_lock = posixpath.join(remote_root, ".deploying")
+            watchdog_lock = posixpath.join(remote_root, ".watchdog.lock")
+            lock_created = False
+            try:
+                # Tell the watchdog to stand down before touching the listener.
+                # If an older watchdog invocation is already active, wait for
+                # its atomic lock to disappear before beginning the restart.
+                run_remote(
+                    client,
+                    "set -e; "
+                    f"lock={deploy_lock}; watchdog={watchdog_lock}; "
+                    "if ! mkdir \"$lock\" 2>/dev/null; then "
+                    "now=$(date +%s); changed=$(stat -f %m \"$lock\" 2>/dev/null || echo 0); "
+                    "age=$((now-changed)); "
+                    "if [ \"$changed\" -gt 0 ] && [ \"$age\" -ge 900 ]; then "
+                    "rm -f \"$lock/pid\"; rmdir \"$lock\" 2>/dev/null; mkdir \"$lock\"; "
+                    "else echo 'Another deploy is active.' >&2; exit 1; fi; fi; "
+                    "umask 077; printf '%s\n' \"$$\" > \"$lock/pid\"; "
+                    "i=0; while [ -d \"$watchdog\" ]; do "
+                    "owner=$(cat \"$watchdog/pid\" 2>/dev/null || true); "
+                    "if [ -n \"$owner\" ] && kill -0 \"$owner\" 2>/dev/null; then sleep 1; "
+                    "else rm -f \"$watchdog/pid\"; rmdir \"$watchdog\" 2>/dev/null || true; fi; "
+                    "i=$((i+1)); [ \"$i\" -lt 150 ] || { rm -f \"$lock/pid\"; rmdir \"$lock\"; exit 1; }; done",
+                )
+                lock_created = True
+
+                # Resolve the owner of this instance's unique listener. This
+                # also safely upgrades the legacy process without --instance.
+                stop_command = (
+                    f"pid=$(sockstat -4 -l 2>/dev/null | awk '$6 ~ /:{port}$/ {{print $3; exit}}'); "
+                    "if [ -n \"$pid\" ]; then "
+                    "cmd=$(ps -ww -p \"$pid\" -o command= 2>/dev/null || true); "
+                    "case \"$cmd\" in *server-production.js*) kill -TERM \"$pid\";; "
+                    "*) echo \"Refusing to stop unexpected port owner: $cmd\" >&2; exit 1;; esac; fi; "
+                    f"i=0; while sockstat -4 -l 2>/dev/null | grep -q ':{port}'; do "
+                    "i=$((i+1)); [ \"$i\" -lt 30 ] || exit 1; sleep 1; done"
+                )
+                run_remote(client, stop_command)
+                # Start in background
+                run_remote(
+                    client,
+                    f"cd {remote_root} && mkdir -p logs && rm -f game.sock && "
+                    f"(nohup node server-production.js --instance {instance} >> logs/server.log 2>&1 & "
+                    "echo $! > .server-production.pid)",
+                )
+                for attempt in range(10):
+                    time.sleep(2)
+                    try:
+                        run_remote(client, f"curl -fsS --max-time 10 http://127.0.0.1:{port}/health")
+                        break
+                    except RuntimeError:
+                        if attempt == 9:
+                            raise
+                # A listener can become healthy slightly before asynchronous
+                # database initialization finishes. Require it to stay alive
+                # and retain the expected port for another five seconds.
+                time.sleep(5)
+                run_remote(
+                    client,
+                    f"pid=$(cat {remote_root}/.server-production.pid 2>/dev/null); "
+                    "[ -n \"$pid\" ] && kill -0 \"$pid\" 2>/dev/null; "
+                    f"owner=$(sockstat -4 -l 2>/dev/null | awk '$6 ~ /:{port}$/ {{print $3; exit}}'); "
+                    "[ \"$owner\" = \"$pid\" ]; "
+                    f"curl -fsS --max-time 10 http://127.0.0.1:{port}/health",
+                )
+                print(f"{instance} server started and passed its health check!")
+            finally:
+                if lock_created:
+                    run_remote_safe(
+                        client,
+                        f"rm -f {deploy_lock}/pid; rmdir {deploy_lock} 2>/dev/null || true",
+                    )
 
     finally:
         client.close()
