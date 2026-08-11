@@ -1,0 +1,86 @@
+"use strict";
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+let storedHotbar = JSON.stringify([
+  { itemId: 3160, mode: "self" }
+]);
+let spriteDraws = 0;
+
+const slot = {
+  spell: null,
+  text: null,
+  item: null,
+  canvas: {
+    clear() {},
+    drawSprite() { spriteDraws++; },
+    canvas: {
+      parentNode: {
+        lastElementChild: { style: {} },
+        title: ""
+      }
+    }
+  }
+};
+
+const context = {
+  console,
+  Image: function () { return {}; },
+  Position: function (x, y, z) { this.x = x; this.y = y; this.z = z; },
+  localStorage: {
+    getItem(key) { return key === "hotbar" ? storedHotbar : null; },
+    setItem(key, value) {
+      if (key === "hotbar") storedHotbar = value;
+    }
+  },
+  gameClient: {
+    player: null,
+    itemDefinitions: {
+      3160: { properties: { name: "ultimate healing rune" } }
+    },
+    dataObjects: null
+  }
+};
+
+vm.createContext(context);
+const source = fs.readFileSync(
+  path.join(__dirname, "..", "client", "src", "ui", "hotbar-manager.js"),
+  "utf8"
+);
+vm.runInContext(
+  "String.prototype.capitalize = function () { return this.toString(); };\n" +
+  "String.prototype.format = function () { return this.toString(); };\n" +
+  source +
+  "\nthis.HotbarManager = HotbarManager;",
+  context
+);
+
+const manager = Object.create(context.HotbarManager.prototype);
+manager.slots = [slot];
+
+assert.doesNotThrow(
+  () => manager.__loadConfiguration(new Set()),
+  "a saved item hotkey must not abort Player construction during reconnect"
+);
+assert.strictEqual(slot.item.id, 3160, "the saved item hotkey should be preserved");
+assert.strictEqual(slot.item.mode, "self");
+assert.strictEqual(spriteDraws, 0, "the icon should wait until the Player exists");
+
+const rune = { id: 3160 };
+const equipment = {
+  slots: [rune],
+  getSlotItem(index) { return this.slots[index] || null; },
+  peekItem(index) { return this.slots[index] || null; }
+};
+context.gameClient.player = {
+  equipment,
+  __openedContainers: new Set()
+};
+
+manager.render();
+assert.strictEqual(spriteDraws, 1, "the next render should restore the icon automatically");
+
+console.log("PASS: saved item hotkeys survive a clean reconnect before Player assignment.");

@@ -349,6 +349,15 @@ HotbarManager.prototype.__createSlot = function (DOMElement) {
 
 HotbarManager.prototype.__findItemObject = function (itemId) {
 
+  // During a clean reconnect the Spellbook restores the persisted hotbar
+  // while the new Player is still being constructed. The global player is
+  // assigned only after that constructor returns, so item hotkeys must remain
+  // unresolved for this brief window instead of aborting the whole login.
+  let player = gameClient.player;
+  if (!player) {
+    return null;
+  }
+
   let findInContainer = function (container) {
     if (!container || !container.slots) {
       return null;
@@ -368,13 +377,13 @@ HotbarManager.prototype.__findItemObject = function (itemId) {
     return null;
   };
 
-  let found = findInContainer(gameClient.player.equipment);
+  let found = findInContainer(player.equipment);
 
   if (found !== null) {
     return found;
   }
 
-  let containers = Array.from(gameClient.player.__openedContainers || []);
+  let containers = Array.from(player.__openedContainers || []);
 
   for (let i = 0; i < containers.length; i++) {
     found = findInContainer(containers[i]);
