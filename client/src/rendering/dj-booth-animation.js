@@ -8,6 +8,7 @@ const DJBoothAnimation = function (screen) {
   this.__failureReported = false;
   this.__storageKey = "partyzone-dj-animation-enabled";
   this.__enabled = this.__readEnabledState();
+  this.__armTargets = Object.create(null);
   this.__image = new Image();
   this.__image.onload = function () {
     this.__ready = true;
@@ -138,7 +139,25 @@ DJBoothAnimation.prototype.__drawDeckMotion = function (context, x, y, rhythm) {
 
 };
 
-DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colors, sway) {
+DJBoothAnimation.prototype.__smoothArmTarget = function (key, desired, now) {
+
+  let state = this.__armTargets[key];
+  if (!state || now - state.time > 250 || now < state.time) {
+    state = { x: desired.x, y: desired.y, time: now };
+    this.__armTargets[key] = state;
+    return { x: state.x, y: state.y };
+  }
+
+  let elapsed = Math.max(0, now - state.time);
+  let amount = 1 - Math.exp(-elapsed / 115);
+  state.x += (desired.x - state.x) * amount;
+  state.y += (desired.y - state.y) * amount;
+  state.time = now;
+  return { x: state.x, y: state.y };
+
+};
+
+DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colors, bend) {
 
   if (!creature || creature.getPosition().z !== 7) return;
 
@@ -151,41 +170,49 @@ DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colo
     y: Math.round(anchor.y * 32 + 11)
   };
   let cuff = {
-    // With the booth tucked under the outfits this is now a very short reach.
-    // Keep only its final fifth uncovered as the hand.
-    x: Math.round(shoulder.x + (target.x - shoulder.x) * 0.82 + sway * 0.05),
+    // Keep only the final fifth uncovered as the hand.
+    x: Math.round(shoulder.x + (target.x - shoulder.x) * 0.82),
     y: Math.round(shoulder.y + (target.y - shoulder.y) * 0.82)
+  };
+  let deltaX = cuff.x - shoulder.x;
+  let deltaY = cuff.y - shoulder.y;
+  let length = Math.max(1, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+  let elbow = {
+    x: Math.round(shoulder.x + deltaX * 0.48 - deltaY / length * bend),
+    y: Math.round(shoulder.y + deltaY * 0.48 + deltaX / length * bend)
   };
 
   context.save();
-  context.lineCap = "square";
-  context.lineJoin = "miter";
+  context.lineCap = "round";
+  context.lineJoin = "round";
   context.strokeStyle = colors.sleeveShadow;
-  context.lineWidth = 8;
+  context.lineWidth = 5;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y);
+  context.lineTo(elbow.x, elbow.y);
   context.lineTo(cuff.x, cuff.y);
   context.stroke();
   context.strokeStyle = colors.sleeve;
-  context.lineWidth = 6;
+  context.lineWidth = 3;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y - 1);
+  context.lineTo(elbow.x, elbow.y - 1);
   context.lineTo(cuff.x, cuff.y - 1);
   context.stroke();
   context.strokeStyle = colors.skinShadow;
-  context.lineWidth = 5;
+  context.lineWidth = 3;
   context.beginPath();
   context.moveTo(cuff.x, cuff.y);
   context.lineTo(target.x, target.y);
   context.stroke();
   context.strokeStyle = colors.skin;
-  context.lineWidth = 3;
+  context.lineWidth = 2;
   context.beginPath();
   context.moveTo(cuff.x, cuff.y - 1);
   context.lineTo(target.x, target.y - 1);
   context.stroke();
   context.fillStyle = colors.skin;
-  context.fillRect(target.x - 2, target.y - 2, 5, 4);
+  context.fillRect(target.x - 1, target.y - 1, 3, 3);
   context.restore();
 
 };
@@ -205,7 +232,7 @@ DJBoothAnimation.prototype.draw = function (disco) {
     // their original arms while the animated foreground arm stays very short.
     let y = Math.round(consolePosition.y * 32 - 24);
     let context = this.screen.context;
-    let scratch = Math.sin(rhythm.phase * Math.PI * 2) * 4;
+    let scratch = Math.sin(rhythm.phase * Math.PI * 2) * 2.5;
     let beat = Number.isFinite(rhythm.sequence)
       ? rhythm.sequence
       : Math.floor(now / Math.max(1, 60000 / rhythm.bpm));
@@ -217,29 +244,37 @@ DJBoothAnimation.prototype.draw = function (disco) {
 
     let thomas = this.__findDJ("DJ Thomas");
     let hubertuse = this.__findDJ("DJ Hubertuse");
+    let thomasTarget = this.__smoothArmTarget("thomas", {
+      x: 25 + scratch * 0.55,
+      y: 17 + scratch
+    }, now);
     this.__drawArm(context, thomas, {
-      x: Math.round(x + 25 + scratch * 0.45),
-      y: Math.round(y + 20 + scratch)
+      x: Math.round(x + thomasTarget.x),
+      y: Math.round(y + thomasTarget.y)
     }, {
       sleeve: "#c92d31",
       sleeveShadow: "#65161b",
       skin: "#e2aa72",
       skinShadow: "#885438"
-    }, scratch);
+    }, -4);
 
     let hubertuseUsesMixer = beat % 4 === 3;
-    this.__drawArm(context, hubertuse, hubertuseUsesMixer ? {
-      x: Math.round(x + 49 + scratch * 0.75),
-      y: y + 28
+    let hubertuseTarget = this.__smoothArmTarget("hubertuse", hubertuseUsesMixer ? {
+      x: 49 + scratch * 0.35,
+      y: 21
     } : {
-      x: Math.round(x + 72 - scratch * 0.45),
-      y: Math.round(y + 20 - scratch)
+      x: 72 - scratch * 0.55,
+      y: 17 - scratch
+    }, now);
+    this.__drawArm(context, hubertuse, {
+      x: Math.round(x + hubertuseTarget.x),
+      y: Math.round(y + hubertuseTarget.y)
     }, {
       sleeve: "#315bd1",
       sleeveShadow: "#172966",
       skin: "#e2aa72",
       skinShadow: "#885438"
-    }, -scratch);
+    }, 4);
     context.restore();
     return true;
   } catch (error) {

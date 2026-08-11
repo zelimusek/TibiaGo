@@ -7,6 +7,7 @@ const vm = require("vm");
 
 let drawCalls = [];
 let storage = new Map();
+let lineWidths = [];
 
 function Position(x, y, z) {
   this.x = x;
@@ -35,7 +36,7 @@ const drawingContext = {
   set globalAlpha(value) {},
   set fillStyle(value) {},
   set strokeStyle(value) {},
-  set lineWidth(value) {},
+  set lineWidth(value) { lineWidths.push(value); },
   set lineCap(value) {},
   set lineJoin(value) {},
 };
@@ -109,6 +110,16 @@ assert.deepStrictEqual(
   { x: armOrigins[4].x, y: armOrigins[4].y },
   { x: 199, y: 75 },
   "Hubertuse's animated arm should begin on his outfit"
+);
+assert.ok(Math.max.apply(Math, lineWidths) <= 5, "DJ arms should stay slim rather than looking like beams");
+
+let initialTarget = animation.__smoothArmTarget("smooth-test", { x: 72, y: 17 }, 1000);
+let travellingTarget = animation.__smoothArmTarget("smooth-test", { x: 49, y: 21 }, 1016);
+assert.strictEqual(initialTarget.x, 72);
+assert.strictEqual(initialTarget.y, 17);
+assert.ok(
+  travellingTarget.x > 49 && travellingTarget.x < 72,
+  "Hubertuse's hand should travel towards the mixer rather than teleporting"
 );
 
 drawCalls = [];
