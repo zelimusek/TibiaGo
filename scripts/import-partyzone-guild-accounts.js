@@ -46,6 +46,7 @@ const ITEMS = {
   MAGIC_SWORD: 2400,
   FIRE_SWORD: 2392,
   STONECUTTER_AXE: 2431,
+  THUNDER_HAMMER: 2421,
   MASTERMIND_SHIELD: 2514,
   DEMON_SHIELD: 2520,
   DEMON_HELMET: 2493,
@@ -143,9 +144,12 @@ function pointsForLevel(type, level, vocation) {
 
 function equipmentFor(entry) {
   const isKnight = entry.vocation === CONST.VOCATION.ELITE_KNIGHT;
-  const weapon = isKnight
-    ? entry.main === "axe" ? ITEMS.STONECUTTER_AXE : ITEMS.MAGIC_SWORD
-    : ITEMS.FIRE_SWORD;
+  const knightWeapons = {
+    axe: ITEMS.STONECUTTER_AXE,
+    club: ITEMS.THUNDER_HAMMER,
+    sword: ITEMS.MAGIC_SWORD,
+  };
+  const weapon = isKnight ? knightWeapons[entry.main] : ITEMS.FIRE_SWORD;
   const shield = isKnight ? ITEMS.MASTERMIND_SHIELD : ITEMS.DEMON_SHIELD;
   const equipment = [
     { slot: CONST.EQUIPMENT.HELMET, item: { id: ITEMS.DEMON_HELMET } },
@@ -161,14 +165,18 @@ function equipmentFor(entry) {
   return equipment;
 }
 
-function resolveMainWeapon(entry, swordLevel, axeLevel) {
+function resolveMainWeapon(entry, skillLevels) {
   if (entry.main !== "auto") {
     return entry;
   }
-  if (!Number.isFinite(swordLevel) || !Number.isFinite(axeLevel)) {
-    throw new Error(`Could not compare sword and axe skills for ${entry.name}`);
+  const candidates = ["club", "axe", "sword"];
+  if (candidates.some(skill => !Number.isFinite(skillLevels[skill]))) {
+    throw new Error(`Could not compare club, axe and sword skills for ${entry.name}`);
   }
-  return { ...entry, main: axeLevel > swordLevel ? "axe" : "sword" };
+  const main = candidates.reduce((best, skill) =>
+    skillLevels[skill] > skillLevels[best] ? skill : best
+  );
+  return { ...entry, main };
 }
 
 function buildCharacter(entry, source, skillLevels) {
@@ -199,7 +207,7 @@ function buildCharacter(entry, source, skillLevels) {
   const desired = {
     magic: isKnight ? 9 : skillLevels.magic,
     fist: 15,
-    club: 15,
+    club: isKnight && entry.main === "club" ? skillLevels.main : 15,
     sword: isKnight && entry.main === "sword" ? skillLevels.main : 15,
     axe: isKnight && entry.main === "axe" ? skillLevels.main : 15,
     distance: 15,
@@ -237,20 +245,30 @@ async function prepareRows() {
     ROSTER.filter(entry => entry.main === "axe" || entry.main === "auto")
       .map(entry => normalized(entry.name))
   );
-  const [sword, axe, shielding, magic] = await Promise.all([
+  const clubUsers = new Set(
+    ROSTER.filter(entry => entry.main === "club" || entry.main === "auto")
+      .map(entry => normalized(entry.name))
+  );
+  const [sword, axe, club, shielding, magic] = await Promise.all([
     fetchHighscore("sword", swordUsers),
     fetchHighscore("axe", axeUsers),
+    fetchHighscore("club", clubUsers),
     fetchHighscore("shielding", knights),
     fetchHighscore("magic", mages),
   ]);
 
   return ROSTER.map(rosterEntry => {
     const key = normalized(rosterEntry.name);
-    const entry = resolveMainWeapon(rosterEntry, sword.get(key), axe.get(key));
+    const weaponSkills = {
+      club: club.get(key),
+      axe: axe.get(key),
+      sword: sword.get(key),
+    };
+    const entry = resolveMainWeapon(rosterEntry, weaponSkills);
     const source = characters.get(key);
     const portal = portalAccounts.get(key);
     const skillLevels = {
-      main: entry.main === "sword" ? sword.get(key) : entry.main === "axe" ? axe.get(key) : null,
+      main: weaponSkills[entry.main] ?? null,
       shielding: shielding.get(key),
       magic: magic.get(key),
     };

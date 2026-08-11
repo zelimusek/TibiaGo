@@ -126,15 +126,36 @@ async function main() {
 
   assert.strictEqual(resolveMainWeapon(
     { name: "Neked", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
-    87,
-    96
+    { club: 92, axe: 42, sword: 29 }
+  ).main, "club");
+  assert.strictEqual(resolveMainWeapon(
+    { name: "Axe Knight", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
+    { club: 30, axe: 96, sword: 87 }
   ).main, "axe");
   assert.strictEqual(resolveMainWeapon(
-    { name: "Neked", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
-    96,
-    87
+    { name: "Sword Knight", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "auto" },
+    { club: 30, axe: 87, sword: 96 }
   ).main, "sword");
   assert.ok(ROSTER.some(entry => entry.name === "Neked" && entry.main === "auto"));
+
+  const neked = buildCharacter(
+    { name: "Neked", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "club" },
+    { name: "Neked", level: 211, experience: 152958863 },
+    { main: 92, shielding: 87, magic: null }
+  );
+  assert.strictEqual(
+    new Skill(CONST.PROPERTIES.CLUB, neked.character.skills.club)
+      .getSkillLevel(CONST.VOCATION.ELITE_KNIGHT),
+    92
+  );
+  assert.strictEqual(
+    new Skill(CONST.PROPERTIES.AXE, neked.character.skills.axe)
+      .getSkillLevel(CONST.VOCATION.ELITE_KNIGHT),
+    15
+  );
+  assert.ok(neked.character.containers.equipment.some(entry =>
+    entry.slot === CONST.EQUIPMENT.RIGHT && entry.item.id === ITEMS.THUNDER_HAMMER
+  ));
 
   const lastRaven = buildCharacter(
     { name: "Last Raven", vocation: CONST.VOCATION.ELITE_KNIGHT, main: "axe" },
