@@ -144,29 +144,29 @@ DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colo
 
   let anchor = gameClient.renderer.getCreatureScreenPosition(creature);
   let shoulder = {
-    // Start at the lower/front part of the outfit. The booth overlaps this
-    // point, making the short extra limb read as the DJ's foreground arm.
-    x: Math.round(anchor.x * 32 + 15),
-    y: Math.round(anchor.y * 32 + 15)
+    // Follow the outfit's existing foreground arm instead of growing a new
+    // limb from its torso. The wider sleeve below covers the original pixels.
+    x: Math.round(anchor.x * 32 + 19),
+    y: Math.round(anchor.y * 32 + 19)
   };
   let cuff = {
-    // Keep almost the whole reach covered by the coloured sleeve. Only the
-    // final quarter is skin, avoiding the long third-arm/trunk appearance.
-    x: Math.round(shoulder.x + (target.x - shoulder.x) * 0.74 + sway * 0.08),
-    y: Math.round(shoulder.y + (target.y - shoulder.y) * 0.74)
+    // With the booth tucked under the outfits this is now a very short reach.
+    // Keep only its final fifth uncovered as the hand.
+    x: Math.round(shoulder.x + (target.x - shoulder.x) * 0.82 + sway * 0.05),
+    y: Math.round(shoulder.y + (target.y - shoulder.y) * 0.82)
   };
 
   context.save();
   context.lineCap = "square";
   context.lineJoin = "miter";
   context.strokeStyle = colors.sleeveShadow;
-  context.lineWidth = 6;
+  context.lineWidth = 8;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y);
   context.lineTo(cuff.x, cuff.y);
   context.stroke();
   context.strokeStyle = colors.sleeve;
-  context.lineWidth = 4;
+  context.lineWidth = 6;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y - 1);
   context.lineTo(cuff.x, cuff.y - 1);
@@ -200,9 +200,9 @@ DJBoothAnimation.prototype.draw = function (disco) {
       new Position(disco.center.x - 1, disco.center.y - 8, disco.center.z)
     );
     let x = Math.round(consolePosition.x * 32);
-    // Pull the booth half a tile towards the DJs. Besides shortening their
-    // reach, this lets its front edge naturally cover the bottom of outfits.
-    let y = Math.round(consolePosition.y * 32 - 16);
+    // Tuck the booth farther under the DJs. Its front edge hides the bottom of
+    // their original arms while the animated foreground arm stays very short.
+    let y = Math.round(consolePosition.y * 32 - 24);
     let context = this.screen.context;
     let scratch = Math.sin(rhythm.phase * Math.PI * 2) * 4;
     let beat = Number.isFinite(rhythm.sequence)
