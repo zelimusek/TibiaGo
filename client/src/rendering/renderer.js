@@ -28,6 +28,10 @@ const Renderer = function () {
   // This is a tiny canvas through which item outlines are rendered in white
   this.outlineCanvas = new OutlineCanvas(null, 130, 130);
 
+  // Client-local PartyZone DJ performance. It is deliberately isolated from
+  // the map and NPC state so it can fail or be disabled without affecting play.
+  this.djBoothAnimation = new DJBoothAnimation(this.screen);
+
   // The minimap to display the world in preview in the top-right corner
   this.minimap = new Minimap(gameClient.world.width, gameClient.world.height);
 
@@ -379,6 +383,10 @@ Renderer.prototype.__renderWorld = function () {
   for (let i = 0; i < tileCache.length; i++) {
     this.__renderFloor(tileCache[i].tiles, tileCache[i].z);
   }
+
+  // Draw the booth before darkness and club lighting so it remains part of
+  // the world instead of looking like a UI overlay pasted above the scene.
+  this.djBoothAnimation.draw(this.weatherCanvas.__discoLights);
 
   // If requested render the weather canvas
   if (weatherEnabled) {

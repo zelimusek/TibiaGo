@@ -56,6 +56,7 @@
     "src/ui/menus/menu-chat-body.js",
     "src/ui/menus/menu-container.js",
     "src/ui/menus/menu-manager.js",
+    "src/rendering/dj-booth-animation.js",
     "src/rendering/renderer.js",
     "src/network/network-manager.js",
     "src/utils/channel-manager.js",
