@@ -114,6 +114,11 @@ CharacterElement.prototype.setName = function (name) {
   this.element.querySelector("span").innerHTML = name;
 };
 
+const PARTY_DJ_NPC_NAMES = new Set([
+  "DJ Thomas",
+  "DJ Hubertuse",
+]);
+
 CharacterElement.prototype.setManaVisible = function (visible) {
   let mana = this.element.querySelector(".value-mana");
   if (!mana || !mana.parentElement) return;
@@ -291,7 +296,10 @@ CharacterElement.prototype.__setupNpcIcon = function () {
     return;
   }
 
-  // Show the trade icon for NPCs (shopkeepers/traders)
-  iconElement.src = "/png/npc_icons/icon_trade.png";
+  // The two Party Zone DJs use a dedicated music icon. Other NPCs retain the
+  // regular trade marker so this cosmetic override cannot affect shopkeepers.
+  iconElement.src = PARTY_DJ_NPC_NAMES.has(this.__creature.name)
+    ? "/png/npc_icons/icon_dj.png"
+    : "/png/npc_icons/icon_trade.png";
   iconElement.style.display = "block";
 };
