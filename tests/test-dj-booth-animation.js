@@ -25,7 +25,7 @@ const drawingContext = {
   restore() {},
   beginPath() {},
   moveTo(x, y) { drawCalls.push({ type: "moveTo", x, y }); },
-  lineTo() {},
+  lineTo(x, y) { drawCalls.push({ type: "lineTo", x, y }); },
   stroke() { drawCalls.push("stroke"); },
   fillRect() { drawCalls.push("fillRect"); },
   drawImage(image, x, y, width, height) {
@@ -96,22 +96,32 @@ let boothDraw = drawCalls.find(call => call && call.type === "drawImage");
 assert.ok(boothDraw, "the shared DJ console should render");
 assert.deepStrictEqual(
   { x: boothDraw.x, y: boothDraw.y, width: boothDraw.width, height: boothDraw.height },
-  { x: 128, y: 72, width: 96, height: 40 },
-  "the booth should overlap the lower part of the DJ outfits"
+  { x: 134, y: 72, width: 96, height: 40 },
+  "the booth should overlap the outfits and sit slightly closer to their hands"
 );
 assert.ok(drawCalls.filter(call => call === "stroke").length >= 4, "both DJs should move an arm");
 let armOrigins = drawCalls.filter(call => call && call.type === "moveTo");
 assert.deepStrictEqual(
   { x: armOrigins[0].x, y: armOrigins[0].y },
-  { x: 135, y: 75 },
-  "Thomas's animated arm should begin on his outfit"
+  { x: 140, y: 69 },
+  "Thomas's animated arm should begin on his real foreground hand"
 );
 assert.deepStrictEqual(
   { x: armOrigins[4].x, y: armOrigins[4].y },
-  { x: 199, y: 75 },
-  "Hubertuse's animated arm should begin on his outfit"
+  { x: 204, y: 69 },
+  "Hubertuse's animated arm should begin on his real foreground hand"
 );
-assert.ok(Math.max.apply(Math, lineWidths) <= 5, "DJ arms should stay slim rather than looking like beams");
+let upperArmWaypoints = drawCalls.filter(call => call && call.type === "lineTo");
+assert.deepStrictEqual(
+  { x: upperArmWaypoints[0].x, y: upperArmWaypoints[0].y },
+  { x: 147, y: 71 },
+  "the animated sleeve should first cover Thomas's arm painted into the outfit"
+);
+assert.ok(
+  upperArmWaypoints.some(call => call.x === 211 && call.y === 71),
+  "the animated sleeve should first cover Hubertuse's arm painted into the outfit"
+);
+assert.strictEqual(Math.max.apply(Math, lineWidths), 7, "the thicker sleeve should cover the static outfit arm");
 
 let initialTarget = animation.__smoothArmTarget("smooth-test", { x: 72, y: 17 }, 1000);
 let travellingTarget = animation.__smoothArmTarget("smooth-test", { x: 49, y: 21 }, 1016);

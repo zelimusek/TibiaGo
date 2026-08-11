@@ -157,62 +157,72 @@ DJBoothAnimation.prototype.__smoothArmTarget = function (key, desired, now) {
 
 };
 
-DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colors, bend) {
+DJBoothAnimation.prototype.__drawArm = function (context, creature, target, colors, bend, shoulderOffset) {
 
   if (!creature || creature.getPosition().z !== 7) return;
 
   let anchor = gameClient.renderer.getCreatureScreenPosition(creature);
+  shoulderOffset = shoulderOffset || { x: 12, y: 5 };
   let shoulder = {
-    // Follow the outfit's existing foreground arm instead of growing a new
-    // limb on the deck. Creature anchors start at the tile's visual corner,
-    // so the shoulder sits near its upper-left quarter, not its centre.
-    x: Math.round(anchor.x * 32 + 7),
-    y: Math.round(anchor.y * 32 + 11)
+    // Start on top of the south-facing outfit's real foreground hand. Keeping
+    // this per-outfit offset near the upper-right arm prevents the animated
+    // sleeve from appearing to grow out of the chest or stomach.
+    x: Math.round(anchor.x * 32 + shoulderOffset.x),
+    y: Math.round(anchor.y * 32 + shoulderOffset.y)
+  };
+  let upperArm = {
+    // Trace the short arm segment already painted into outfit 128 before
+    // bending towards a deck. This masks that static limb instead of leaving
+    // it visible as a third arm whenever Hubertuse reaches for the mixer.
+    x: Math.round(anchor.x * 32 + 19),
+    y: Math.round(anchor.y * 32 + 7)
   };
   let cuff = {
     // Keep only the final fifth uncovered as the hand.
     x: Math.round(shoulder.x + (target.x - shoulder.x) * 0.82),
     y: Math.round(shoulder.y + (target.y - shoulder.y) * 0.82)
   };
-  let deltaX = cuff.x - shoulder.x;
-  let deltaY = cuff.y - shoulder.y;
+  let deltaX = cuff.x - upperArm.x;
+  let deltaY = cuff.y - upperArm.y;
   let length = Math.max(1, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
   let elbow = {
-    x: Math.round(shoulder.x + deltaX * 0.48 - deltaY / length * bend),
-    y: Math.round(shoulder.y + deltaY * 0.48 + deltaX / length * bend)
+    x: Math.round(upperArm.x + deltaX * 0.48 - deltaY / length * bend),
+    y: Math.round(upperArm.y + deltaY * 0.48 + deltaX / length * bend)
   };
 
   context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
   context.strokeStyle = colors.sleeveShadow;
-  context.lineWidth = 5;
+  context.lineWidth = 7;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y);
+  context.lineTo(upperArm.x, upperArm.y);
   context.lineTo(elbow.x, elbow.y);
   context.lineTo(cuff.x, cuff.y);
   context.stroke();
   context.strokeStyle = colors.sleeve;
-  context.lineWidth = 3;
+  context.lineWidth = 5;
   context.beginPath();
   context.moveTo(shoulder.x, shoulder.y - 1);
+  context.lineTo(upperArm.x, upperArm.y - 1);
   context.lineTo(elbow.x, elbow.y - 1);
   context.lineTo(cuff.x, cuff.y - 1);
   context.stroke();
   context.strokeStyle = colors.skinShadow;
-  context.lineWidth = 3;
+  context.lineWidth = 5;
   context.beginPath();
   context.moveTo(cuff.x, cuff.y);
   context.lineTo(target.x, target.y);
   context.stroke();
   context.strokeStyle = colors.skin;
-  context.lineWidth = 2;
+  context.lineWidth = 3;
   context.beginPath();
   context.moveTo(cuff.x, cuff.y - 1);
   context.lineTo(target.x, target.y - 1);
   context.stroke();
   context.fillStyle = colors.skin;
-  context.fillRect(target.x - 1, target.y - 1, 3, 3);
+  context.fillRect(target.x - 2, target.y - 2, 4, 4);
   context.restore();
 
 };
@@ -227,7 +237,9 @@ DJBoothAnimation.prototype.draw = function (disco) {
     let consolePosition = gameClient.renderer.getStaticScreenPosition(
       new Position(disco.center.x - 1, disco.center.y - 8, disco.center.z)
     );
-    let x = Math.round(consolePosition.x * 32);
+    // A small rightward bias places both decks closer to the DJs' real hands
+    // and avoids long, trunk-like reaches across the booth.
+    let x = Math.round(consolePosition.x * 32 + 6);
     // Tuck the booth farther under the DJs. Its front edge hides the bottom of
     // their original arms while the animated foreground arm stays very short.
     let y = Math.round(consolePosition.y * 32 - 24);
@@ -256,12 +268,12 @@ DJBoothAnimation.prototype.draw = function (disco) {
       sleeveShadow: "#65161b",
       skin: "#e2aa72",
       skinShadow: "#885438"
-    }, -4);
+    }, -4, { x: 12, y: 5 });
 
     let hubertuseUsesMixer = beat % 4 === 3;
     let hubertuseTarget = this.__smoothArmTarget("hubertuse", hubertuseUsesMixer ? {
-      x: 49 + scratch * 0.35,
-      y: 21
+      x: 55 + scratch * 0.25,
+      y: 19
     } : {
       x: 72 - scratch * 0.55,
       y: 17 - scratch
@@ -274,7 +286,7 @@ DJBoothAnimation.prototype.draw = function (disco) {
       sleeveShadow: "#172966",
       skin: "#e2aa72",
       skinShadow: "#885438"
-    }, 4);
+    }, hubertuseUsesMixer ? 2 : 4, { x: 12, y: 5 });
     context.restore();
     return true;
   } catch (error) {
