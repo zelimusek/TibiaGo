@@ -51,7 +51,7 @@ vm.runInContext(source + "\nthis.NetworkManager = NetworkManager;", context);
 
 const manager = Object.create(context.NetworkManager.prototype);
 manager.state = { connected: true };
-manager.__connectedAt = Date.now() - 30000;
+manager.__connectedAt = Date.now() - 9000;
 manager.__diagnosticConnectionId = "stalled-connection";
 manager.__recoverAfterClose = false;
 manager.__transportWatchdog = {
@@ -66,13 +66,20 @@ manager.socket = {
   close(code, reason) { closeRequest = { code, reason }; }
 };
 
+for (let index = 0; index < 5; index++) {
+  now += 550;
+  assert.strictEqual(manager.__observeTransportHealth(), false);
+}
+assert.strictEqual(closeRequest, null, "the login grace period must prevent early recovery");
+
+manager.__connectedAt = Date.now() - 11000;
 for (let index = 0; index < 4; index++) {
-  now += 700;
+  now += 550;
   assert.strictEqual(manager.__observeTransportHealth(), false);
 }
 assert.strictEqual(closeRequest, null, "a few isolated gaps must not reconnect the client");
 
-now += 700;
+now += 550;
 assert.strictEqual(manager.__observeTransportHealth(), true);
 assert.deepStrictEqual(closeRequest, {
   code: 4000,
@@ -86,7 +93,7 @@ closeRequest = null;
 manager.__transportWatchdog.recoveryInProgress = false;
 context.document.visibilityState = "hidden";
 for (let index = 0; index < 6; index++) {
-  now += 700;
+  now += 550;
   assert.strictEqual(manager.__observeTransportHealth(), false);
 }
 assert.strictEqual(closeRequest, null, "a hidden client must never trigger transport recovery");

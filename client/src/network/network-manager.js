@@ -586,10 +586,10 @@ NetworkManager.prototype.__handlePacket = function (event) {
 
 NetworkManager.prototype.__observeTransportHealth = function () {
 
-  const GAP_MS = 600;
+  const GAP_MS = 500;
   const GAP_WINDOW_MS = 15000;
   const REQUIRED_GAPS = 5;
-  const CONNECTION_GRACE_MS = 20000;
+  const CONNECTION_GRACE_MS = 10000;
   const RECOVERY_COOLDOWN_MS = 120000;
 
   let watchdog = this.__transportWatchdog;
