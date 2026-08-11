@@ -47,6 +47,7 @@ const GameClient = function () {
 
   // A reference to the player itself: null before login
   this.player = null;
+  this.inventoryCounts = new Map();
 
   // The database that stores the minimap and game files
   this.database = new Database();
@@ -196,6 +197,7 @@ GameClient.prototype.reset = function () {
   this.interface.settings.saveState();
   this.interface.soundManager.stopAll();
   this.mouse.cancelPendingActions();
+  this.inventoryCounts = new Map();
 
   // Abort the gameloop
   this.gameLoop.abort();

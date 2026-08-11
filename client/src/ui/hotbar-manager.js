@@ -90,8 +90,6 @@ HotbarManager.prototype.addItemSlot = function (index, itemId, mode) {
     return;
   }
 
-  let itemObject = this.__findItemObject(itemId);
-
   this.slots[index].spell = null;
   this.slots[index].text = null;
   this.slots[index].item = {
@@ -99,11 +97,7 @@ HotbarManager.prototype.addItemSlot = function (index, itemId, mode) {
     mode: mode
   };
 
-  this.slots[index].canvas.clear();
-
-  if (itemObject !== null) {
-    this.slots[index].canvas.drawSprite(itemObject.which.peekItem(itemObject.index), new Position(0, 0), 32);
-  }
+  this.__drawItemIcon(this.slots[index]);
 
   this.slots[index].canvas.canvas.parentNode.lastElementChild.style.color = "gold";
   this.slots[index].canvas.canvas.parentNode.title = "%s: %s".format(this.__getItemNameById(itemId).capitalize(), this.__getItemModeLabel(mode));
@@ -189,15 +183,7 @@ HotbarManager.prototype.render = function () {
     }
 
     if (slot.item !== null) {
-      let itemObject = this.__findItemObject(slot.item.id);
-      slot.canvas.clear();
-
-      if (itemObject === null) {
-        slot.canvas.canvas.parentNode.lastElementChild.style.color = "red";
-        return;
-      }
-
-      slot.canvas.drawSprite(itemObject.which.peekItem(itemObject.index), new Position(0, 0), 32);
+      this.__drawItemIcon(slot);
       return;
     }
 
@@ -397,6 +383,36 @@ HotbarManager.prototype.__findItemObject = function (itemId) {
 
 }
 
+HotbarManager.prototype.__getInventoryCount = function (itemId) {
+  return gameClient.inventoryCounts ? (gameClient.inventoryCounts.get(itemId) || 0) : 0;
+}
+
+HotbarManager.prototype.__drawItemIcon = function (slot) {
+  let count = this.__getInventoryCount(slot.item.id);
+  let canvas = slot.canvas;
+  canvas.clear();
+
+  // The icon represents the configured item type and therefore remains visible
+  // even when the character currently owns none of it.
+  canvas.drawSprite(new Item(slot.item.id, 1), new Position(0, 0), 32);
+
+  let context = canvas.context;
+  let text = String(count);
+  context.save();
+  context.font = "bold " + (text.length > 4 ? 8 : (text.length > 3 ? 9 : 10)) + "px Arial";
+  context.textAlign = "right";
+  context.textBaseline = "bottom";
+  context.lineWidth = 3;
+  context.lineJoin = "round";
+  context.strokeStyle = "rgba(0, 0, 0, 0.95)";
+  context.strokeText(text, 31, 31);
+  context.fillStyle = count === 0 ? "#ff3030" : "#ffffff";
+  context.fillText(text, 31, 31);
+  context.restore();
+
+  canvas.canvas.parentNode.lastElementChild.style.color = "gold";
+}
+
 HotbarManager.prototype.__getItemModeLabel = function (mode) {
 
   switch (mode) {
@@ -439,37 +455,34 @@ HotbarManager.prototype.__getItemNameById = function (itemId) {
 }
 
 HotbarManager.prototype.__useItemSlot = function (slot) {
-
-  let itemObject = this.__findItemObject(slot.item.id);
-
-  if (itemObject === null) {
+  if (this.__getInventoryCount(slot.item.id) <= 0) {
     return gameClient.interface.setCancelMessage("You do not have this item.");
   }
 
+  let itemId = slot.item.id;
+  let item = new Item(itemId, 1);
+  let inventoryItem = { inventoryItemId: itemId };
+
   switch (slot.item.mode) {
     case "self": {
-      let item = itemObject.which.peekItem(itemObject.index);
       // A single convenient hotkey mode covers both classic direct-use
       // objects (food, switches, water-pipes) and targetable objects such as
       // runes and fluids. Existing saved "self" slots inherit this behavior.
       if(item === null || typeof item.isMultiUse !== "function" || !item.isMultiUse()) {
-        return gameClient.send(new ItemUsePacket(itemObject));
+        return gameClient.send(new InventoryItemUsePacket(itemId));
       }
-      return gameClient.send(new ItemUseOnCreaturePacket(itemObject, gameClient.player.id));
+      return gameClient.send(new InventoryItemUseOnCreaturePacket(itemId, gameClient.player.id));
     }
     case "target":
       if (!gameClient.player.hasTarget()) {
         return gameClient.interface.setCancelMessage("You have no target.");
       }
-      return gameClient.send(new ItemUseOnCreaturePacket(itemObject, gameClient.player.getTarget().id));
+      return gameClient.send(new InventoryItemUseOnCreaturePacket(itemId, gameClient.player.getTarget().id));
     case "crosshair":
-      gameClient.mouse.__multiUseObject = itemObject;
+      gameClient.mouse.__multiUseObject = inventoryItem;
       return gameClient.mouse.setCursor("crosshair");
     case "equip-ring":
-      return gameClient.mouse.sendItemMove(itemObject, {
-        which: gameClient.player.equipment,
-        index: 8
-      }, itemObject.which.peekItem(itemObject.index).count || 1);
+      return gameClient.send(new InventoryItemEquipRingPacket(itemId));
   }
 
 }

@@ -2,6 +2,17 @@
 
 const PacketWriter = requireModule("network/packet-writer");
 
+const InventorySummaryPacket = function (summary) {
+  PacketWriter.call(this, CONST.PROTOCOL.SERVER.INVENTORY_SUMMARY, 2 + (summary.size * 6));
+  this.writeUInt16(summary.size);
+  summary.forEach(function (count, serverId) {
+    this.writeClientId(serverId);
+    this.writeUInt32(count);
+  }, this);
+};
+InventorySummaryPacket.prototype = Object.create(PacketWriter.prototype);
+InventorySummaryPacket.prototype.constructor = InventorySummaryPacket;
+
 function encodePartyString(value) {
   return new TextEncoder("utf-8").encode(String(value || ""));
 }
@@ -1110,6 +1121,7 @@ QuestLinePacket.prototype = Object.create(PacketWriter.prototype);
 QuestLinePacket.prototype.constructor = QuestLinePacket;
 
 module.exports = {
+  InventorySummaryPacket,
   CancelMessagePacket,
   ChannelDefaultPacket,
   ChannelJoinPacket,

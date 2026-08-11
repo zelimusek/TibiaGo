@@ -177,6 +177,37 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
       return gameSocket.player.useHandler.handleActionUseWith(packet.readItemUseWith(gameSocket.player));
     }
 
+    case CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_USE: {
+      let serverId = gameServer.database.getServerIdByClientId(packet.readUInt16());
+      return serverId === null ? null : gameSocket.player.useHandler.handleInventoryItemUse(serverId);
+    }
+
+    case CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_USE_WITH: {
+      let usePacket = packet.readInventoryItemUseWith(gameSocket.player);
+      let serverId = gameServer.database.getServerIdByClientId(usePacket.clientId);
+      return serverId === null ? null : gameSocket.player.useHandler.handleInventoryItemUseWith(serverId, usePacket);
+    }
+
+    case CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_USE_ON_CREATURE: {
+      let serverId = gameServer.database.getServerIdByClientId(packet.readUInt16());
+      let creatureId = packet.readUInt32();
+      return serverId === null ? null : gameSocket.player.useHandler.handleInventoryItemUseOnCreature(serverId, creatureId);
+    }
+
+    case CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_EQUIP_RING: {
+      let serverId = gameServer.database.getServerIdByClientId(packet.readUInt16());
+      if (serverId === null) return;
+      let found = gameSocket.player.containerManager.findCarriedItemByType(serverId);
+      if (found === null) return gameSocket.player.sendCancelMessage("You do not have this item.");
+      return this.packetHandler.moveItem(gameSocket.player, {
+        fromWhere: found.which,
+        fromIndex: found.index,
+        toWhere: gameSocket.player.containerManager.equipment,
+        toIndex: 8,
+        count: found.item.count || 1
+      });
+    }
+
     case CONST.PROTOCOL.CLIENT.OUTFIT: {
       return gameSocket.player.changeOutfit(packet.readOutfit());
     }

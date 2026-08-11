@@ -129,6 +129,14 @@ PacketReader.prototype.readItemUseOnCreature = function (player) {
 
 }
 
+PacketReader.prototype.readInventoryItemUseWith = function (player) {
+  return {
+    clientId: this.readUInt16(),
+    toWhere: this.readMoveEvent(player),
+    toIndex: this.readUInt8()
+  };
+}
+
 PacketReader.prototype.isReadable = function () {
 
   /*

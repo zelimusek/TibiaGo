@@ -18,7 +18,7 @@ const UseHandler = requireModule("player/player-use-handler");
 const Skills = requireModule("utils/skills");
 const Position = requireModule("utils/position");
 
-const { EmotePacket, CreatureStatePacket, ContainerOpenPacket, ContainerClosePacket, CancelMessagePacket, ServerMessagePacket, ChannelWritePacket, CreaturePropertyPacket } = requireModule("network/protocol");
+const { EmotePacket, CreatureStatePacket, ContainerOpenPacket, ContainerClosePacket, CancelMessagePacket, ServerMessagePacket, ChannelWritePacket, CreaturePropertyPacket, InventorySummaryPacket } = requireModule("network/protocol");
 
 const Player = function (data) {
   /*
@@ -90,6 +90,8 @@ const Player = function (data) {
 
   // Classic secure mode defaults to enabled and is saved with the character.
   this.secureMode = !data.pvpPreferences || data.pvpPreferences.secureMode !== false;
+  this.__lastInventorySummaryAt = 0;
+  this.__inventorySummarySignature = null;
 };
 
 Player.prototype = Object.create(Creature.prototype);
@@ -237,6 +239,22 @@ Player.prototype.getExperiencePoints = function () {
 
 Player.prototype.think = function () {
   this.actionHandler.actions.handleActions(this.actionHandler);
+  this.__writeInventorySummaryIfChanged();
+};
+
+Player.prototype.__writeInventorySummaryIfChanged = function () {
+  let now = Date.now();
+  if ((now - this.__lastInventorySummaryAt) < 500) return;
+  this.__lastInventorySummaryAt = now;
+
+  let summary = this.containerManager.getCarriedItemSummary();
+  let signature = Array.from(summary.entries())
+    .sort(function (a, b) { return a[0] - b[0]; })
+    .map(function (entry) { return entry[0] + ":" + entry[1]; })
+    .join("|");
+  if (signature === this.__inventorySummarySignature) return;
+  this.__inventorySummarySignature = signature;
+  this.write(new InventorySummaryPacket(summary));
 };
 
 Player.prototype.getVocation = function () {

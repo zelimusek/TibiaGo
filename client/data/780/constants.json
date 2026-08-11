@@ -42,7 +42,11 @@
       "WRITE_TEXT": 23,
       "QUEST_LOG": 24,
       "SECURE_MODE": 25,
-      "CLIENT_CAPABILITIES": 26
+        "CLIENT_CAPABILITIES": 26,
+        "INVENTORY_ITEM_USE": 27,
+        "INVENTORY_ITEM_USE_WITH": 28,
+        "INVENTORY_ITEM_USE_ON_CREATURE": 29,
+        "INVENTORY_ITEM_EQUIP_RING": 30
     },
     "SERVER": {
       "LATENCY": 0,
@@ -91,7 +95,8 @@
       "RADIO_STREAM": 54,
       "CREATURE_SKULL": 56,
       "PARTY_ACHIEVEMENT": 57,
-      "CREATURE_TITLE": 58
+        "CREATURE_TITLE": 58,
+        "INVENTORY_SUMMARY": 59
     }
   },
   "DIRECTION": {

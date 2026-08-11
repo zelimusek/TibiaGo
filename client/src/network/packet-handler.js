@@ -1798,3 +1798,7 @@ PacketHandler.prototype.handleQuestLine = function (data) {
     gameClient.interface.questTracker.updateMissions(data.missions);
   }
 }
+
+PacketHandler.prototype.handleInventorySummary = function (entries) {
+  gameClient.inventoryCounts = new Map(entries);
+}

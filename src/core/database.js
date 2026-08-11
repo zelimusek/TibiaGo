@@ -486,6 +486,19 @@ Database.prototype.getClientId = function (id) {
 
 }
 
+Database.prototype.getServerIdByClientId = function (clientId) {
+  if (!this.__serverIdsByClientId) {
+    this.__serverIdsByClientId = new Map();
+    Object.keys(this.items).forEach(function (serverId) {
+      let prototype = this.items[serverId];
+      if (prototype && !this.__serverIdsByClientId.has(prototype.id)) {
+        this.__serverIdsByClientId.set(prototype.id, Number(serverId));
+      }
+    }, this);
+  }
+  return this.__serverIdsByClientId.get(clientId) || null;
+}
+
 Database.prototype.__loadSpawnDefinitions = function (definition) {
   /*
    * Function Database.__loadSpawnDefinitions

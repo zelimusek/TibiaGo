@@ -39,6 +39,49 @@ const ContainerManager = function (player, containers) {
 
 ContainerManager.prototype.MAXIMUM_OPENED_CONTAINERS = 5;
 
+ContainerManager.prototype.getCarriedItemSummary = function () {
+  let summary = new Map();
+
+  let visit = function (container) {
+    if (!container) return;
+    let slots = typeof container.getSlots === "function"
+      ? container.getSlots()
+      : (container.container && typeof container.container.getSlots === "function" ? container.container.getSlots() : null);
+    if (slots === null) return;
+    slots.forEach(function (item) {
+      if (item === null) return;
+      summary.set(item.id, (summary.get(item.id) || 0) + (item.count || 1));
+      if (item.container) visit(item);
+    });
+  };
+
+  visit(this.equipment);
+  visit(this.keyring);
+  return summary;
+};
+
+ContainerManager.prototype.findCarriedItemByType = function (serverId) {
+  let visit = function (container) {
+    if (!container) return null;
+    let slots = typeof container.getSlots === "function"
+      ? container.getSlots()
+      : (container.container && typeof container.container.getSlots === "function" ? container.container.getSlots() : null);
+    if (slots === null) return null;
+    for (let index = 0; index < slots.length; index++) {
+      let item = slots[index];
+      if (item === null) continue;
+      if (item.id === serverId) return { which: container, index: index, item: item };
+      if (item.container) {
+        let nested = visit(item);
+        if (nested !== null) return nested;
+      }
+    }
+    return null;
+  };
+
+  return visit(this.equipment) || visit(this.keyring);
+};
+
 ContainerManager.prototype.toJSON = function () {
 
   /*

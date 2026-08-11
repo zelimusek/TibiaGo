@@ -1177,6 +1177,15 @@ PacketReader.prototype.readQuestLog = function () {
   return quests;
 }
 
+PacketReader.prototype.readInventorySummary = function () {
+  let length = this.readUInt16();
+  let entries = new Array(length);
+  for (let i = 0; i < length; i++) {
+    entries[i] = [this.readUInt16(), this.readUInt32()];
+  }
+  return entries;
+}
+
 PacketReader.prototype.readQuestLine = function () {
   /*
    * Function PacketReader.readQuestLine

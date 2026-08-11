@@ -200,12 +200,46 @@ const ItemUsePacket = function (thing) {
 ItemUsePacket.prototype = Object.create(PacketWriter.prototype);
 ItemUsePacket.prototype.constructor = ItemUsePacket;
 
+const InventoryItemUsePacket = function (itemId) {
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_USE, 2);
+  this.writeUInt16(itemId);
+}
+InventoryItemUsePacket.prototype = Object.create(PacketWriter.prototype);
+InventoryItemUsePacket.prototype.constructor = InventoryItemUsePacket;
+
+const InventoryItemUseWithPacket = function (itemId, toThing) {
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_USE_WITH, 10);
+  this.writeUInt16(itemId);
+  this.__writeGenericMove(toThing);
+}
+InventoryItemUseWithPacket.prototype = Object.create(PacketWriter.prototype);
+InventoryItemUseWithPacket.prototype.constructor = InventoryItemUseWithPacket;
+
+const InventoryItemUseOnCreaturePacket = function (itemId, creatureId) {
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_USE_ON_CREATURE, 6);
+  this.writeUInt16(itemId);
+  this.writeUInt32(creatureId);
+}
+InventoryItemUseOnCreaturePacket.prototype = Object.create(PacketWriter.prototype);
+InventoryItemUseOnCreaturePacket.prototype.constructor = InventoryItemUseOnCreaturePacket;
+
+const InventoryItemEquipRingPacket = function (itemId) {
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.INVENTORY_ITEM_EQUIP_RING, 2);
+  this.writeUInt16(itemId);
+}
+InventoryItemEquipRingPacket.prototype = Object.create(PacketWriter.prototype);
+InventoryItemEquipRingPacket.prototype.constructor = InventoryItemEquipRingPacket;
+
 const ItemUseWithPacket = function (fromThing, toThing) {
 
   /*
    * Class ItemUseWithPacket
    * Wrapper packet for an use with action
    */
+
+  if (fromThing && fromThing.inventoryItemId !== undefined) {
+    return new InventoryItemUseWithPacket(fromThing.inventoryItemId, toThing);
+  }
 
   PacketWriter.call(this, CONST.PROTOCOL.CLIENT.THING_USE_WITH, 16);
 
@@ -223,6 +257,10 @@ const ItemUseOnCreaturePacket = function (fromThing, creatureId) {
    * Class ItemUseOnCreaturePacket
    * Wrapper packet for using an item (like a rune) on a creature from battle list
    */
+
+  if (fromThing && fromThing.inventoryItemId !== undefined) {
+    return new InventoryItemUseOnCreaturePacket(fromThing.inventoryItemId, creatureId);
+  }
 
   PacketWriter.call(this, CONST.PROTOCOL.CLIENT.THING_USE_ON_CREATURE, 12);
 

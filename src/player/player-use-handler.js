@@ -20,6 +20,36 @@ const UseHandler = function (player) {
 
 UseHandler.prototype.GLOBAL_USE_COOLDOWN = 20;
 
+UseHandler.prototype.__resolveCarriedItem = function (serverId) {
+  let found = this.__player.containerManager.findCarriedItemByType(serverId);
+  if (found === null) this.__player.sendCancelMessage("You do not have this item.");
+  return found;
+};
+
+UseHandler.prototype.handleInventoryItemUse = function (serverId) {
+  let found = this.__resolveCarriedItem(serverId);
+  if (found === null) return;
+  return this.handleItemUse({ which: found.which, index: found.index });
+};
+
+UseHandler.prototype.handleInventoryItemUseWith = function (serverId, packet) {
+  let found = this.__resolveCarriedItem(serverId);
+  if (found === null) return;
+  packet.fromWhere = found.which;
+  packet.fromIndex = found.index;
+  return this.handleActionUseWith(packet);
+};
+
+UseHandler.prototype.handleInventoryItemUseOnCreature = function (serverId, creatureId) {
+  let found = this.__resolveCarriedItem(serverId);
+  if (found === null) return;
+  return this.handleActionUseOnCreature({
+    fromWhere: found.which,
+    fromIndex: found.index,
+    creatureId: creatureId
+  });
+};
+
 UseHandler.prototype.handleActionUseWith = function (packet) {
 
   /*

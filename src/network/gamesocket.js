@@ -11,7 +11,8 @@ const {
   PlayerStatePacket,
   ServerStatePacket,
   PlayerInfoPacket,
-  ContainerAddPacket
+  ContainerAddPacket,
+  InventorySummaryPacket
 } = requireModule("network/protocol");
 
 const GameSocket = function (socket, account, connectionDetails) {
@@ -249,6 +250,8 @@ GameSocket.prototype.writeWorldState = function (player) {
   this.serializeWorld(player.getChunk());
 
   this.write(new PlayerStatePacket(player));
+
+  this.write(new InventorySummaryPacket(player.containerManager.getCarriedItemSummary()));
 
   this.write(new WorldTimePacket(gameServer.world.clock.getTime()));
 

@@ -9,6 +9,9 @@ let storedHotbar = JSON.stringify([
   { itemId: 3160, mode: "self" }
 ]);
 let spriteDraws = 0;
+const drawingContext = {
+  save() {}, restore() {}, strokeText() {}, fillText() {}
+};
 
 const slot = {
   spell: null,
@@ -17,6 +20,7 @@ const slot = {
   canvas: {
     clear() {},
     drawSprite() { spriteDraws++; },
+    context: drawingContext,
     canvas: {
       parentNode: {
         lastElementChild: { style: {} },
@@ -29,6 +33,7 @@ const slot = {
 const context = {
   console,
   Image: function () { return {}; },
+  Item: function (id, count) { this.id = id; this.count = count; },
   Position: function (x, y, z) { this.x = x; this.y = y; this.z = z; },
   localStorage: {
     getItem(key) { return key === "hotbar" ? storedHotbar : null; },
@@ -38,6 +43,7 @@ const context = {
   },
   gameClient: {
     player: null,
+    inventoryCounts: new Map(),
     itemDefinitions: {
       3160: { properties: { name: "ultimate healing rune" } }
     },
@@ -67,7 +73,7 @@ assert.doesNotThrow(
 );
 assert.strictEqual(slot.item.id, 3160, "the saved item hotkey should be preserved");
 assert.strictEqual(slot.item.mode, "self");
-assert.strictEqual(spriteDraws, 0, "the icon should wait until the Player exists");
+assert.strictEqual(spriteDraws, 1, "the configured icon should remain visible without a Player");
 
 const rune = { id: 3160 };
 const equipment = {
@@ -81,6 +87,6 @@ context.gameClient.player = {
 };
 
 manager.render();
-assert.strictEqual(spriteDraws, 1, "the next render should restore the icon automatically");
+assert.strictEqual(spriteDraws, 2, "the next render should keep the permanent icon visible");
 
 console.log("PASS: saved item hotkeys survive a clean reconnect before Player assignment.");

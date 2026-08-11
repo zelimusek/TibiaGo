@@ -150,6 +150,10 @@ NetworkManager.prototype.readPacket = function (packet) {
       return this.packetHandler.handleCreatureTitle(packet.readCreatureTitle());
     }
 
+    case CONST.PROTOCOL.SERVER.INVENTORY_SUMMARY: {
+      return this.packetHandler.handleInventorySummary(packet.readInventorySummary());
+    }
+
     case CONST.PROTOCOL.SERVER.CREATURE_INFORMATION: {
       return this.packetHandler.handleCharacterInformation(packet.readCharacterInformation());
     }
