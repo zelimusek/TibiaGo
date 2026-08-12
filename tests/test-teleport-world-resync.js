@@ -39,15 +39,36 @@ const player = {
   write(packet) { this.packets.push(packet); },
 };
 const opponent = {
+  constructor: { name: "NPC" },
   id: 88,
   position: new Position(32521, 32352, 7),
   getId() { return this.id; },
   getPosition() { return this.position; },
+  getProperty(property) {
+    if (property === CONST.PROPERTIES.NAME) return "Lichomek";
+    if (property === CONST.PROPERTIES.DIRECTION) return CONST.DIRECTION.SOUTH;
+    if (property === CONST.PROPERTIES.HEALTH) return 245;
+    if (property === CONST.PROPERTIES.HEALTH_MAX) return 245;
+    if (property === CONST.PROPERTIES.SPEED) return 220;
+    return 0;
+  },
+  getOutfit() {
+    return {
+      id: 128,
+      details: { head: 0, body: 0, legs: 0, feet: 0 },
+      mount: 0,
+      mounted: false,
+      addonOne: false,
+      addonTwo: false,
+    };
+  },
+  isPlayer() { return false; },
 };
 center.players.add(player);
 north.players.add(opponent);
 
 global.gameServer = process.gameServer = {
+  isFeatureEnabled() { return true; },
   world: {
     getChunkFromWorldPosition() { return center; },
   },
@@ -57,11 +78,49 @@ try {
   const handler = Object.create(CreatureHandler.prototype);
   assert.strictEqual(handler.resyncPlayerWorld(player, "teleport-test"), 3,
     "an authoritative teleport refresh sends each visible chunk once");
-  assert.strictEqual(player.packets.length, 5,
-    "chunk snapshots are followed by opponent and self position anchors");
+  assert.strictEqual(player.packets.length, 6,
+    "chunk snapshots are followed by opponent state and position anchors");
   assert.strictEqual(player.packets.at(-1).constructor.name, "CreatureTeleportPacket",
     "self teleport is the final cache-rebuild barrier");
   assert.strictEqual(player.packets.at(-2).constructor.name, "CreatureTeleportPacket");
+  assert.strictEqual(player.packets.at(-3).constructor.name, "CreatureStatePacket",
+    "an unknown remote creature is introduced before its teleport anchor");
+
+  const movingPlayer = Object.assign({}, opponent, {
+    constructor: { name: "Player" },
+    id: 99,
+    position: new Position(32514, 32344, 7),
+    packets: [],
+    getChunk() { return center; },
+    isPlayer() { return true; },
+    write(packet) { this.packets.push(packet); },
+  });
+  center.players = new Set([player, movingPlayer]);
+  north.players = new Set();
+  west.players = new Set();
+  player.packets = [];
+  process.gameServer.world.combatHandler = {
+    getPvPManager() {
+      return {
+        getSkullFor(observer, target) {
+          assert.strictEqual(observer, player);
+          assert.strictEqual(target, movingPlayer);
+          return 3;
+        },
+      };
+    },
+  };
+  assert.strictEqual(handler.__broadcastCreatureTeleport(movingPlayer), true);
+  assert.deepStrictEqual(
+    player.packets.map(packet => packet.constructor.name),
+    ["CreatureStatePacket", "CreatureSkullPacket", "CreatureTeleportPacket"],
+    "destination observers receive player state and skull before the teleport anchor"
+  );
+  assert.deepStrictEqual(
+    movingPlayer.packets.map(packet => packet.constructor.name),
+    ["CreatureTeleportPacket"],
+    "the teleported player receives only its own authoritative anchor"
+  );
 
   const root = path.resolve(__dirname, "..");
   const packetHandler = fs.readFileSync(
@@ -99,6 +158,8 @@ try {
     "renderer and pathfinding caches are rebuilt after the refresh batch");
   assert.ok(serverWorld.includes("this.resyncPlayerWorld(creature"),
     "every player teleport is followed by a visible-world refresh");
+  assert.ok(serverWorld.includes("this.__broadcastCreatureTeleport(creature)"),
+    "the production teleport path uses state-before-teleport broadcasting");
 
   console.log("PASS: teleports replace stale client chunks with authoritative world snapshots.");
 } finally {

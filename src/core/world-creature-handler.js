@@ -74,6 +74,7 @@ const PARTY_READABLE_POSITIONS = {
 const {
   ChunkPacket,
   CreatureForgetPacket,
+  CreatureSkullPacket,
   CreatureTeleportPacket,
   CreatureMovePacket,
   CreatureStatePacket,
@@ -1303,6 +1304,19 @@ CreatureHandler.prototype.detachCreaturePosition = function (creature) {
   return true;
 };
 
+CreatureHandler.prototype.isCreaturePositioned = function (creature) {
+  if (
+    !creature
+    || !this.exists(creature)
+    || this.__detachedCreaturePositions.has(creature)
+    || !creature.position
+  ) {
+    return false;
+  }
+
+  return creature.getChunk() !== null && creature.getTile() !== null;
+};
+
 CreatureHandler.prototype.clearPlayerTargetsForCreature = function (creature) {
 
   /*
@@ -1828,8 +1842,8 @@ CreatureHandler.prototype.resyncPlayerWorld = function (player, reason) {
 
   visibleCreatures.delete(player.getId());
   visibleCreatures.forEach(function (creature) {
-    player.write(new CreatureTeleportPacket(creature.getId(), creature.getPosition()));
-  });
+    this.__writeCreatureReference(player, creature, true);
+  }, this);
   player.write(new CreatureTeleportPacket(player.getId(), player.getPosition()));
   let anchoredCreatures = visibleCreatures.size + 1;
 
@@ -1849,6 +1863,65 @@ CreatureHandler.prototype.resyncPlayerWorld = function (player, reason) {
 
   return sent;
 
+}
+
+CreatureHandler.prototype.__writeCreatureReference = function (
+  observer,
+  creature,
+  includeAnchor
+) {
+  if (!observer || !creature || typeof observer.write !== "function") {
+    return false;
+  }
+
+  observer.write(new CreatureStatePacket(creature));
+
+  if (
+    creature.isPlayer && creature.isPlayer()
+    && gameServer.world.combatHandler
+  ) {
+    let skull = gameServer.world.combatHandler
+      .getPvPManager()
+      .getSkullFor(observer, creature);
+    observer.write(new CreatureSkullPacket(creature.getId(), skull));
+  }
+
+  if (includeAnchor === true) {
+    observer.write(new CreatureTeleportPacket(
+      creature.getId(),
+      creature.getPosition()
+    ));
+  }
+
+  return true;
+}
+
+CreatureHandler.prototype.__broadcastCreatureTeleport = function (creature) {
+  let creatureChunk = creature && creature.getChunk ? creature.getChunk() : null;
+  if (creatureChunk === null) {
+    return false;
+  }
+
+  let observers = new Set();
+  creatureChunk.neighbours.forEach(function (chunk) {
+    chunk.players.forEach(function (player) {
+      observers.add(player);
+    });
+  });
+
+  observers.forEach(function (observer) {
+    if (observer === creature) {
+      observer.write(new CreatureTeleportPacket(
+        creature.getId(),
+        creature.getPosition()
+      ));
+      return;
+    }
+
+    this.__writeCreatureReference(observer, creature, true);
+  }, this);
+
+  return true;
 }
 
 CreatureHandler.prototype.updateCreaturePosition = function (creature, position) {
@@ -2019,7 +2092,10 @@ CreatureHandler.prototype.teleportCreature = function (creature, position, optio
   // Try to set the position: it may fail however
   this.updateCreaturePosition(creature, destination.position);
 
-  destination.broadcast(new CreatureTeleportPacket(creature.getId(), destination.getPosition()));
+  // A destination observer may never have seen this creature ID before (for
+  // example after death/reconnect). Always introduce it before its teleport
+  // anchor instead of sending an anchor the client cannot resolve.
+  this.__broadcastCreatureTeleport(creature);
 
   // A teleport may remain inside the same chunk, and dynamic party-game
   // objects may have changed while the browser was switching positions.

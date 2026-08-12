@@ -24,11 +24,33 @@ const World = function (width, height, depth) {
   this.activeCreatures = new Object();
   this.chunks = new Array();
   this.__chunkRefreshScheduled = false;
+  this.__entityReferenceGrace = new Map();
+  this.__entityReferenceGraceTimer = null;
 
   // Client side pathfinder
   this.pathfinder = new Pathfinder();
   this.clock = new Clock();
 
+}
+
+World.prototype.ENTITY_REFERENCE_GRACE_MS = 200;
+
+World.prototype.__scheduleEntityReferenceSweep = function () {
+  if (
+    this.__entityReferenceGraceTimer !== null
+    || typeof window === "undefined"
+    || typeof window.setTimeout !== "function"
+  ) {
+    return;
+  }
+
+  let world = this;
+  this.__entityReferenceGraceTimer = window.setTimeout(function () {
+    world.__entityReferenceGraceTimer = null;
+    if (gameClient.world === world) {
+      world.checkEntityReferences();
+    }
+  }, this.ENTITY_REFERENCE_GRACE_MS + 25);
 }
 
 World.prototype.handleSelfTeleport = function () {
@@ -108,6 +130,11 @@ World.prototype.checkEntityReferences = function () {
   let removals = [];
   let repaired = 0;
   let discarded = 0;
+  let now = Date.now();
+
+  if (!(this.__entityReferenceGrace instanceof Map)) {
+    this.__entityReferenceGrace = new Map();
+  }
 
   // Player moves: repair recoverable chunk references and drop entities which
   // no longer belong to any loaded neighbouring sector.
@@ -122,6 +149,7 @@ World.prototype.checkEntityReferences = function () {
 
     // Never drop self
     if (gameClient.isSelf(activeCreature)) {
+      this.__entityReferenceGrace.delete(Number(id));
       return;
     }
 
@@ -130,19 +158,50 @@ World.prototype.checkEntityReferences = function () {
       activeChunk = activeCreature.refreshChunkReference();
       if (activeChunk !== null) {
         this.addCreature(activeCreature);
+        this.__entityReferenceGrace.delete(Number(id));
         repaired++;
       }
     }
 
-    if (activeChunk === null || !playerChunk.besides(activeChunk)) {
-      removals.push(activeCreature.id);
+    let activeTile = activeCreature.getPosition
+      ? this.getTileFromWorldPosition(activeCreature.getPosition())
+      : null;
+    if (
+      activeChunk !== null
+      && activeTile !== null
+      && activeTile.monsters
+      && !activeTile.monsters.has(activeCreature)
+    ) {
+      activeTile.addCreature(activeCreature);
+      this.__entityReferenceGrace.delete(Number(id));
+      repaired++;
+    }
+
+    if (
+      activeChunk === null
+      || activeTile === null
+      || !playerChunk.besides(activeChunk)
+    ) {
+      let creatureId = Number(activeCreature.id);
+      let missingSince = this.__entityReferenceGrace.get(creatureId);
+      if (missingSince === undefined) {
+        this.__entityReferenceGrace.set(creatureId, now);
+        this.__scheduleEntityReferenceSweep();
+      } else if (now - missingSince >= this.ENTITY_REFERENCE_GRACE_MS) {
+        removals.push(activeCreature.id);
+      } else {
+        this.__scheduleEntityReferenceSweep();
+      }
+    } else {
+      this.__entityReferenceGrace.delete(Number(activeCreature.id));
     }
 
   }, this);
 
   removals.forEach(function (id) {
+    this.__entityReferenceGrace.delete(Number(id));
     gameClient.networkManager.packetHandler.handleEntityRemove(id);
-  });
+  }, this);
 
   if ((repaired > 0 || removals.length > 0 || discarded > 0) && window.tibiaDiagnostics) {
     window.tibiaDiagnostics.record("stale-entity-chunk-recovered", {
@@ -188,16 +247,18 @@ World.prototype.__handleCreatureMove = function (id, position, speed) {
     return false;
   }
 
+  // Never detach the creature from a valid old tile until the destination
+  // tile is actually available. A chunk can arrive one packet later; removing
+  // first used to leave an active-but-invisible creature forever.
+  let tile = this.getTileFromWorldPosition(position);
+  if (tile === null) {
+    return false;
+  }
+
   let fromTile = this.getTileFromWorldPosition(creature.getPosition());
 
   if (fromTile !== null) {
     fromTile.removeCreature(creature);
-  }
-
-  let tile = this.getTileFromWorldPosition(position);
-
-  if (tile === null) {
-    return false;
   }
 
   tile.addCreature(creature);

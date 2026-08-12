@@ -292,6 +292,13 @@ NetworkManager.prototype.__readPacket = function (gameSocket, packet) {
       return;
     }
 
+    case CONST.PROTOCOL.CLIENT.CREATURE_RESYNC: {
+      return this.packetHandler.handleCreatureResync(
+        gameSocket,
+        packet.readUInt32()
+      );
+    }
+
     // Use item on creature (from battle list)
     case CONST.PROTOCOL.CLIENT.THING_USE_ON_CREATURE: {
       return gameSocket.player.useHandler.handleActionUseOnCreature(packet.readItemUseOnCreature(gameSocket.player));

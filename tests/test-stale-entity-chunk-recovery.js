@@ -27,11 +27,13 @@ const stale = {
   id: 2,
   chunk: null,
   getChunk() { return this.chunk; },
+  getPosition() { return { marker: 2 }; },
   refreshChunkReference() { this.chunk = repairedChunk; return this.chunk; }
 };
 const missing = {
   id: 3,
   getChunk() { return null; },
+  getPosition() { return { marker: 3 }; },
   refreshChunkReference() { return null; }
 };
 
@@ -56,17 +58,38 @@ vm.runInContext(worldSource + "\nthis.World = World;", context, { filename: "wor
 vm.runInContext(chunkSource + "\nthis.Chunk = Chunk;", context, { filename: "chunk.js" });
 
 let rebound = [];
+const reboundTile = {
+  monsters: new Set(),
+  addCreature(creature) { this.monsters.add(creature); }
+};
 const fakeWorld = {
   activeCreatures: { 1: self, 2: stale, 3: missing },
-  addCreature(creature) { rebound.push(creature.id); }
+  __entityReferenceGrace: new Map(),
+  __entityReferenceGraceTimer: null,
+  ENTITY_REFERENCE_GRACE_MS: 200,
+  __scheduleEntityReferenceSweep() {},
+  getTileFromWorldPosition(position) {
+    return position && position.marker === 2 ? reboundTile : null;
+  },
+  addCreature(creature) {
+    rebound.push(creature.id);
+    reboundTile.addCreature(creature);
+  }
 };
 const changes = context.World.prototype.checkEntityReferences.call(fakeWorld);
 
-assert.strictEqual(changes, 2, "one stale reference is repaired and one unavailable entity is removed");
+assert.strictEqual(changes, 1, "one stale reference is repaired while a transient miss receives grace");
 assert.deepStrictEqual(rebound, [2]);
+assert.deepStrictEqual(removed, []);
+assert.strictEqual(diagnostics.at(-1).details.repaired, 1);
+assert.strictEqual(diagnostics.at(-1).details.removed, 0);
+
+fakeWorld.__entityReferenceGrace.set(3, Date.now() - 250);
+const expiredChanges = context.World.prototype.checkEntityReferences.call(fakeWorld);
+assert.strictEqual(expiredChanges, 1, "an unavailable entity is removed after the grace period");
 assert.deepStrictEqual(removed, [3]);
 assert.strictEqual(diagnostics.at(-1).type, "stale-entity-chunk-recovered");
-assert.strictEqual(diagnostics.at(-1).details.repaired, 1);
+assert.strictEqual(diagnostics.at(-1).details.repaired, 0);
 assert.strictEqual(diagnostics.at(-1).details.removed, 1);
 
 let reboundReference = 0;

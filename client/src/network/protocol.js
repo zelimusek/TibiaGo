@@ -451,6 +451,19 @@ const ClientCapabilitiesPacket = function (isMobile) {
 ClientCapabilitiesPacket.prototype = Object.create(PacketWriter.prototype);
 ClientCapabilitiesPacket.prototype.constructor = ClientCapabilitiesPacket;
 
+const CreatureResyncPacket = function (id) {
+  /*
+   * Ask the server to resend one visible creature after a transient chunk or
+   * entity-reference desynchronisation. The server validates visibility and
+   * rate limits the request before returning an authoritative state packet.
+   */
+  PacketWriter.call(this, CONST.PROTOCOL.CLIENT.CREATURE_RESYNC, 4);
+  this.writeUInt32(id);
+};
+
+CreatureResyncPacket.prototype = Object.create(PacketWriter.prototype);
+CreatureResyncPacket.prototype.constructor = CreatureResyncPacket;
+
 const WriteTextPacket = function (itemId, content) {
 
   /*

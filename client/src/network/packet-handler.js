@@ -4,8 +4,241 @@ const PacketHandler = function () {
    * Class PacketHandler
    * Containers handler functions for all incoming network packets from the gameserver
    * This usually delegates to the gameClient but is a central place for collections
-   */
+  */
 
+  this.__resetCreatureRecovery();
+
+}
+
+PacketHandler.prototype.CREATURE_RECOVERY_TTL = 2000;
+PacketHandler.prototype.CREATURE_RECOVERY_MAX_IDS = 16;
+PacketHandler.prototype.CREATURE_RECOVERY_MAX_EVENTS = 16;
+PacketHandler.prototype.CREATURE_RECOVERY_MAX_BYTES = 8192;
+PacketHandler.prototype.CREATURE_RECOVERY_MAX_REQUESTS_PER_SECOND = 4;
+
+PacketHandler.prototype.__resetCreatureRecovery = function () {
+  if (
+    this.__creatureRecoveryTimer != null
+    && typeof window !== "undefined"
+    && typeof window.clearTimeout === "function"
+  ) {
+    window.clearTimeout(this.__creatureRecoveryTimer);
+  }
+  this.__creatureRecovery = new Map();
+  this.__creatureRecoveryRequests = [];
+  this.__creatureRecoveryEventCount = 0;
+  this.__creatureRecoveryBytes = 0;
+  this.__creatureRecoveryTimer = null;
+}
+
+PacketHandler.prototype.__dropCreatureRecovery = function (id) {
+  if (!(this.__creatureRecovery instanceof Map)) return null;
+
+  let entry = this.__creatureRecovery.get(id) || null;
+  if (entry === null) return null;
+
+  this.__creatureRecovery.delete(id);
+  this.__creatureRecoveryEventCount = Math.max(
+    0,
+    this.__creatureRecoveryEventCount - entry.events.length
+  );
+  this.__creatureRecoveryBytes = Math.max(
+    0,
+    this.__creatureRecoveryBytes - entry.bytes
+  );
+  return entry;
+}
+
+PacketHandler.prototype.__pruneCreatureRecovery = function (now) {
+  if (!(this.__creatureRecovery instanceof Map)) {
+    this.__resetCreatureRecovery();
+  }
+
+  this.__creatureRecoveryRequests = this.__creatureRecoveryRequests.filter(
+    function (timestamp) {
+      return now - timestamp < 1000;
+    }
+  );
+
+  let expired = [];
+  this.__creatureRecovery.forEach(function (entry, id) {
+    if (now - (entry.updatedAt || entry.createdAt) >= this.CREATURE_RECOVERY_TTL) {
+      expired.push(id);
+    }
+  }, this);
+  expired.forEach(this.__dropCreatureRecovery.bind(this));
+}
+
+PacketHandler.prototype.__scheduleCreatureRecovery = function (now) {
+  if (
+    this.__creatureRecoveryTimer != null
+    || typeof window === "undefined"
+    || typeof window.setTimeout !== "function"
+  ) {
+    return;
+  }
+
+  let oldestRequest = this.__creatureRecoveryRequests.length > 0
+    ? Math.min.apply(Math, this.__creatureRecoveryRequests)
+    : now;
+  let delay = Math.max(25, 1005 - (now - oldestRequest));
+  let handler = this;
+  this.__creatureRecoveryTimer = window.setTimeout(function () {
+    handler.__creatureRecoveryTimer = null;
+    handler.__flushCreatureRecoveryRequests();
+  }, delay);
+}
+
+PacketHandler.prototype.__sendCreatureRecoveryRequest = function (id, entry, now) {
+  entry.lastRequestAt = now;
+  entry.requestQueued = false;
+  this.__creatureRecoveryRequests.push(now);
+  gameClient.send(new CreatureResyncPacket(id));
+  this.__scheduleCreatureRecovery(now);
+
+  if (typeof window !== "undefined" && window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("creature-resync-requested", {
+      creatureId: id,
+      trigger: entry.trigger || "position"
+    });
+  }
+
+  return true;
+}
+
+PacketHandler.prototype.__flushCreatureRecoveryRequests = function () {
+  if (
+    !gameClient.player
+    || !gameClient.world
+    || typeof gameClient.send !== "function"
+  ) {
+    return false;
+  }
+
+  let now = Date.now();
+  this.__pruneCreatureRecovery(now);
+  let hasQueued = false;
+
+  this.__creatureRecovery.forEach(function (entry, id) {
+    if (!entry.requestQueued) return;
+    if (this.__creatureRecoveryRequests.length >= this.CREATURE_RECOVERY_MAX_REQUESTS_PER_SECOND) {
+      hasQueued = true;
+      return;
+    }
+    if (entry.lastRequestAt !== 0 && now - entry.lastRequestAt < 1000) {
+      hasQueued = true;
+      return;
+    }
+    this.__sendCreatureRecoveryRequest(id, entry, now);
+  }, this);
+
+  if (hasQueued || this.__creatureRecovery.size > 0) {
+    this.__scheduleCreatureRecovery(now);
+  }
+
+  return true;
+}
+
+PacketHandler.prototype.__requestCreatureRecovery = function (id, type, packet) {
+  id = Number(id);
+  if (
+    !Number.isInteger(id)
+    || id <= 0
+    || !gameClient.player
+    || !gameClient.world
+    || typeof gameClient.send !== "function"
+  ) {
+    return false;
+  }
+
+  let now = Date.now();
+  this.__pruneCreatureRecovery(now);
+
+  let entry = this.__creatureRecovery.get(id);
+  if (!entry) {
+    while (this.__creatureRecovery.size >= this.CREATURE_RECOVERY_MAX_IDS) {
+      let oldestId = this.__creatureRecovery.keys().next().value;
+      this.__dropCreatureRecovery(oldestId);
+    }
+    entry = {
+      createdAt: now,
+      updatedAt: now,
+      lastRequestAt: 0,
+      requestQueued: true,
+      trigger: type || "position",
+      events: [],
+      bytes: 0
+    };
+    this.__creatureRecovery.set(id, entry);
+  }
+
+  entry.updatedAt = now;
+
+  if (type && packet && entry.events.length < 4) {
+    let bytes = String(packet.message || "").length * 2;
+    if (
+      this.__creatureRecoveryEventCount < this.CREATURE_RECOVERY_MAX_EVENTS
+      && this.__creatureRecoveryBytes + bytes <= this.CREATURE_RECOVERY_MAX_BYTES
+    ) {
+      entry.events.push({ type: type, packet: packet, queuedAt: now });
+      entry.bytes += bytes;
+      this.__creatureRecoveryEventCount++;
+      this.__creatureRecoveryBytes += bytes;
+    }
+  }
+
+  if (entry.lastRequestAt !== 0 && now - entry.lastRequestAt < 1000) {
+    entry.requestQueued = true;
+    this.__scheduleCreatureRecovery(now);
+    return false;
+  }
+
+  entry.requestQueued = true;
+  if (
+    this.__creatureRecoveryRequests.length
+      >= this.CREATURE_RECOVERY_MAX_REQUESTS_PER_SECOND
+  ) {
+    this.__scheduleCreatureRecovery(now);
+    return false;
+  }
+
+  return this.__sendCreatureRecoveryRequest(id, entry, now);
+}
+
+PacketHandler.prototype.__completeCreatureRecovery = function (id, entity) {
+  let entry = this.__dropCreatureRecovery(Number(id));
+  if (
+    !entry
+    || !entity
+    || Date.now() - (entry.updatedAt || entry.createdAt) >= this.CREATURE_RECOVERY_TTL
+  ) {
+    return 0;
+  }
+
+  let replayed = 0;
+  entry.events.forEach(function (event) {
+    if (Date.now() - event.queuedAt >= this.CREATURE_RECOVERY_TTL) return;
+
+    if (event.type === "say") {
+      this.handleDefaultMessage(event.packet);
+      replayed++;
+    } else if (event.type === "yell") {
+      this.handleCreatureYell(event.packet);
+      replayed++;
+    } else if (event.type === "emote") {
+      this.handleEmote(event.packet);
+      replayed++;
+    }
+  }, this);
+
+  if (typeof window !== "undefined" && window.tibiaDiagnostics) {
+    window.tibiaDiagnostics.record("creature-resync-completed", {
+      creatureId: Number(id),
+      replayedEvents: replayed
+    });
+  }
+
+  return replayed;
 }
 
 PacketHandler.prototype.handlePropertyChange = function (packet) {
@@ -13,6 +246,7 @@ PacketHandler.prototype.handlePropertyChange = function (packet) {
   let creature = gameClient.world.getCreature(packet.guid);
 
   if (creature === null) {
+    this.__requestCreatureRecovery(packet.guid, null, null);
     return;
   }
 
@@ -280,6 +514,7 @@ PacketHandler.prototype.handleSetTarget = function (id) {
   let creature = gameClient.world.getCreature(id);
 
   if (creature === null) {
+    this.__requestCreatureRecovery(id, null, null);
     return;
   }
 
@@ -314,6 +549,7 @@ PacketHandler.prototype.handleCondition = function (packet) {
   let creature = gameClient.world.getCreature(packet.guid);
 
   if (creature === null) {
+    this.__requestCreatureRecovery(packet.guid, null, null);
     return;
   }
 
@@ -489,6 +725,7 @@ PacketHandler.prototype.handleServerData = function (packet) {
    * Handles incoming important server data (e.g., version and server tick rate)
    */
 
+  this.__resetCreatureRecovery();
   gameClient.setServerData(packet);
 
 }
@@ -498,6 +735,7 @@ PacketHandler.prototype.handleEmote = function (packet) {
   let sourceCreature = gameClient.world.getCreature(packet.id);
 
   if (sourceCreature === null) {
+    this.__requestCreatureRecovery(packet.id, "emote", packet);
     return;
   }
 
@@ -520,6 +758,7 @@ PacketHandler.prototype.handleIncreaseHealth = function (packet) {
   let sourceCreature = gameClient.world.getCreature(packet.id);
 
   if (sourceCreature === null) {
+    this.__requestCreatureRecovery(packet.id, null, null);
     return;
   }
 
@@ -652,7 +891,11 @@ PacketHandler.prototype.__showPartyRankToast = function (rank) {
 
 PacketHandler.prototype.handleCreatureTitle = function (packet) {
   let creature = gameClient.world.getCreature(packet.guid);
-  if (!creature || !creature.characterElement) return;
+  if (!creature) {
+    this.__requestCreatureRecovery(packet.guid, null, null);
+    return;
+  }
+  if (!creature.characterElement) return;
   creature.characterElement.setTitle(packet.title, packet.rarity);
 }
 
@@ -1028,6 +1271,12 @@ PacketHandler.prototype.handleDamageEvent = function (packet) {
 
   // No information on these?
   if (sourceCreature === null || targetCreature === null) {
+    if (packet.source !== 0 && sourceCreature === null) {
+      this.__requestCreatureRecovery(packet.source, null, null);
+    }
+    if (targetCreature === null) {
+      this.__requestCreatureRecovery(packet.target, null, null);
+    }
     return;
   }
 
@@ -1079,6 +1328,7 @@ PacketHandler.prototype.handleChangeOutfit = function (packet) {
   let creature = gameClient.world.getCreature(packet.id);
 
   if (creature === null) {
+    this.__requestCreatureRecovery(packet.id, null, null);
     return;
   }
 
@@ -1330,6 +1580,13 @@ PacketHandler.prototype.handleEntityRemove = function (id) {
    * Handles incoming remove entity packet and deletes reference
    */
 
+  // A real server-side forget always wins over a speculative recovery.
+  this.__dropCreatureRecovery(Number(id));
+  if (
+    gameClient.world.__entityReferenceGrace instanceof Map
+  ) {
+    gameClient.world.__entityReferenceGrace.delete(Number(id));
+  }
   let creature = gameClient.world.getCreature(id);
 
   if (creature === null) {
@@ -1481,15 +1738,43 @@ PacketHandler.prototype.handleCreatureServerMove = function (packet) {
 
   // Cannot move unknown entities: this should not happen
   if (entity === null) {
+    // The authoritative response contains a newer position than this MOVE,
+    // so request a snapshot but never replay the stale movement packet.
+    this.__requestCreatureRecovery(packet.id, null, null);
     return;
   }
 
-  // Execute movement
-  gameClient.world.__handleCreatureMove(packet.id, packet.position, packet.speed);
+  if (
+    !gameClient.isSelf(entity)
+    && gameClient.world.getTileFromWorldPosition(packet.position) === null
+  ) {
+    this.__requestCreatureRecovery(packet.id, null, null);
+    return;
+  }
+
+  let isSelf = gameClient.isSelf(entity);
+  let alreadyAtDestination = isSelf
+    && packet.position
+    && typeof packet.position.equals === "function"
+    && packet.position.equals(entity.getPosition());
+
+  // Execute movement. A false result is normal when client-side prediction
+  // already placed self there; otherwise it means the authoritative tile is
+  // missing and must be refreshed before acknowledging the step.
+  let moved = gameClient.world.__handleCreatureMove(
+    packet.id,
+    packet.position,
+    packet.speed
+  );
+
+  if (isSelf && moved === false && !alreadyAtDestination) {
+    this.__requestCreatureRecovery(packet.id, null, null);
+    return;
+  }
 
   // If the entity being reference is the player: we confirm the client-side walking and check existing references against entities
   // This means that we can drop references to entities that no longer share a neighbouring sector with us
-  if (gameClient.isSelf(entity)) {
+  if (isSelf) {
     gameClient.player.confirmClientWalk();
     gameClient.world.checkEntityReferences();
     let chunksChanged = gameClient.world.checkChunks();
@@ -1551,6 +1836,7 @@ PacketHandler.prototype.handleDefaultMessage = function (packet) {
 
   // The entity for this packet does not exist..
   if (entity === null) {
+    this.__requestCreatureRecovery(packet.id, "say", packet);
     return;
   }
 
@@ -1576,6 +1862,7 @@ PacketHandler.prototype.handleCreatureYell = function (packet) {
   let entity = gameClient.world.getCreature(packet.id);
 
   if (entity === null) {
+    this.__requestCreatureRecovery(packet.id, "yell", packet);
     return;
   }
 
@@ -1596,16 +1883,32 @@ PacketHandler.prototype.handleEntityTeleport = function (packet) {
 
   // The entity does not exist
   if (entity === null) {
+    this.__requestCreatureRecovery(packet.id, null, null);
     return;
   }
 
-  // Set the position of the entity
-  entity.setPosition(packet.position);
+  // Set the position only after the destination tile exists. The server's
+  // recovery response refreshes the missing chunk and retries with a newer
+  // anchor; keeping the old tile meanwhile prevents a visual disappearance.
+  if (entity.setPosition(packet.position) === false) {
+    // This also applies to self. A rate-limited recovery may have sent only
+    // the anchor while its chunk snapshot was deduplicated, so keep the same
+    // bounded request pending until the destination tile is available.
+    this.__requestCreatureRecovery(packet.id, null, null);
+    return false;
+  }
+
+  // The recovery snapshot is followed by an authoritative teleport anchor.
+  // Replay short-lived speech only now, so it appears at the repaired tile
+  // instead of briefly flashing at the creature's stale position.
+  this.__completeCreatureRecovery(packet.id, entity);
 
   // Special handler if the player is the one that is teleported
   if (gameClient.isSelf(entity)) {
     gameClient.world.handleSelfTeleport();
   }
+
+  return true;
 
 }
 
@@ -1618,7 +1921,8 @@ PacketHandler.prototype.handleEntityReference = function (packet) {
 
   // Do not reference self but add
   if (gameClient.player && packet.id === gameClient.player.id) {
-    return gameClient.world.addCreature(gameClient.player);
+    gameClient.world.addCreature(gameClient.player);
+    return gameClient.player;
   }
 
   // Entity references may be repeated while chunks are refreshed. Reuse the
@@ -1629,18 +1933,24 @@ PacketHandler.prototype.handleEntityReference = function (packet) {
   let existing = gameClient.world.getCreature(packet.id);
   if (existing !== null) {
     gameClient.world.addCreature(existing);
-    return gameClient.interface.windowManager
+    gameClient.interface.windowManager
       .getWindow("battle-window")
       .addCreature(existing);
+    return existing;
   }
 
-  return gameClient.world.createCreature(packet.id, new Creature(packet));
+  let creature = gameClient.world.createCreature(packet.id, new Creature(packet));
+  return creature;
 
 }
 
 PacketHandler.prototype.handleCreatureSkull = function (packet) {
   let creature = gameClient.world.getCreature(packet.id);
-  if (creature !== null && creature.setSkull) {
+  if (creature === null) {
+    this.__requestCreatureRecovery(packet.id, null, null);
+    return;
+  }
+  if (creature.setSkull) {
     creature.setSkull(packet.skull);
   }
 };
@@ -1655,6 +1965,7 @@ PacketHandler.prototype.handleCreatureTurn = function (packet) {
   let creature = gameClient.world.getCreature(packet.id);
 
   if (creature === null) {
+    this.__requestCreatureRecovery(packet.id, null, null);
     return;
   }
 
@@ -1692,6 +2003,7 @@ PacketHandler.prototype.handleGainExperience = function (packet) {
   let creature = gameClient.world.getCreature(packet.id);
 
   if (creature === null) {
+    this.__requestCreatureRecovery(packet.id, null, null);
     return console.error("Received experience gain for unknown creature.");
   }
 

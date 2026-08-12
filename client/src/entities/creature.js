@@ -277,6 +277,13 @@ Creature.prototype.setPosition = function (position) {
    * Sets the creature position to a new position in the world
    */
 
+  // Resolve the destination first. Teleport anchors can arrive one packet
+  // before their authoritative chunk; mutating now would orphan the creature.
+  let toTile = gameClient.world.getTileFromWorldPosition(position);
+  if (toTile === null) {
+    return false;
+  }
+
   // Remove from the previous tile
   let fromTile = gameClient.world.getTileFromWorldPosition(this.getPosition());
 
@@ -288,7 +295,7 @@ Creature.prototype.setPosition = function (position) {
   // Update the position and set to the next tile/sector
   this.__position = position;
   this.__chunk = gameClient.world.getChunkFromWorldPosition(position);
-  gameClient.world.getTileFromWorldPosition(position).addCreature(this);
+  toTile.addCreature(this);
 
   if (gameClient.interface && gameClient.interface.windowManager) {
     if (this === gameClient.player) {
@@ -297,6 +304,8 @@ Creature.prototype.setPosition = function (position) {
       gameClient.interface.windowManager.getWindow("battle-window").updateCreature(this);
     }
   }
+
+  return true;
 
 }
 

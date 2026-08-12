@@ -4,7 +4,14 @@ const Condition = requireModule("combat/condition");
 const MailboxHandler = requireModule("utils/mailbox-handler");
 const GuildExpRanking = requireModule("utils/guild-exp-ranking");
 
-const { ItemInformationPacket, CreatureInformationPacket } = requireModule("network/protocol");
+const {
+  ItemInformationPacket,
+  CreatureInformationPacket,
+  ChunkPacket,
+  CreatureStatePacket,
+  CreatureSkullPacket,
+  CreatureTeleportPacket
+} = requireModule("network/protocol");
 
 const PUBLIC_READABLE_ITEM_NAMES = new Set([
   "blackboard",
@@ -21,7 +28,109 @@ const PacketHandler = function () {
    */
 
   this.mailboxHandler = new MailboxHandler();
+  this.__creatureResyncWindows = new WeakMap();
 
+}
+
+PacketHandler.prototype.handleCreatureResync = function (gameSocket, id) {
+  /*
+   * Repair one creature reference without periodically resending the whole
+   * visible world. A client may only request a living creature it can really
+   * see, and each connection is limited to a small number of repairs.
+   */
+  id = Number(id);
+  if (
+    !gameSocket
+    || typeof gameSocket.isController !== "function"
+    || !gameSocket.isController()
+    || !gameSocket.player
+    || !Number.isInteger(id)
+    || id <= 0
+  ) {
+    return false;
+  }
+
+  let player = gameSocket.player;
+
+  if (!(this.__creatureResyncWindows instanceof WeakMap)) {
+    this.__creatureResyncWindows = new WeakMap();
+  }
+
+  let now = Date.now();
+  let rate = this.__creatureResyncWindows.get(gameSocket);
+  if (!rate) {
+    rate = { attempts: [], ids: new Map(), chunks: new Map() };
+  }
+
+  if (!(rate.chunks instanceof Map)) rate.chunks = new Map();
+
+  rate.attempts = rate.attempts.filter(function (timestamp) {
+    return now - timestamp < 1000;
+  });
+  rate.ids.forEach(function (timestamp, creatureId) {
+    if (now - timestamp >= 1000) rate.ids.delete(creatureId);
+  });
+  rate.chunks.forEach(function (timestamp, chunk) {
+    if (now - timestamp >= 1000) rate.chunks.delete(chunk);
+  });
+
+  // Count every attempt before resolving the identifier so the endpoint
+  // cannot be used as a high-rate creature-existence oracle.
+  if (rate.attempts.length >= 5 || rate.ids.has(id)) {
+    this.__creatureResyncWindows.set(gameSocket, rate);
+    return false;
+  }
+
+  rate.attempts.push(now);
+  rate.ids.set(id, now);
+  this.__creatureResyncWindows.set(gameSocket, rate);
+
+  let creature = gameServer.world.creatureHandler.getCreatureFromId(id);
+  if (
+    !gameServer.world.creatureHandler.isCreaturePositioned(player)
+    || player.getProperty(CONST.PROPERTIES.HEALTH) <= 0
+    || creature === null
+    || !gameServer.world.creatureHandler.isCreaturePositioned(creature)
+  ) {
+    return false;
+  }
+
+  let observerChunk = player.getChunk();
+  let creatureChunk = creature.getChunk();
+  if (
+    observerChunk === null
+    || creatureChunk === null
+    || !observerChunk.neighbours.includes(creatureChunk)
+  ) {
+    return false;
+  }
+
+  // A missing entity reference can be a symptom of a missing/replaced tile
+  // too. Refresh the one authoritative chunk before recreating the creature.
+  if (!rate.chunks.has(creatureChunk) && rate.chunks.size < 2) {
+    rate.chunks.set(creatureChunk, now);
+    gameSocket.write(new ChunkPacket(creatureChunk));
+  }
+  let isSelf = creature === player;
+  if (!isSelf) {
+    gameSocket.write(new CreatureStatePacket(creature));
+  }
+
+  if (
+    !isSelf
+    && creature.isPlayer && creature.isPlayer()
+    && gameServer.world.combatHandler
+  ) {
+    let skull = gameServer.world.combatHandler
+      .getPvPManager()
+      .getSkullFor(player, creature);
+    gameSocket.write(new CreatureSkullPacket(creature.getId(), skull));
+  }
+
+  // Existing-but-detached client objects ignore repeated state construction;
+  // the following anchor makes them rebind to the authoritative tile too.
+  gameSocket.write(new CreatureTeleportPacket(creature.getId(), creature.getPosition()));
+  return true;
 }
 
 PacketHandler.prototype.handleTileUse = function (player, tile) {
