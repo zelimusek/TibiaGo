@@ -60,6 +60,14 @@ World.prototype.handleSelfTeleport = function () {
    * Returns true if the passed creature is the player
    */
 
+  // A teleport is the server's authoritative movement barrier. Cancel any
+  // local pre-walk timer first so a rejected diagonal cannot keep the client
+  // frozen for its predicted 3x duration.
+  if (gameClient.player.__movementEvent !== null) {
+    gameClient.player.__movementEvent.cancel();
+    gameClient.player.__movementEvent = null;
+  }
+
   // Set some state
   gameClient.player.__teleported = true;
   gameClient.player.__serverWalkConfirmation = true;
@@ -69,8 +77,22 @@ World.prototype.handleSelfTeleport = function () {
   gameClient.renderer.updateTileCache();
   gameClient.renderer.minimap.setCenter();
 
-  if (gameClient.player.__movementEvent === null) {
-    gameClient.player.__movementEvent = gameClient.eventQueue.addEvent(gameClient.player.unlockMovement.bind(gameClient.player), 10);
+  // Install the short teleport pause before replanning. Pathfinder stores the
+  // fresh route but sees isMoving(), so it cannot start a new prediction that
+  // would then be overwritten by this barrier.
+  gameClient.player.__movementEvent = gameClient.eventQueue.addEvent(
+    gameClient.player.unlockMovement.bind(gameClient.player),
+    10
+  );
+
+  // Rebuild an active click-to-walk route from the corrected position instead
+  // of replaying the cached step that led into the rejected tile.
+  let pathfinder = gameClient.world.pathfinder;
+  let finalDestination = pathfinder.__finalDestination;
+  pathfinder.__pathfindCache = new Array();
+
+  if (finalDestination !== null) {
+    pathfinder.findPath(gameClient.player.getPosition(), finalDestination, false);
   }
 
 }

@@ -1242,12 +1242,11 @@ PacketHandler.prototype.handlePlayerMove = function (position) {
 
   let tile = this.getTileUppie(position);
 
-  // Step duration. Diagonal movement covers two axes, so use sqrt(2)
-  // instead of 2x to keep travel speed consistent without making it sluggish.
+  // Classic Tibia walking spends three cardinal step durations on a diagonal.
   let duration = gameClient.player.getStepDuration(tile);
-  if (gameClient.player.getPosition().isDiagonal(position)) {
-    duration = Math.ceil(duration * Math.SQRT2);
-  }
+  duration = gameClient.player
+    .getPosition()
+    .getPlayerWalkDuration(position, duration);
 
   return gameClient.world.handleCreatureMove(gameClient.player.id, position, duration);
 

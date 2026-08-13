@@ -501,7 +501,8 @@ Creature.prototype.moveTo = function (position, speed) {
     this.__movementEvent.cancel();
   }
 
-  // Keep diagonal walking cadence consistent with cardinal walking.
+  // The packet/prediction already supplies the final step duration, including
+  // the player-only diagonal multiplier. Never apply it a second time here.
   let modSlowness = speed;
 
   // Add the movement event

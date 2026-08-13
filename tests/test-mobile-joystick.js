@@ -59,6 +59,11 @@ vm.runInContext(
 );
 
 const touch = Object.create(context.Touch.prototype);
+context.gameClient = {
+  player: {
+    clearDirectionMovementBuffer() {},
+  },
+};
 touch.joystick = {
   active: false,
   startX: 50,
@@ -103,7 +108,7 @@ touch.__handleJoystickStart({
   preventDefault() {
     prevented = true;
   },
-  touches: [{ clientX: 95, clientY: 85 }],
+  changedTouches: [{ identifier: 7, clientX: 95, clientY: 85 }],
 });
 
 assert.strictEqual(prevented, true);
@@ -131,7 +136,10 @@ assert.deepStrictEqual(
 );
 
 const activeFrame = touch.joystick.animationFrame;
-touch.__handleJoystickEnd({ preventDefault() {} });
+touch.__handleJoystickEnd({
+  preventDefault() {},
+  changedTouches: [{ identifier: 7 }],
+});
 assert.strictEqual(touch.joystick.active, false);
 assert.strictEqual(touch.joystick.direction, null);
 assert.strictEqual(touch.joystick.animationFrame, null);

@@ -2,7 +2,7 @@
 
 const { CreaturePropertyPacket } = requireModule("network/protocol");
 
-function onStart(creature) {
+function onStart(creature, properties) {
 
   /*
    * Function onStart
@@ -10,6 +10,10 @@ function onStart(creature) {
    */
 
   creature.sendCancelMessage("You feel fast.");
+
+  if (properties && Number(properties.bonusFactor) > 1) {
+    creature.__hasteBonusFactor = Number(properties.bonusFactor);
+  }
 
   // Update the authoritative server-side speed as well as the client. Without
   // this, the animation looked faster but movement stayed at the old rate.
@@ -28,6 +32,8 @@ function onExpire(creature) {
    */
 
   creature.sendCancelMessage("Your speed returns to normal.");
+
+  delete creature.__hasteBonusFactor;
 
   // Broadcast the restored speed to all spectators
   if (creature.isPlayer && creature.isPlayer()) {

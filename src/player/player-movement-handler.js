@@ -51,23 +51,24 @@ PlayerMovementHandler.prototype.handleMovement = function (direction) {
   // Move the dude
   let tile = gameServer.world.getTileFromWorldPosition(position);
 
-  let stepDuration =
+  let cardinalStepDuration =
     tile === null || tile.id === 0
       ? 10
       : this.__player.getStepDuration(tile.getFriction());
 
-  if (this.__player.getPosition().isDiagonal(position)) {
-    stepDuration = Math.ceil(stepDuration * Math.SQRT2);
-  }
-
-  // Lock movement action
-  this.__moveLock.lock(stepDuration);
+  let stepDuration = this.__player
+    .getPosition()
+    .getPlayerWalkDuration(position, cardinalStepDuration);
 
   // Move the player by walking!
   let success = gameServer.world.creatureHandler.moveCreature(
     this.__player,
     position
   );
+
+  // A blocked attempt keeps the normal one-step throttle to avoid correction
+  // spam, but it must not punish a diagonal input with the full classic 3x.
+  this.__moveLock.lock(success ? stepDuration : cardinalStepDuration);
 
   // Not succesful: teleport to the current position
   if (!success) {

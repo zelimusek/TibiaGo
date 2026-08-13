@@ -401,7 +401,31 @@ Position.prototype.isDiagonal = function (position) {
    * Returns true when a position is diagonal to another position
    */
 
-  return (Math.abs(this.x - position.x) & Math.abs(this.y - position.y)) === 1;
+  return this.z === position.z &&
+    Math.abs(this.x - position.x) === 1 &&
+    Math.abs(this.y - position.y) === 1;
+
+}
+
+Position.prototype.getWalkDurationMultiplier = function (position) {
+
+  /*
+   * Function Position.getWalkDurationMultiplier
+   * Returns the classic Tibia movement cost for a one-SQM step.
+   */
+
+  return this.isDiagonal(position) ? 3 : 1;
+
+}
+
+Position.prototype.getPlayerWalkDuration = function (position, cardinalDuration) {
+
+  /*
+   * Function Position.getPlayerWalkDuration
+   * Applies the player-only classic diagonal cost to a cardinal duration.
+   */
+
+  return cardinalDuration * this.getWalkDurationMultiplier(position);
 
 }
 

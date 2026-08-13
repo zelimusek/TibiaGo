@@ -57,8 +57,10 @@ Pathfinder.prototype.search = function (from, to) {
         continue;
       }
 
-      // Add a penalty to diagonal movement (only done when absolutely necessary)
-      let penalty = currentNode.__position.isDiagonal(neighbourNode.__position) ? 2 * Math.SQRT2 : 1;
+      // Match route cost to the actual classic Tibia walking duration.
+      let penalty = currentNode.__position.getWalkDurationMultiplier(
+        neighbourNode.__position
+      );
 
       // Add the cost of the current node
       let gScore = currentNode.__g + penalty * neighbourNode.getCost(currentNode);

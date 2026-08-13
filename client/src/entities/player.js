@@ -83,14 +83,9 @@ Player.prototype = Object.create(Creature.prototype);
 Player.prototype.constructor = Player;
 
 Player.prototype.getSpeed = function () {
-  // Ensure we have a valid base speed
-  let base = this.state.speed || 1000;
-
-  if (this.hasCondition(ConditionManager.prototype.HASTE)) {
-    base *= 1.3;
-  }
-
-  return base;
+  // The server sends speed after level, equipment and condition modifiers.
+  // Applying haste again here would make local prediction outrun the server.
+  return Number(this.state.speed) > 0 ? Number(this.state.speed) : 1000;
 };
 
 Player.prototype.getStepDuration = function (tile) {
@@ -112,14 +107,11 @@ Player.prototype.getStepDuration = function (tile) {
   // Get tile friction (default to 1 if not available)
   let groundSpeed = tile?.getFriction() || 100;
 
-  return Math.min(
-    12,
-    Math.max(
-      1,
-      Math.ceil(
-        Math.floor((1000 * groundSpeed) / calculatedStepSpeed) /
-        gameClient.getTickInterval()
-      )
+  return Math.max(
+    1,
+    Math.ceil(
+      Math.floor((1000 * groundSpeed) / calculatedStepSpeed) /
+      gameClient.getTickInterval()
     )
   );
 };

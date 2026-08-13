@@ -255,7 +255,7 @@ CreatureProperties.prototype.getProperty = function (type) {
   return this.__properties.get(type).get();
 };
 
-CreatureProperties.prototype.getStepDuration = function (friction) {
+CreatureProperties.prototype.getStepDuration = function (friction, speedOverride) {
   /*
    * Function CreatureProperties.prototype.getStepDuration
    * Math to calcualte the amount of frames to lock when walking (50MS tick)
@@ -267,7 +267,9 @@ CreatureProperties.prototype.getStepDuration = function (friction) {
   const B = 261.29;
   const C = -4795.009;
 
-  let speed = this.getProperty(CONST.PROPERTIES.SPEED);
+  let speed = speedOverride === undefined
+    ? this.getProperty(CONST.PROPERTIES.SPEED)
+    : speedOverride;
 
   // Logarithm of speed with some constants (never less than 1)
   let calculatedStepSpeed = Math.max(
@@ -275,9 +277,12 @@ CreatureProperties.prototype.getStepDuration = function (friction) {
     Math.round(A * Math.log(speed + B) + C)
   );
 
-  return Math.ceil(
-    Math.floor((1e3 * friction) / calculatedStepSpeed) /
-    CONFIG.SERVER.MS_TICK_INTERVAL
+  return Math.max(
+    1,
+    Math.ceil(
+      Math.floor((1e3 * friction) / calculatedStepSpeed) /
+      CONFIG.SERVER.MS_TICK_INTERVAL
+    )
   );
 };
 

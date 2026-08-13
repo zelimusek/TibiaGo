@@ -2275,7 +2275,11 @@ CreatureHandler.prototype.moveCreature = function (creature, position) {
 
   // Step duration
   let stepDuration = creature.getStepDuration(tile.getFriction());
-  if (oldPosition.isDiagonal(position)) {
+  if (creature.isPlayer()) {
+    stepDuration = oldPosition.getPlayerWalkDuration(position, stepDuration);
+  } else if (oldPosition.isDiagonal(position)) {
+    // Preserve the existing animation cadence for monsters and NPCs. Their
+    // independent action locks are outside the player walking contract.
     stepDuration = Math.ceil(stepDuration * Math.SQRT2);
   }
 

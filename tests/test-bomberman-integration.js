@@ -110,6 +110,9 @@ try {
     isDiagonal() {
       return false;
     },
+    getPlayerWalkDuration(position, cardinalDuration) {
+      return cardinalDuration;
+    },
   };
   let destinationPosition = {
     isDiagonal() {

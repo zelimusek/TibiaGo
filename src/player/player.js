@@ -916,6 +916,16 @@ Player.prototype.getSpeed = function () {
   return Math.max(baseSpeed, 10); // Minimum speed of 10
 };
 
+Player.prototype.getStepDuration = function (friction) {
+  /*
+   * Players have dynamic speed from level, equipment and conditions. Always
+   * calculate a step from that authoritative value instead of the cached
+   * creature property used by monsters and NPCs.
+   */
+
+  return this.properties.getStepDuration(friction, this.getSpeed());
+};
+
 Player.prototype.getBaseDamage = function () {
   /*
    * Function Player.getBaseDamage

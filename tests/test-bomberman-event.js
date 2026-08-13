@@ -8,7 +8,7 @@ const BombermanEvent = requireModule("core/bomberman-event");
 const Position = requireModule("utils/position");
 const Player = requireModule("player/player");
 const Condition = requireModule("combat/condition");
-const hasteDefinition = require("../data/740/conditions/definitions/haste");
+const hasteDefinition = requireData("conditions/definitions/haste");
 
 let currentTime = 1000;
 let effects = [];
