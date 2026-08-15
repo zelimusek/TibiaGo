@@ -8,6 +8,8 @@ const vm = require("vm");
 let drawCalls = [];
 let storage = new Map();
 let lineWidths = [];
+let transforms = [];
+let speakerDraws = [];
 
 function Position(x, y, z) {
   this.x = x;
@@ -20,9 +22,17 @@ function Image() {
   this.onerror = null;
 }
 
+function Item(id, count) {
+  this.id = id;
+  this.count = count;
+}
+
 const drawingContext = {
   save() {},
   restore() {},
+  translate(x, y) { transforms.push({ type: "translate", x, y }); },
+  rotate(angle) { transforms.push({ type: "rotate", angle }); },
+  scale(x, y) { transforms.push({ type: "scale", x, y }); },
   beginPath() {},
   moveTo(x, y) { drawCalls.push({ type: "moveTo", x, y }); },
   lineTo(x, y) { drawCalls.push({ type: "lineTo", x, y }); },
@@ -47,6 +57,7 @@ const hubertuse = { name: "DJ Hubertuse", getPosition() { return new Position(32
 const context = vm.createContext({
   console,
   Image,
+  Item,
   Math,
   Number,
   Object,
@@ -72,7 +83,9 @@ const context = vm.createContext({
       }
     },
     renderer: {
-      getStaticScreenPosition() { return new Position(4, 3, 0); },
+      getStaticScreenPosition(position) {
+        return new Position(4 + position.x - 32514, 3 + position.y - 32338, 0);
+      },
       getCreatureScreenPosition(creature) {
         return creature === thomas ? new Position(4, 2, 0) : new Position(6, 2, 0);
       }
@@ -87,7 +100,12 @@ const source = fs.readFileSync(
 );
 vm.runInContext(source + "\nthis.DJBoothAnimation = DJBoothAnimation;", context);
 
-const animation = new context.DJBoothAnimation({ context: drawingContext });
+const animation = new context.DJBoothAnimation({
+  context: drawingContext,
+  drawSprite(item, position, size) {
+    speakerDraws.push({ item, position, size });
+  }
+});
 animation.__image.onload();
 const disco = { center: { x: 32515, y: 32346, z: 7 }, beatBpm: 140 };
 
@@ -122,6 +140,26 @@ assert.ok(
   "the animated sleeve should first cover Hubertuse's arm painted into the outfit"
 );
 assert.strictEqual(Math.max.apply(Math, lineWidths), 7, "the thicker sleeve should cover the static outfit arm");
+assert.strictEqual(speakerDraws.length, 4, "all four corner pillars should receive a wall speaker");
+assert.ok(
+  speakerDraws.every(call => call.item.id === 5090 && call.size === 32),
+  "wall fixtures should reuse the animated Party Zone speaker sprite"
+);
+let cabinetScales = transforms.filter(transform => transform.type === "scale");
+assert.strictEqual(cabinetScales.length, 4, "every wall speaker should receive the shared bass scale");
+assert.ok(
+  cabinetScales.every(transform => Math.abs(transform.x - cabinetScales[0].x) < 1e-9
+    && Math.abs(transform.y - cabinetScales[0].y) < 1e-9
+    && transform.x > 0.5),
+  "all wall speakers should pulse in lockstep from the same bass rhythm"
+);
+let fixtureRotations = transforms.filter(transform => transform.type === "rotate");
+assert.strictEqual(fixtureRotations.length, 8, "each fixture should rotate its mount and cabinet towards the floor");
+let mountRotations = fixtureRotations.filter((transform, index) => index % 2 === 0);
+assert.ok(mountRotations[0].angle < 0, "the lower-left speaker should face up and right");
+assert.ok(mountRotations[1].angle > 0, "the upper-left speaker should face down and right");
+assert.ok(mountRotations[2].angle > Math.PI * 0.5, "the upper-right speaker should face down and left");
+assert.ok(mountRotations[3].angle < -Math.PI * 0.5, "the lower-right speaker should face up and left");
 
 let initialTarget = animation.__smoothArmTarget("smooth-test", { x: 72, y: 17 }, 1000);
 let travellingTarget = animation.__smoothArmTarget("smooth-test", { x: 49, y: 21 }, 1016);

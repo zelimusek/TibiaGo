@@ -9,6 +9,13 @@ const DJBoothAnimation = function (screen) {
   this.__storageKey = "partyzone-dj-animation-enabled";
   this.__enabled = this.__readEnabledState();
   this.__armTargets = Object.create(null);
+  this.__wallSpeaker = typeof Item === "function" ? new Item(5090, 1) : null;
+  this.__wallSpeakerFixtures = [
+    { key: "lower-left", x: 32508, y: 32353, z: 7 },
+    { key: "upper-left", x: 32508, y: 32339, z: 7 },
+    { key: "upper-right", x: 32522, y: 32339, z: 7 },
+    { key: "lower-right", x: 32522, y: 32353, z: 7 }
+  ];
   this.__image = new Image();
   this.__image.onload = function () {
     this.__ready = true;
@@ -139,6 +146,72 @@ DJBoothAnimation.prototype.__drawDeckMotion = function (context, x, y, rhythm) {
 
 };
 
+DJBoothAnimation.prototype.__drawWallSpeakerMount = function (context, mountX, mountY, angle) {
+
+  context.save();
+  context.translate(mountX, mountY);
+  context.rotate(angle);
+
+  // The bracket remains rigidly attached to the pillar while the speaker
+  // cabinet mounted at its end is allowed to breathe with the bass.
+  context.fillStyle = "#17191d";
+  context.fillRect(-3, -4, 15, 8);
+  context.fillStyle = "#454b54";
+  context.fillRect(-2, -2, 13, 3);
+  context.fillStyle = "#9da6af";
+  context.fillRect(-3, -1, 3, 3);
+  context.restore();
+
+};
+
+DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm) {
+
+  if (!this.__wallSpeaker || !this.screen || typeof this.screen.drawSprite !== "function") return 0;
+
+  let centerPosition = gameClient.renderer.getStaticScreenPosition(
+    new Position(disco.center.x, disco.center.y, disco.center.z)
+  );
+  let centerX = (centerPosition.x + 0.5) * 32;
+  let centerY = (centerPosition.y + 0.5) * 32;
+  let pulse = Math.max(0, Math.min(1, Number(rhythm.pulse) || 0));
+  let strength = Number.isFinite(Number(rhythm.strength))
+    ? Math.max(0, Math.min(1.5, Number(rhythm.strength)))
+    : 1;
+  let cabinetScale = 0.50 * (1 + pulse * (0.045 + strength * 0.018));
+
+  this.__wallSpeakerFixtures.forEach(function (fixture) {
+    let screenPosition = gameClient.renderer.getStaticScreenPosition(
+      new Position(fixture.x, fixture.y, fixture.z)
+    );
+
+    // The coordinates supplied by the map editor identify the bottom-right
+    // tile occupied by the diagonal pillar. Its sprite crosses the tile's
+    // upper-left corner, so that corner is also the natural mounting point.
+    let mountX = screenPosition.x * 32;
+    let mountY = screenPosition.y * 32;
+    let facingAngle = Math.atan2(centerY - mountY, centerX - mountX);
+    let cabinetX = mountX + Math.cos(facingAngle) * 10;
+    let cabinetY = mountY + Math.sin(facingAngle) * 10;
+    let cabinetPosition = new Position(cabinetX / 32, cabinetY / 32, fixture.z);
+
+    this.__drawWallSpeakerMount(context, mountX, mountY, facingAngle);
+
+    context.save();
+    context.imageSmoothingEnabled = false;
+    context.translate(cabinetX, cabinetY);
+    // The original cabinet faces south. Rotate that forward edge towards the
+    // centre of the dance floor independently for every corner.
+    context.rotate(facingAngle - Math.PI * 0.5);
+    context.scale(cabinetScale, cabinetScale);
+    context.translate(-cabinetX, -cabinetY);
+    this.screen.drawSprite(this.__wallSpeaker, cabinetPosition, 32);
+    context.restore();
+  }, this);
+
+  return this.__wallSpeakerFixtures.length;
+
+};
+
 DJBoothAnimation.prototype.__smoothArmTarget = function (key, desired, now) {
 
   let state = this.__armTargets[key];
@@ -251,6 +324,7 @@ DJBoothAnimation.prototype.draw = function (disco) {
 
     context.save();
     context.imageSmoothingEnabled = false;
+    this.__drawWallSpeakers(context, disco, rhythm);
     context.drawImage(this.__image, x, y, 96, 40);
     this.__drawDeckMotion(context, x, y, rhythm);
 

@@ -14,7 +14,7 @@
     "test:movement": "node tests/test-movement-latency-buffer.js && node tests/test-diagonal-step-duration.js && node tests/test-player-step-duration.js && node tests/test-diagonal-pathfinder.js && node tests/test-self-teleport-movement-reset.js && node tests/test-mobile-joystick.js && node tests/test-rapid-click-pathfinding.js",
     "test:world-sync": "node tests/test-creature-resync-client.js && node tests/test-creature-resync-server.js && node tests/test-teleport-world-resync.js && node tests/test-stale-entity-chunk-recovery.js && node tests/test-entity-reference-idempotency.js && node tests/test-speech-position-sync.js && node tests/test-renderer-chunk-transition.js",
     "test:partyzone-accounts": "node tests/test-partyzone-account-import.js && node tests/test-registration-policy.js",
-    "test:radio": "node tests/test-radio-rhythm.js && node tests/test-disco-spotlights.js && node tests/test-party-radio-queue.js",
+    "test:radio": "node tests/test-radio-rhythm.js && node tests/test-disco-spotlights.js && node tests/test-dj-booth-animation.js && node tests/test-party-radio-queue.js",
     "test:combat": "node tests/test-equipment-combat.js",
     "test:pvp": "node tests/test-pvp-policy.js && node tests/test-pvp-system.js && node tests/test-combat-feedback.js && node tests/test-death-cleanup.js"
   },
