@@ -24,7 +24,11 @@ const DJBoothAnimation = function (screen) {
       }, true);
     }
   }.bind(this);
-  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker.png";
+  // Keep a versioned URL. Before this asset existed, the SPA fallback returned
+  // index.html with status 200 and the service worker cached that response
+  // under the bare PNG path. A new key guarantees that clients fetch the real
+  // image and also gives future speaker revisions an explicit cache boundary.
+  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker.png?v=20260816.1";
   this.__wallSpeakerFixtures = [
     { key: "lower-left", x: 32508, y: 32353, z: 7 },
     { key: "upper-left", x: 32508, y: 32339, z: 7 },

@@ -19,6 +19,7 @@ function Position(x, y, z) {
 function Image() {
   this.onload = null;
   this.onerror = null;
+  this.src = "";
 }
 
 const drawingContext = {
@@ -94,6 +95,11 @@ const source = fs.readFileSync(
 vm.runInContext(source + "\nthis.DJBoothAnimation = DJBoothAnimation;", context);
 
 const animation = new context.DJBoothAnimation({ context: drawingContext });
+assert.strictEqual(
+  animation.__wallSpeakerImage.src,
+  "/png/dj-booth/wall-speaker.png?v=20260816.1",
+  "the custom cabinet must use a versioned URL so a cached SPA fallback cannot hide it"
+);
 animation.__image.onload();
 animation.__wallSpeakerImage.onload();
 const disco = { center: { x: 32515, y: 32346, z: 7 }, beatBpm: 140 };
