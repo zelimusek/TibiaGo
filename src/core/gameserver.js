@@ -134,8 +134,19 @@ GameServer.prototype.shutdown = async function () {
   console.log("Waiting for pending database operations...");
   await new Promise(resolve => setTimeout(resolve, 3000));
 
+  // Flush and close the shared database connection before terminating Node.
+  // This is essential for embedded PGlite (WAL/checkpoint durability) and
+  // lets a regular PostgreSQL pool finish in-flight writes cleanly.
+  console.log("Closing the database connection...");
+  try {
+    await closeDatabase();
+  } catch (error) {
+    console.error("Could not close the database cleanly:", error);
+    process.exitCode = 1;
+  }
+
   console.log("Server shutdown complete.");
-  process.exit(0);
+  process.exit(process.exitCode || 0);
 
 }
 

@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const { PGlite } = require("@electric-sql/pglite");
+const { Pool } = require("pg");
 
 const ROOT = path.resolve(__dirname, "..");
 const PORTAL_DB = process.env.PARTYZONE_PORTAL_DB
@@ -56,6 +57,41 @@ const ITEMS = {
   DEMON_LEGS: 2495,
   STEEL_BOOTS: 2645,
 };
+
+async function openAccountStore() {
+  const connectionString = process.env.DATABASE_URL || "";
+  const usePostgres = process.env.USE_EMBEDDED_DB === "false" && connectionString;
+
+  if (!usePostgres) {
+    const database = new PGlite(path.join(ROOT, "data", "pgdata"));
+    return {
+      exec: sql => database.exec(sql),
+      query: (sql, values) => database.query(sql, values),
+      transaction: callback => database.transaction(callback),
+      close: () => database.close(),
+    };
+  }
+
+  const pool = new Pool({ connectionString, max: 2 });
+  return {
+    exec: sql => pool.query(sql),
+    query: (sql, values) => pool.query(sql, values),
+    async transaction(callback) {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+        await callback({ query: (sql, values) => client.query(sql, values) });
+        await client.query("commit");
+      } catch (error) {
+        await client.query("rollback").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    close: () => pool.end(),
+  };
+}
 
 function normalized(value) {
   return String(value || "").trim().toLocaleLowerCase("en-US");
@@ -307,7 +343,7 @@ async function main() {
     return;
   }
 
-  const database = new PGlite(path.join(ROOT, "data", "pgdata"));
+  const database = await openAccountStore();
   try {
     await database.exec('ALTER TABLE "accounts" ALTER COLUMN "hash" TYPE text');
     const existing = await database.query('SELECT account, name FROM accounts');
@@ -369,4 +405,5 @@ module.exports = {
   equipmentFor,
   pointsForLevel,
   resolveMainWeapon,
+  openAccountStore,
 };

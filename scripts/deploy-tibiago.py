@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import io
 import json
 import os
 import posixpath
@@ -50,6 +51,38 @@ DEFAULTS = {
     "host": "s87.mydevil.net",
     "user": "zelek",
 }
+
+# Secrets and other runtime-owned environment values are provisioned directly
+# on the server. Source deploys must retain them instead of replacing the
+# complete .env with the non-secret tracked template.
+PRESERVED_REMOTE_ENV_KEYS = {
+    "DATABASE_URL",
+    "HMAC_SHARED_SECRET",
+}
+
+
+def parse_env(content):
+    values = {}
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        values[key.strip()] = value.strip()
+    return values
+
+
+def merge_preserved_remote_env(local_content, remote_content):
+    local_lines = local_content.rstrip("\r\n").splitlines()
+    local_values = parse_env(local_content)
+    remote_values = parse_env(remote_content)
+
+    for key in sorted(PRESERVED_REMOTE_ENV_KEYS):
+        if key in local_values or key not in remote_values:
+            continue
+        local_lines.append(f"{key}={remote_values[key]}")
+
+    return "\n".join(local_lines) + "\n"
 
 # Directories / files that should NOT be uploaded
 BLOCKED_PREFIXES = (
@@ -109,6 +142,7 @@ ALLOWED_FILES = {
     "client-server.py",
     "scripts/tibiago-watchdog.sh",
     "scripts/import-partyzone-guild-accounts.js",
+    "scripts/migrate-pglite-to-postgres.js",
 }
 
 
@@ -252,7 +286,7 @@ def main():
 
     config = load_config(args.target)
     production_env_file = config["envFile"]
-    load_production_env(production_env_file)
+    production_env_content = load_production_env(production_env_file)
     password = config.get("password")
     if not password and not args.dry_run:
         import getpass
@@ -318,7 +352,17 @@ def main():
         print("Uploading production environment...")
         with client.open_sftp() as sftp:
             remote_env = posixpath.join(remote_root, ".env")
-            sftp.put(str(production_env_file), remote_env)
+            remote_env_content = ""
+            try:
+                with sftp.open(remote_env, "r") as remote_handle:
+                    remote_env_content = remote_handle.read().decode("utf-8")
+            except FileNotFoundError:
+                pass
+            merged_env = merge_preserved_remote_env(
+                production_env_content,
+                remote_env_content,
+            )
+            sftp.putfo(io.BytesIO(merged_env.encode("utf-8")), remote_env)
             sftp.chmod(remote_env, 0o600)
 
         # ─── npm install ─────────────────────────────────────────────────
@@ -365,8 +409,12 @@ def main():
                     "cmd=$(ps -ww -p \"$pid\" -o command= 2>/dev/null || true); "
                     "case \"$cmd\" in *server-production.js*) kill -TERM \"$pid\";; "
                     "*) echo \"Refusing to stop unexpected port owner: $cmd\" >&2; exit 1;; esac; fi; "
-                    f"i=0; while sockstat -4 -l 2>/dev/null | grep -q ':{port}'; do "
-                    "i=$((i+1)); [ \"$i\" -lt 30 ] || exit 1; sleep 1; done"
+                    "i=0; while :; do "
+                    "alive=0; listening=0; "
+                    "if [ -n \"$pid\" ] && kill -0 \"$pid\" 2>/dev/null; then alive=1; fi; "
+                    f"if sockstat -4 -l 2>/dev/null | grep -q ':{port}'; then listening=1; fi; "
+                    "if [ \"$alive\" -eq 0 ] && [ \"$listening\" -eq 0 ]; then break; fi; "
+                    "i=$((i+1)); [ \"$i\" -lt 40 ] || exit 1; sleep 1; done"
                 )
                 run_remote(client, stop_command)
                 # Start in background
