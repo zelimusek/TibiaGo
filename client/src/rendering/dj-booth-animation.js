@@ -28,7 +28,7 @@ const DJBoothAnimation = function (screen) {
   // index.html with status 200 and the service worker cached that response
   // under the bare PNG path. A new key guarantees that clients fetch the real
   // image and also gives future speaker revisions an explicit cache boundary.
-  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker-line-array.png?v=20260816.1";
+  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker-pair.png?v=20260816.2";
   this.__wallSpeakerFixtures = [
     { key: "lower-left", x: 32508, y: 32353, z: 7 },
     { key: "upper-left", x: 32508, y: 32339, z: 7 },
@@ -178,7 +178,7 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
   let strength = Number.isFinite(Number(rhythm.strength))
     ? Math.max(0, Math.min(1.5, Number(rhythm.strength)))
     : 1;
-  let cabinetScale = 0.82 * (1 + pulse * (0.045 + strength * 0.018));
+  let cabinetScale = 0.58 * (1 + pulse * (0.045 + strength * 0.018));
 
   this.__wallSpeakerFixtures.forEach(function (fixture) {
     let screenPosition = gameClient.renderer.getStaticScreenPosition(
@@ -194,12 +194,14 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
     context.save();
     context.imageSmoothingEnabled = false;
     context.translate(mountX, mountY);
-    // The generated wall cabinet faces south. Rotate its mounting rail so the
-    // hanging speakers point towards the dance floor independently at every
-    // corner. Scaling around this top fixing keeps it attached to the pillar.
+    // The pair's center axis faces south while its two cabinets fan slightly
+    // left and right. Aim that axis at the middle of the floor at every pillar;
+    // the built-in spread then covers both the near and far side of the dance
+    // floor. Scaling around the center plate keeps the rail attached to its
+    // beam while both cabinets pulse together with the bass.
     context.rotate(facingAngle - Math.PI * 0.5);
     context.scale(cabinetScale, cabinetScale);
-    context.drawImage(this.__wallSpeakerImage, -32, -4, 64, 64);
+    context.drawImage(this.__wallSpeakerImage, -48, -8, 96, 64);
     context.restore();
   }, this);
 

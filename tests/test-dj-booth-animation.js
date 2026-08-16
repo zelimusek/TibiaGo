@@ -97,7 +97,7 @@ vm.runInContext(source + "\nthis.DJBoothAnimation = DJBoothAnimation;", context)
 const animation = new context.DJBoothAnimation({ context: drawingContext });
 assert.strictEqual(
   animation.__wallSpeakerImage.src,
-  "/png/dj-booth/wall-speaker-line-array.png?v=20260816.1",
+  "/png/dj-booth/wall-speaker-pair.png?v=20260816.2",
   "the custom cabinet must use a versioned URL so a cached SPA fallback cannot hide it"
 );
 animation.__image.onload();
@@ -105,7 +105,8 @@ animation.__wallSpeakerImage.onload();
 const disco = { center: { x: 32515, y: 32346, z: 7 }, beatBpm: 140 };
 
 assert.strictEqual(animation.draw(disco), true);
-let boothDraw = drawCalls.find(call => call && call.type === "drawImage" && call.width === 96);
+let boothDraw = drawCalls.find(call => call && call.type === "drawImage"
+  && call.width === 96 && call.height === 40);
 assert.ok(boothDraw, "the shared DJ console should render");
 assert.deepStrictEqual(
   { x: boothDraw.x, y: boothDraw.y, width: boothDraw.width, height: boothDraw.height },
@@ -135,11 +136,12 @@ assert.ok(
   "the animated sleeve should first cover Hubertuse's arm painted into the outfit"
 );
 assert.strictEqual(Math.max.apply(Math, lineWidths), 7, "the thicker sleeve should cover the static outfit arm");
-let speakerDraws = drawCalls.filter(call => call && call.type === "drawImage" && call.width === 64);
+let speakerDraws = drawCalls.filter(call => call && call.type === "drawImage"
+  && call.width === 96 && call.height === 64);
 assert.strictEqual(speakerDraws.length, 4, "all four corner pillars should receive a wall speaker");
 assert.ok(
-  speakerDraws.every(call => call.x === -32 && call.y === -4 && call.height === 64),
-  "wall fixtures should render the custom double cabinet from its fixed top mount"
+  speakerDraws.every(call => call.x === -48 && call.y === -8 && call.height === 64),
+  "wall fixtures should render the fanned speaker pair from its center mounting rail"
 );
 let cabinetScales = transforms.filter(transform => transform.type === "scale");
 assert.strictEqual(cabinetScales.length, 4, "every wall speaker should receive the shared bass scale");
