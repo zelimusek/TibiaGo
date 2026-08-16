@@ -28,7 +28,7 @@ const DJBoothAnimation = function (screen) {
   // index.html with status 200 and the service worker cached that response
   // under the bare PNG path. A new key guarantees that clients fetch the real
   // image and also gives future speaker revisions an explicit cache boundary.
-  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker-pair.png?v=20260816.2";
+  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker-pair-hq.png?v=20260816.3";
   this.__wallSpeakerFixtures = [
     { key: "lower-left", x: 32508, y: 32353, z: 7 },
     { key: "upper-left", x: 32508, y: 32339, z: 7 },
@@ -178,7 +178,11 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
   let strength = Number.isFinite(Number(rhythm.strength))
     ? Math.max(0, Math.min(1.5, Number(rhythm.strength)))
     : 1;
-  let cabinetScale = 0.58 * (1 + pulse * (0.045 + strength * 0.018));
+  // Keep the cabinet and mounting rail mechanically stable. Scaling the whole
+  // low-resolution, rotated bitmap every frame made its pixel edges shimmer.
+  // The high-resolution source is rendered at a fixed size while only the
+  // woofer light below breathes with the bass.
+  let cabinetScale = 0.145;
 
   this.__wallSpeakerFixtures.forEach(function (fixture) {
     let screenPosition = gameClient.renderer.getStaticScreenPosition(
@@ -192,7 +196,8 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
     let mountY = screenPosition.y * 32;
     let facingAngle = Math.atan2(centerY - mountY, centerX - mountX);
     context.save();
-    context.imageSmoothingEnabled = false;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
     context.translate(mountX, mountY);
     // The pair's center axis faces south while its two cabinets fan slightly
     // left and right. Aim that axis at the middle of the floor at every pillar;
@@ -201,7 +206,23 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
     // beam while both cabinets pulse together with the bass.
     context.rotate(facingAngle - Math.PI * 0.5);
     context.scale(cabinetScale, cabinetScale);
-    context.drawImage(this.__wallSpeakerImage, -48, -8, 96, 64);
+    context.drawImage(this.__wallSpeakerImage, -192, -32, 384, 256);
+
+    // Animate the membranes instead of the cabinet geometry. These soft,
+    // sub-pixel circles remain stable while the fixed speaker body stays sharp.
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    context.globalAlpha = 0.055 + pulse * (0.11 + strength * 0.025);
+    [
+      { x: -85, y: 127, color: "#22d9ff" },
+      { x: 85, y: 127, color: "#ff3bcb" }
+    ].forEach(function (woofer) {
+      context.fillStyle = woofer.color;
+      context.beginPath();
+      context.arc(woofer.x, woofer.y, 34 + pulse * 4, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.restore();
     context.restore();
   }, this);
 

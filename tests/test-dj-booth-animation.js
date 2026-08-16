@@ -9,6 +9,7 @@ let drawCalls = [];
 let storage = new Map();
 let lineWidths = [];
 let transforms = [];
+let arcs = [];
 
 function Position(x, y, z) {
   this.x = x;
@@ -29,6 +30,8 @@ const drawingContext = {
   rotate(angle) { transforms.push({ type: "rotate", angle }); },
   scale(x, y) { transforms.push({ type: "scale", x, y }); },
   beginPath() {},
+  arc(x, y, radius) { arcs.push({ x, y, radius }); },
+  fill() { drawCalls.push("fill"); },
   moveTo(x, y) { drawCalls.push({ type: "moveTo", x, y }); },
   lineTo(x, y) { drawCalls.push({ type: "lineTo", x, y }); },
   stroke() { drawCalls.push("stroke"); },
@@ -97,7 +100,7 @@ vm.runInContext(source + "\nthis.DJBoothAnimation = DJBoothAnimation;", context)
 const animation = new context.DJBoothAnimation({ context: drawingContext });
 assert.strictEqual(
   animation.__wallSpeakerImage.src,
-  "/png/dj-booth/wall-speaker-pair.png?v=20260816.2",
+  "/png/dj-booth/wall-speaker-pair-hq.png?v=20260816.3",
   "the custom cabinet must use a versioned URL so a cached SPA fallback cannot hide it"
 );
 animation.__image.onload();
@@ -137,10 +140,10 @@ assert.ok(
 );
 assert.strictEqual(Math.max.apply(Math, lineWidths), 7, "the thicker sleeve should cover the static outfit arm");
 let speakerDraws = drawCalls.filter(call => call && call.type === "drawImage"
-  && call.width === 96 && call.height === 64);
+  && call.width === 384 && call.height === 256);
 assert.strictEqual(speakerDraws.length, 4, "all four corner pillars should receive a wall speaker");
 assert.ok(
-  speakerDraws.every(call => call.x === -48 && call.y === -8 && call.height === 64),
+  speakerDraws.every(call => call.x === -192 && call.y === -32),
   "wall fixtures should render the fanned speaker pair from its center mounting rail"
 );
 let cabinetScales = transforms.filter(transform => transform.type === "scale");
@@ -148,9 +151,11 @@ assert.strictEqual(cabinetScales.length, 4, "every wall speaker should receive t
 assert.ok(
   cabinetScales.every(transform => Math.abs(transform.x - cabinetScales[0].x) < 1e-9
     && Math.abs(transform.y - cabinetScales[0].y) < 1e-9
-    && transform.x > 0.5),
-  "all wall speakers should pulse in lockstep from the same bass rhythm"
+    && transform.x === 0.145),
+  "all wall speaker cabinets should keep the same stable high-resolution scale"
 );
+assert.strictEqual(arcs.length, 8, "both woofer lights should pulse on all four fixtures");
+assert.ok(arcs.every(arc => arc.radius > 34), "woofer light radius should respond to the bass pulse");
 let fixtureRotations = transforms.filter(transform => transform.type === "rotate");
 assert.strictEqual(fixtureRotations.length, 4, "each custom cabinet should rotate towards the floor");
 let facingAngles = fixtureRotations.map(transform => transform.angle + Math.PI * 0.5);
