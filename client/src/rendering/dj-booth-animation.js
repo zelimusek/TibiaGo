@@ -28,7 +28,7 @@ const DJBoothAnimation = function (screen) {
   // index.html with status 200 and the service worker cached that response
   // under the bare PNG path. A new key guarantees that clients fetch the real
   // image and also gives future speaker revisions an explicit cache boundary.
-  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker.png?v=20260816.1";
+  this.__wallSpeakerImage.src = "/png/dj-booth/wall-speaker-line-array.png?v=20260816.1";
   this.__wallSpeakerFixtures = [
     { key: "lower-left", x: 32508, y: 32353, z: 7 },
     { key: "upper-left", x: 32508, y: 32339, z: 7 },
@@ -178,7 +178,7 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
   let strength = Number.isFinite(Number(rhythm.strength))
     ? Math.max(0, Math.min(1.5, Number(rhythm.strength)))
     : 1;
-  let cabinetScale = 0.68 * (1 + pulse * (0.045 + strength * 0.018));
+  let cabinetScale = 0.82 * (1 + pulse * (0.045 + strength * 0.018));
 
   this.__wallSpeakerFixtures.forEach(function (fixture) {
     let screenPosition = gameClient.renderer.getStaticScreenPosition(

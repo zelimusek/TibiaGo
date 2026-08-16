@@ -97,7 +97,7 @@ vm.runInContext(source + "\nthis.DJBoothAnimation = DJBoothAnimation;", context)
 const animation = new context.DJBoothAnimation({ context: drawingContext });
 assert.strictEqual(
   animation.__wallSpeakerImage.src,
-  "/png/dj-booth/wall-speaker.png?v=20260816.1",
+  "/png/dj-booth/wall-speaker-line-array.png?v=20260816.1",
   "the custom cabinet must use a versioned URL so a cached SPA fallback cannot hide it"
 );
 animation.__image.onload();
