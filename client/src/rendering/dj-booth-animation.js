@@ -208,21 +208,28 @@ DJBoothAnimation.prototype.__drawWallSpeakers = function (context, disco, rhythm
     context.scale(cabinetScale, cabinetScale);
     context.drawImage(this.__wallSpeakerImage, -192, -32, 384, 256);
 
-    // Animate the membranes instead of the cabinet geometry. These soft,
-    // sub-pixel circles remain stable while the fixed speaker body stays sharp.
-    context.save();
-    context.globalCompositeOperation = "lighter";
-    context.globalAlpha = 0.055 + pulse * (0.11 + strength * 0.025);
+    // Animate the real woofer artwork rather than painting colored dots over
+    // it. Each circular crop is taken from the same high-resolution cabinet,
+    // clipped to its rim and expanded slightly on the beat. The cabinet and
+    // its mounting rail remain perfectly still.
+    let wooferScale = 1 + pulse * (0.115 + strength * 0.025);
     [
-      { x: -85, y: 127, color: "#22d9ff" },
-      { x: 85, y: 127, color: "#ff3bcb" }
+      { x: -85, y: 127, sourceX: 55, sourceY: 107 },
+      { x: 85, y: 127, sourceX: 225, sourceY: 107 }
     ].forEach(function (woofer) {
-      context.fillStyle = woofer.color;
+      context.save();
       context.beginPath();
-      context.arc(woofer.x, woofer.y, 34 + pulse * 4, 0, Math.PI * 2);
-      context.fill();
-    });
-    context.restore();
+      context.arc(woofer.x, woofer.y, 50, 0, Math.PI * 2);
+      context.clip();
+      context.translate(woofer.x, woofer.y);
+      context.scale(wooferScale, wooferScale);
+      context.drawImage(
+        this.__wallSpeakerImage,
+        woofer.sourceX, woofer.sourceY, 104, 104,
+        -52, -52, 104, 104
+      );
+      context.restore();
+    }, this);
     context.restore();
   }, this);
 

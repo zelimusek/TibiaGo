@@ -10,6 +10,7 @@ let storage = new Map();
 let lineWidths = [];
 let transforms = [];
 let arcs = [];
+let clips = 0;
 
 function Position(x, y, z) {
   this.x = x;
@@ -31,7 +32,7 @@ const drawingContext = {
   scale(x, y) { transforms.push({ type: "scale", x, y }); },
   beginPath() {},
   arc(x, y, radius) { arcs.push({ x, y, radius }); },
-  fill() { drawCalls.push("fill"); },
+  clip() { clips += 1; },
   moveTo(x, y) { drawCalls.push({ type: "moveTo", x, y }); },
   lineTo(x, y) { drawCalls.push({ type: "lineTo", x, y }); },
   stroke() { drawCalls.push("stroke"); },
@@ -146,7 +147,8 @@ assert.ok(
   speakerDraws.every(call => call.x === -192 && call.y === -32),
   "wall fixtures should render the fanned speaker pair from its center mounting rail"
 );
-let cabinetScales = transforms.filter(transform => transform.type === "scale");
+let cabinetScales = transforms.filter(transform => transform.type === "scale"
+  && transform.x === 0.145 && transform.y === 0.145);
 assert.strictEqual(cabinetScales.length, 4, "every wall speaker should receive the shared bass scale");
 assert.ok(
   cabinetScales.every(transform => Math.abs(transform.x - cabinetScales[0].x) < 1e-9
@@ -154,8 +156,15 @@ assert.ok(
     && transform.x === 0.145),
   "all wall speaker cabinets should keep the same stable high-resolution scale"
 );
-assert.strictEqual(arcs.length, 8, "both woofer lights should pulse on all four fixtures");
-assert.ok(arcs.every(arc => arc.radius > 34), "woofer light radius should respond to the bass pulse");
+assert.strictEqual(arcs.length, 8, "both real woofer artworks should animate on all four fixtures");
+assert.strictEqual(clips, 8, "each animated woofer should stay clipped inside its physical rim");
+assert.ok(arcs.every(arc => arc.radius === 50), "woofer crops should use the actual cabinet rim");
+let wooferDraws = drawCalls.filter(call => call && call.type === "drawImage"
+  && call.width === 104 && call.height === 104);
+assert.strictEqual(wooferDraws.length, 8, "each physical woofer should be redrawn as a bass layer");
+let wooferScales = transforms.filter(transform => transform.type === "scale"
+  && transform.x > 1 && transform.y > 1);
+assert.strictEqual(wooferScales.length, 8, "all real woofer layers should expand on the beat");
 let fixtureRotations = transforms.filter(transform => transform.type === "rotate");
 assert.strictEqual(fixtureRotations.length, 4, "each custom cabinet should rotate towards the floor");
 let facingAngles = fixtureRotations.map(transform => transform.angle + Math.PI * 0.5);
