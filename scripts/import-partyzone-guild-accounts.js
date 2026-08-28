@@ -262,9 +262,9 @@ function buildCharacter(entry, source, skillLevels) {
   return { character, desired, health, mana, capacity };
 }
 
-async function prepareRows() {
+async function prepareRows({ includeAccounts = true } = {}) {
   const characters = await fetchCharacters();
-  const portalAccounts = readPortalAccounts();
+  const portalAccounts = includeAccounts ? readPortalAccounts() : new Map();
   const knights = new Set(
     ROSTER.filter(entry => entry.vocation === CONST.VOCATION.ELITE_KNIGHT)
       .map(entry => normalized(entry.name))
@@ -310,13 +310,13 @@ async function prepareRows() {
     };
     const built = buildCharacter(entry, source, skillLevels);
     return {
-      account: normalized(portal.username),
-      hash: portal.password,
+      account: portal ? normalized(portal.username) : undefined,
+      hash: portal ? portal.password : undefined,
       name: source.name,
       character: built.character,
       summary: {
         name: source.name,
-        account: normalized(portal.username),
+        account: portal ? normalized(portal.username) : undefined,
         vocation: source.vocationName,
         main: entry.main,
         level: source.level,
@@ -406,4 +406,5 @@ module.exports = {
   pointsForLevel,
   resolveMainWeapon,
   openAccountStore,
+  prepareRows,
 };

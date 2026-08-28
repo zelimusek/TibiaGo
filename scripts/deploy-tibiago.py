@@ -142,6 +142,7 @@ ALLOWED_FILES = {
     "client-server.py",
     "scripts/tibiago-watchdog.sh",
     "scripts/import-partyzone-guild-accounts.js",
+    "scripts/update-partyzone-guild-stats.js",
     "scripts/migrate-pglite-to-postgres.js",
 }
 
